@@ -1,6 +1,7 @@
 const { services, nextId: nextServiceId } = require('../models/Service');
 const { workers } = require('../models/Worker'); 
 const { farmers } = require('../models/Farmer'); // Importação da tabela de produtores
+const { farms } = require('../models/Farm');
 
 // GET /api/farmers - Retorna a lista de produtores
 exports.listFarmers = (req, res) => {
@@ -40,6 +41,52 @@ exports.createFarmer = (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'Internal error while creating farmer.' });
+  }
+};
+
+// POST /api/farmers/:id/farms - Regista uma nova fazenda para um produtor
+// {
+//   "address": "Estrada de Terra, Km 2",
+//   "city": "Três Rios",
+//   "state": "RJ"
+// }
+exports.createFarm = (req, res) => {
+  try {
+    const farmer_id = parseInt(req.params.id); // Pega o ID da URL
+    const { address, city, state } = req.body;
+
+    // Validação dos dados da fazenda
+    if (!address || !city || !state) {
+      return res.status(400).json({ error: 'Missing required fields: address, city, or state.' });
+    }
+
+    // Verifica se o produtor existe em memória
+    const farmerIndex = farmers.findIndex(f => f.id === farmer_id);
+    if (farmerIndex === -1) {
+      return res.status(404).json({ error: 'Farmer not found.' });
+    }
+
+    const newFarm = {
+      id: Date.now(),
+      farmer_id, 
+      address,
+      city,
+      state,
+      insertion_date: new Date().toISOString()
+    };
+
+    farms.push(newFarm);
+
+    // Opcional: Atualiza a contagem de fazendas no objeto do Produtor
+    farmers[farmerIndex].farms = (farmers[farmerIndex].farms || 0) + 1;
+
+    return res.status(201).json({
+      message: 'Farm registered successfully!',
+      farm: newFarm
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal error while registering farm.' });
   }
 };
 

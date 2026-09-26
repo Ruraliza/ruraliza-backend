@@ -10,6 +10,10 @@ router.get('/', FarmerController.listFarmers);
 // POST /api/farmers
 router.post('/', FarmerController.createFarmer);
 
+// Cadastrar uma nova fazenda vinculada a um produtor
+// POST /api/farmers/:id/farms
+router.post('/:id/farms', FarmerController.createFarm);
+
 // Rota para solicitar um novo serviço (RF01)[cite: 3]
 // POST /api/farmers/services
 router.post('/services', FarmerController.requestService);
