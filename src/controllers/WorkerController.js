@@ -1,14 +1,55 @@
 const { services } = require('../models/Service');
+const { workers } = require('../models/Worker'); // Importação da tabela em memória
+
+// GET /api/workers - Retorna a lista de prestadores/trabalhadores
+exports.listWorkers = (req, res) => {
+  try {
+    return res.status(200).json(workers);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal error while fetching workers.' });
+  }
+};
+
+// POST /api/workers - Cadastra um novo prestador
+exports.createWorker = (req, res) => {
+  try {
+    const { email, name, certificates, experience, phone, cpf } = req.body;
+
+    if (!email || !name || !phone || !cpf) {
+      return res.status(400).json({ error: 'Missing required fields: email, name, phone, or cpf.' });
+    }
+
+    const newWorker = {
+      id: Date.now(), // Gera um ID único provisório em memória
+      email,
+      name,
+      certificates: certificates || null,
+      experience: experience || null,
+      phone,
+      cpf,
+      insertion_date: new Date().toISOString()
+    };
+
+    workers.push(newWorker);
+
+    return res.status(201).json({
+      message: 'Worker created successfully!',
+      worker: newWorker
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal error while creating worker.' });
+  }
+};
 
 // RF02 - Browse and search for services[cite: 3]
 exports.searchServices = (req, res) => {
   try {
-    const { category } = req.query;
+    const { category } = req.query; 
     
-    // Filtra serviços pendentes
     let pendingServices = services.filter(s => s.status === 'Pending');
     
-    // Filtra por categoria, se fornecida
     if (category) {
       pendingServices = pendingServices.filter(s => s.category === category);
     }
@@ -32,7 +73,6 @@ exports.applyForService = (req, res) => {
       return res.status(400).json({ error: 'Service is unavailable for application.' });
     }
 
-    // Em memória, apenas simulamos a candidatura (não estamos guardando num array de candidaturas)
     return res.status(200).json({
       message: 'Application sent successfully! Wait for the farmer\'s approval.',
       service_id: id,
