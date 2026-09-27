@@ -1,18 +1,9 @@
-let nextId = 1;
+// Array que serve como base de dados em memória para os produtores.
 const farmers = [];
 
-// Dados iniciais para teste (opcional)
-farmers.push({
-  id: nextId++,
-  email: 'produtor@exemplo.com',
-  name: 'João Produtor',
-  farms: 2,
-  phone: '24999999999',
-  cpf: '11122233344',
-  insertion_date: new Date().toISOString()
-});
+/*
+  Estrutura de um Farmer:
+  { id, email, name, farms (contador de fazendas), phone, cpf, insertion_date }
+*/
 
-module.exports = {
-  farmers,
-  nextId
-};
+module.exports = { farmers };

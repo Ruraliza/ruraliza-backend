@@ -1,8 +1,10 @@
-// src/models/Service.js
-let nextId = 1;
+// Array que serve como base de dados em memória para os serviços.
 const services = [];
 
-module.exports = {
-  services,
-  nextId: () => nextId++ // Função para garantir um novo ID a cada chamada
-};
+/*
+  Estrutura de um Service:
+  { id, farmer_id, farm_id, worker_id, payment_id, name, category,
+    duration (horas), price, status (SERVICE_STATUS), insertion_date }
+*/
+
+module.exports = { services };

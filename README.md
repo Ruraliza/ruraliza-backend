@@ -1,76 +1,85 @@
 # 🌾 Ruraliza - API Backend
 
-O projeto **AgTech Ruraliza** é uma plataforma desenvolvida para conectar proprietários rurais a profissionais e estudantes universitários, facilitando a prestação de serviços operacionais nas fazendas e permitindo a validação de horas de estágio curricular.
+O projeto **AgTech Ruraliza** conecta produtores rurais a trabalhadores, prestadores e estudantes, facilitando a prestação de serviços operacionais nas fazendas.
 
-Este repositório contém a API Backend construída em **Node.js** com **Express**, estruturada segundo o padrão arquitetural **MVC (Model-View-Controller)**. Atualmente, os dados são armazenados temporariamente **em memória** (Arrays), o que é ideal para testes rápidos e prototipagem sem necessidade de configurar uma base de dados complexa.
+API em **Node.js + Express 5**, padrão **MVC**. Nesta fase os dados ficam **em memória** (arrays): tudo some quando o servidor reinicia.
 
 ---
 
-## 🚀 Como executar o projeto
+## 🚀 Como executar
 
-### Pré-requisitos
-Certifique-se de que tem o [Node.js](https://nodejs.org/) instalado na sua máquina.
-
-### 1. Instalar as dependências
-Abra o terminal na pasta raiz do projeto e execute o seguinte comando para instalar o Express, CORS e o Dotenv:
+Pré-requisito: [Node.js](https://nodejs.org/) 20 ou superior.
 
 ```bash
 npm install
+npm run dev      # sobe em http://localhost:3000/api e reinicia ao salvar
+npm start        # sobe sem watch
+npm run smoke    # percorre o fluxo completo e os casos de erro principais
 ```
-*(Caso não tenha o package.json configurado, instale manualmente: `npm install express cors dotenv`)*
 
-### 2. Iniciar o servidor
-Para colocar a API a funcionar, execute:
-
-```bash
-node app.js
-```
-Deverá ver no terminal a mensagem: `🚀 Servidor do Ruraliza rodando na porta 3000`
+Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador e 3 serviços `Pending` (Colheita, Plantio, Manutenção).
 
 ---
 
-## 📁 Estrutura do Projeto
+## 📁 Estrutura
 
 ```text
-/ruraliza-backend
-├── app.js                         # Ficheiro principal (Entry point)
-├── /src
-│   ├── /models                    # Estruturas de dados em memória (Tabelas)
-│   │   ├── Farmer.js              # Modelo: Produtores Rurais
-│   │   ├── Worker.js              # Modelo: Prestadores/Estudantes
-│   │   └── Service.js             # Modelo: Serviços
-│   │
-│   ├── /controllers               # Lógica de negócio da API
-│   │   ├── FarmerController.js    # Funções do Produtor
-│   │   └── WorkerController.js    # Funções do Trabalhador
-│   │
-│   └── /routes                    # Endpoints da API
-│       ├── farmerRoutes.js        # Rotas em /api/farmers
-│       └── workerRoutes.js        # Rotas em /api/workers
+app.js                      # Entry point, middlewares, erros, seed
+scripts/smoke.js            # Smoke test do fluxo completo
+src/
+  constants/                # Status e categorias
+  data/                     # Gerador de IDs e seed
+  models/                   # Arrays em memória (Farmer, Worker, Farm, Service, ServiceApplication, Payment...)
+  controllers/              # Regras de negócio
+  routes/                   # Endpoints
+  utils/                    # Validações (e-mail, CPF) e perfil público (CPF mascarado)
 ```
 
 ---
 
-## 🛣️ Rotas da API
+## 🛣️ Rotas
 
-Pode utilizar ferramentas como o **Postman**, **Insomnia** ou o próprio **cURL** para testar os endpoints abaixo. Lembre-se que, como a base de dados está em memória, os dados são reiniciados sempre que o servidor for desligado.
+Erros sempre no formato `{ "error": "mensagem" }` com o status correto (400 validação, 404 não encontrado, 409 conflito). POST/PATCH de sucesso devolvem `{ message, <entidade> }`; GET devolve o recurso ou a lista.
 
-### 👨‍🌾 Módulo do Produtor (Farmer)
-- **`GET /api/farmers`** : Lista todos os produtores.
-- **`POST /api/farmers`** : Regista um novo produtor (Corpo esperado: `email`, `name`, `phone`, `cpf`).
-- **`POST /api/farmers/services`** : Solicita a abertura de um serviço no campo.
-- **`PATCH /api/farmers/services/:id/analyze`** : Analisa a oferta de um trabalhador e aceita ou recusa (Muda o estado do serviço para 'In Progress').
-- **`POST /api/farmers/services/:id/payment`** : Simula a libertação do pagamento e conclui o serviço (Muda o estado para 'Completed').
+Status na API (em inglês): serviço `Pending | In Progress | Completed | Rejected | Cancelled`; candidatura `Pending | Accepted | Rejected`; pagamento `Completed`.
 
-### 👷‍♂️ Módulo do Trabalhador/Estudante (Worker)
-- **`GET /api/workers`** : Lista todos os trabalhadores e estudantes.
-- **`POST /api/workers`** : Regista um novo trabalhador (Corpo esperado: `email`, `name`, `phone`, `cpf`, `certificates`, `experience`).
-- **`GET /api/workers/services`** : Pesquisa os serviços disponíveis que estão pendentes.
-- **`POST /api/workers/services/:id/apply`** : Envia uma candidatura a um serviço específico.
+CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos. Em listas e respostas embutidas sai mascarado (`***.456.789-**`).
+
+### Produtor (`/api/farmers`)
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/farmers` | Lista produtores |
+| POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`); 409 se e-mail/CPF já existe entre produtores |
+| GET | `/api/farmers/:id` | Perfil completo |
+| GET | `/api/farmers/:id/farms` | Fazendas do produtor |
+| POST | `/api/farmers/:id/farms` | Cadastra fazenda (`address`, `city`, `state`) |
+| GET | `/api/farmers/:id/services?status=` | Serviços do produtor (com `farm` e `applications_pending`) |
+| POST | `/api/farmers/services` | Publica serviço (`farmer_id`, `farm_id`, `name`, `category`, `duration` em horas, `price`) |
+| GET | `/api/farmers/services/:id` | Serviço com a fazenda |
+| GET | `/api/farmers/services/:id/applications` | Candidaturas com o trabalhador embutido |
+| PATCH | `/api/farmers/services/:id/analyze` | `{ application_id, action: "Accept" \| "Reject" }` |
+| POST | `/api/farmers/services/:id/payment` | Libera pagamento (simulação) de serviço `In Progress`; cria `Payment` |
+
+### Trabalhador (`/api/workers`)
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/workers` | Lista trabalhadores |
+| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, opcionais `certificates`, `experience`) |
+| GET | `/api/workers/:id` | Perfil completo |
+| GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido |
+| GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador |
+| GET | `/api/workers/services?category=` | Vagas abertas (com cidade/UF da fazenda) |
+| GET | `/api/workers/services/:id` | Detalhe da vaga |
+| POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta ou já houve candidatura |
+
+### Outros
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/categories` | Lista fixa de categorias |
 
 ---
 
-## 🛠️ Próximos Passos (To-Do)
-- [ ] Implementar a geração de relatórios em PDF para as horas de estágio.
-- [ ] Adicionar o módulo de trilhas de qualificação para os estudantes.
-- [ ] Substituir o armazenamento em memória por uma base de dados real utilizando o ORM Sequelize (SQLite ou PostgreSQL).
+## 🛠️ Próximos passos
+- [ ] Banco de dados (ver `TODO(db)` no código: IDs, unicidade, transações no aceite/pagamento).
+- [ ] Autenticação real.
+- [ ] Trilhas de qualificação, registro de horas e relatórios em PDF.

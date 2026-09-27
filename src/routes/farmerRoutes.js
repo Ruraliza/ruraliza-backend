@@ -2,28 +2,43 @@ const express = require('express');
 const router = express.Router();
 const FarmerController = require('../controllers/FarmerController');
 
-// Listar todos os produtores
-// GET /api/farmers
-router.get('/', FarmerController.listFarmers);
+// Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
 
-// Cadastrar um novo produtor
-// POST /api/farmers
-router.post('/', FarmerController.createFarmer);
+// --- SERVIÇOS ---
 
-// Cadastrar uma nova fazenda vinculada a um produtor
-// POST /api/farmers/:id/farms
-router.post('/:id/farms', FarmerController.createFarm);
-
-// Rota para solicitar um novo serviço (RF01)[cite: 3]
-// POST /api/farmers/services
+// POST /api/farmers/services - Solicita um novo serviço (RF01)
 router.post('/services', FarmerController.requestService);
 
-// Rota para analisar e aceitar/recusar um prestador (RF03)[cite: 3]
-// PATCH /api/farmers/services/:id/analyze
+// GET /api/farmers/services/:id - Serviço com a fazenda
+router.get('/services/:id', FarmerController.getService);
+
+// GET /api/farmers/services/:id/applications - Candidaturas do serviço
+router.get('/services/:id/applications', FarmerController.listServiceApplications);
+
+// PATCH /api/farmers/services/:id/analyze - Aceita/recusa uma candidatura (RF03)
 router.patch('/services/:id/analyze', FarmerController.analyzeOffer);
 
-// Rota para realizar e liberar o pagamento do serviço (RF04)[cite: 3]
-// POST /api/farmers/services/:id/payment
+// POST /api/farmers/services/:id/payment - Libera o pagamento (RF04)
 router.post('/services/:id/payment', FarmerController.processPayment);
+
+// --- PRODUTORES ---
+
+// GET /api/farmers - Lista os produtores
+router.get('/', FarmerController.listFarmers);
+
+// POST /api/farmers - Cadastra um produtor
+router.post('/', FarmerController.createFarmer);
+
+// GET /api/farmers/:id - Perfil do produtor
+router.get('/:id', FarmerController.getFarmer);
+
+// GET /api/farmers/:id/farms - Fazendas do produtor
+router.get('/:id/farms', FarmerController.listFarms);
+
+// POST /api/farmers/:id/farms - Cadastra uma fazenda
+router.post('/:id/farms', FarmerController.createFarm);
+
+// GET /api/farmers/:id/services?status= - Serviços do produtor
+router.get('/:id/services', FarmerController.listFarmerServices);
 
 module.exports = router;
