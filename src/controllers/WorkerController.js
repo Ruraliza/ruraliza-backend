@@ -90,6 +90,51 @@ exports.searchServices = (req, res) => {
 };
 
 // RF02 - Candidata-se a um serviço
+// PATCH /api/workers/services/:id/withdraw - O trabalhador desiste, e tudo volta uma etapa:
+// - candidatura Pending: é removida (pode se candidatar de novo depois);
+// - já aceito (serviço In Progress): o serviço volta a Pending sem trabalhador e as
+//   candidaturas recusadas pelo aceite voltam a Pending para o produtor escolher outro.
+// Body: { worker_id }
+exports.withdrawFromService = (req, res) => {
+  const service_id = Number(req.params.id);
+  const { worker_id } = req.body;
+
+  if (!worker_id) {
+    return res.status(400).json({ error: 'Informe o worker_id.' });
+  }
+
+  const service = services.find((s) => s.id === service_id);
+  if (!service) {
+    return res.status(404).json({ error: 'Serviço não encontrado.' });
+  }
+
+  const application = applications.find((a) => a.service_id === service_id && a.worker_id === Number(worker_id));
+  if (!application) {
+    return res.status(404).json({ error: 'Você não tem candidatura neste serviço.' });
+  }
+
+  if (application.status === APPLICATION_STATUS.PENDING && service.status === SERVICE_STATUS.PENDING) {
+    removeWhere(applications, (a) => a.id === application.id);
+    return res.status(200).json({ message: 'Application withdrawn.', service });
+  }
+
+  if (application.status === APPLICATION_STATUS.ACCEPTED && service.status === SERVICE_STATUS.IN_PROGRESS) {
+    // TODO(db): executar numa transação (serviço + candidaturas).
+    removeWhere(applications, (a) => a.id === application.id);
+    applications
+      .filter((a) => a.service_id === service.id && a.auto_rejected)
+      .forEach((a) => {
+        a.status = APPLICATION_STATUS.PENDING;
+        delete a.auto_rejected;
+      });
+    service.worker_id = null;
+    service.status = SERVICE_STATUS.PENDING;
+    return res.status(200).json({ message: 'You left the service. It is open for applications again.', service });
+  }
+
+  return res.status(409).json({ error: 'Não é possível desistir: a candidatura já foi recusada ou o serviço já foi encerrado.' });
+};
+
 exports.applyForService = (req, res) => {
   const service_id = Number(req.params.id);
   const { worker_id } = req.body;

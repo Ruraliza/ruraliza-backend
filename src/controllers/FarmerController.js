@@ -115,6 +115,70 @@ exports.createFarm = (req, res) => {
   return res.status(201).json({ message: 'Farm registered successfully!', farm: newFarm });
 };
 
+// Fazenda removida pelo produtor continua guardada (deleted_at) para o histórico dos serviços,
+// mas some das listas e não pode mais ser editada nem receber serviços.
+const isActiveFarm = (farm) => !farm.deleted_at;
+
+// Busca a fazenda ativa garantindo que é do produtor da rota. Retorna { farm } ou { status, error }.
+function findOwnFarm(params) {
+  const farmer = farmers.find((f) => f.id === Number(params.id));
+  if (!farmer) {
+    return { status: 404, error: 'Produtor não encontrado.' };
+  }
+  const farm = farms.find((f) => f.id === Number(params.farmId) && isActiveFarm(f));
+  if (!farm || farm.farmer_id !== farmer.id) {
+    return { status: 404, error: 'Fazenda não encontrada.' };
+  }
+  return { farmer, farm };
+}
+
+// PATCH /api/farmers/:id/farms/:farmId - Edita a fazenda (address, city, state)
+exports.updateFarm = (req, res) => {
+  const found = findOwnFarm(req.params);
+  if (found.error) {
+    return res.status(found.status).json({ error: found.error });
+  }
+
+  const { id, farmer_id } = req.body;
+  if (id !== undefined || farmer_id !== undefined) {
+    return res.status(400).json({ error: 'Só é possível alterar endereço, cidade e estado.' });
+  }
+
+  const fields = ['address', 'city', 'state'];
+  const blank = fields.filter((f) => req.body[f] !== undefined && !String(req.body[f]).trim());
+  if (blank.length > 0) {
+    return res.status(400).json({ error: `Estes campos não podem ficar vazios: ${blank.join(', ')}.` });
+  }
+
+  const { farm } = found;
+  fields.forEach((f) => {
+    if (req.body[f] !== undefined) farm[f] = String(req.body[f]).trim();
+  });
+
+  return res.status(200).json({ message: 'Farm updated successfully!', farm });
+};
+
+// DELETE /api/farmers/:id/farms/:farmId - Remove a fazenda (arquiva, guardando o histórico)
+// Bloqueia com serviço ativo (Pending/In Progress); serviços encerrados continuam com a fazenda.
+exports.deleteFarm = (req, res) => {
+  const found = findOwnFarm(req.params);
+  if (found.error) {
+    return res.status(found.status).json({ error: found.error });
+  }
+
+  const { farmer, farm } = found;
+  const farmServices = services.filter((s) => s.farm_id === farm.id);
+  const active = [SERVICE_STATUS.PENDING, SERVICE_STATUS.IN_PROGRESS];
+  if (farmServices.some((s) => active.includes(s.status))) {
+    return res.status(409).json({ error: 'Não é possível remover: a fazenda tem serviços abertos ou em andamento. Cancele ou conclua-os antes.' });
+  }
+
+  farm.deleted_at = new Date().toISOString();
+  farmer.farms = farmer.farms.filter((id) => id !== farm.id);
+
+  return res.status(200).json({ message: 'Farm deleted successfully!' });
+};
+
 // RF01 - Cadastra demanda com atividade, local e valor
 exports.requestService = (req, res) => {
   const missing = missingFields(req.body, ['farmer_id', 'farm_id', 'name', 'category', 'duration', 'price']);
@@ -136,7 +200,7 @@ exports.requestService = (req, res) => {
     return res.status(404).json({ error: 'Produtor não encontrado.' });
   }
 
-  const farm = farms.find((f) => f.id === Number(farm_id));
+  const farm = farms.find((f) => f.id === Number(farm_id) && isActiveFarm(f));
   if (!farm) {
     return res.status(404).json({ error: 'Fazenda não encontrada.' });
   }
@@ -195,7 +259,7 @@ exports.updateService = (req, res) => {
 
   let farm;
   if (farm_id !== undefined) {
-    farm = farms.find((f) => f.id === Number(farm_id));
+    farm = farms.find((f) => f.id === Number(farm_id) && isActiveFarm(f));
     if (!farm) {
       return res.status(404).json({ error: 'Fazenda não encontrada.' });
     }
@@ -274,7 +338,8 @@ exports.analyzeOffer = (req, res) => {
   application.status = APPLICATION_STATUS.ACCEPTED;
   applications
     .filter((a) => a.service_id === service.id && a.id !== application.id && a.status === APPLICATION_STATUS.PENDING)
-    .forEach((a) => { a.status = APPLICATION_STATUS.REJECTED; });
+    // auto_rejected: recusada pelo aceite de outro; volta a Pending se o aceito desistir.
+    .forEach((a) => { a.status = APPLICATION_STATUS.REJECTED; a.auto_rejected = true; });
   service.worker_id = application.worker_id;
   service.status = SERVICE_STATUS.IN_PROGRESS;
 
@@ -328,7 +393,7 @@ exports.listFarms = (req, res) => {
   if (!farmer) {
     return res.status(404).json({ error: 'Produtor não encontrado.' });
   }
-  return res.status(200).json(farms.filter((f) => f.farmer_id === farmer.id));
+  return res.status(200).json(farms.filter((f) => f.farmer_id === farmer.id && isActiveFarm(f)));
 };
 
 // GET /api/farmers/:id/services?status= - Serviços do produtor

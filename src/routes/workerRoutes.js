@@ -15,6 +15,9 @@ router.get('/services/:id', WorkerController.getServiceDetail);
 // POST /api/workers/services/:id/apply - Candidatura (RF02)
 router.post('/services/:id/apply', WorkerController.applyForService);
 
+// PATCH /api/workers/services/:id/withdraw - Desiste da candidatura ou do serviço aceito
+router.patch('/services/:id/withdraw', WorkerController.withdrawFromService);
+
 // --- TRABALHADORES ---
 
 // GET /api/workers - Lista os trabalhadores

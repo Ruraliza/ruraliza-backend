@@ -74,6 +74,14 @@ Content-Type: application/json
   "worker_id": {{workerId}}
 }
 
+### Desistir (candidatura pendente é removida; se já aceito, o serviço volta a Pending)
+PATCH {{baseUrl}}/workers/services/{{serviceId}}/withdraw
+Content-Type: application/json
+
+{
+  "worker_id": {{workerId}}
+}
+
 ### --- CONSULTAS DO TRABALHADOR ---
 
 ### Listar candidaturas do trabalhador

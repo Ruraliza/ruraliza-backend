@@ -50,6 +50,12 @@ router.get('/:id/farms', FarmerController.listFarms);
 // POST /api/farmers/:id/farms - Cadastra uma fazenda
 router.post('/:id/farms', FarmerController.createFarm);
 
+// PATCH /api/farmers/:id/farms/:farmId - Edita uma fazenda
+router.patch('/:id/farms/:farmId', FarmerController.updateFarm);
+
+// DELETE /api/farmers/:id/farms/:farmId - Remove uma fazenda (409 se tiver serviço ativo)
+router.delete('/:id/farms/:farmId', FarmerController.deleteFarm);
+
 // GET /api/farmers/:id/services?status= - Serviços do produtor
 router.get('/:id/services', FarmerController.listFarmerServices);
 

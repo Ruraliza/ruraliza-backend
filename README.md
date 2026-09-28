@@ -55,6 +55,8 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | DELETE | `/api/farmers/:id` | Remove o produtor com fazendas, serviços e candidaturas; 409 se houver serviço `In Progress` |
 | GET | `/api/farmers/:id/farms` | Fazendas do produtor |
 | POST | `/api/farmers/:id/farms` | Cadastra fazenda (`address`, `city`, `state`) |
+| PATCH | `/api/farmers/:id/farms/:farmId` | Edita `address`, `city`, `state` |
+| DELETE | `/api/farmers/:id/farms/:farmId` | Arquiva a fazenda (`deleted_at`): some das listas, mas os serviços encerrados continuam com ela; 409 se houver serviço `Pending`/`In Progress` |
 | GET | `/api/farmers/:id/services?status=` | Serviços do produtor (com `farm` e `applications_pending`) |
 | POST | `/api/farmers/services` | Publica serviço (`farmer_id`, `farm_id`, `name`, `category`, `duration` em horas, `price`) |
 | GET | `/api/farmers/services/:id` | Serviço com a fazenda |
@@ -77,6 +79,7 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | GET | `/api/workers/services?category=` | Vagas abertas (com cidade/UF da fazenda) |
 | GET | `/api/workers/services/:id` | Detalhe da vaga |
 | POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta ou já houve candidatura |
+| PATCH | `/api/workers/services/:id/withdraw` | `{ worker_id }`; desiste e volta uma etapa: candidatura `Pending` é removida; se já aceito, o serviço volta a `Pending` e as candidaturas recusadas pelo aceite voltam a `Pending`; 409 se recusada ou serviço encerrado |
 
 ### Outros
 | Método | Rota | Descrição |

@@ -177,6 +177,62 @@ async function run() {
   await step('cancelar de novo', 'PATCH', `/farmers/services/${editable.id}/cancel`, undefined, 409);
   await step('editar cancelado', 'PATCH', `/farmers/services/${editable.id}`, { name: 'X' }, 409);
 
+  console.log('\nDesistência do trabalhador');
+  const { service: ws } = await step('serviço para desistência', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Capina', category: 'Manutenção', duration: 5, price: 150 }, 201);
+  const { worker: worker3 } = await step('cadastrar 3º trabalhador', 'POST', '/workers',
+    { name: 'Davi', email: 'davi@exemplo.com', phone: '1', cpf: '71428793860' }, 201);
+  await step('candidatar para desistir', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker.id }, 201);
+  await step('desistir da candidatura', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 200,
+    (b) => assert.equal(b.service.status, 'Pending'));
+  await step('candidatura removida', 'GET', `/farmers/services/${ws.id}/applications`, undefined, 200, (b) => assert.equal(b.length, 0));
+  const { application: wa1 } = await step('candidatar de novo', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker.id }, 201);
+  const { application: wa2 } = await step('2º candidato', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker2.id }, 201);
+  const { application: wa3 } = await step('3º candidato', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker3.id }, 201);
+  await step('produtor recusa o 3º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa3.id, action: 'Reject' }, 200);
+  await step('produtor aceita o 1º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa1.id, action: 'Accept' }, 200);
+  await step('desistir do serviço aceito', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 200, (b) => {
+    assert.equal(b.service.status, 'Pending');
+    assert.equal(b.service.worker_id, null);
+  });
+  await step('volta à etapa anterior', 'GET', `/farmers/services/${ws.id}/applications`, undefined, 200, (b) => {
+    assert.equal(b.length, 2);
+    assert.equal(b.find((a) => a.id === wa2.id).status, 'Pending'); // recusada pelo aceite: volta
+    assert.equal(b.find((a) => a.id === wa3.id).status, 'Rejected'); // recusada pelo produtor: continua
+  });
+  await step('vaga reaberta', 'GET', '/workers/services', undefined, 200, (b) => assert.ok(b.some((s) => s.id === ws.id)));
+  await step('desistir sem candidatura', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 404);
+  await step('desistir de candidatura recusada', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker3.id }, 409);
+  await step('desistir de serviço concluído', 'PATCH', `/workers/services/${service.id}/withdraw`, { worker_id: worker.id }, 409);
+  await step('desistir sem worker_id', 'PATCH', `/workers/services/${ws.id}/withdraw`, {}, 400);
+
+  console.log('\nEdição e remoção de fazenda');
+  const { farm: f2 } = await step('2ª fazenda', 'POST', `/farmers/${farmer.id}/farms`, { address: 'Sítio Novo', city: 'Paty', state: 'RJ' }, 201);
+  await step('editar fazenda', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { address: 'Sítio Novo, Km 5', city: '  Paty do Alferes ' }, 200, (b) => {
+    assert.equal(b.farm.address, 'Sítio Novo, Km 5');
+    assert.equal(b.farm.city, 'Paty do Alferes');
+    assert.equal(b.farm.state, 'RJ');
+  });
+  await step('editar com campo vazio', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { city: ' ' }, 400);
+  await step('trocar dono da fazenda', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { farmer_id: other.id }, 400);
+  await step('fazenda de outro produtor', 'PATCH', `/farmers/${farmer.id}/farms/${otherFarm.id}`, { city: 'X' }, 404);
+  await step('fazenda inexistente', 'DELETE', `/farmers/${farmer.id}/farms/999`, undefined, 404);
+
+  const { service: f2Service } = await step('serviço na 2ª fazenda', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: f2.id, name: 'Cerca', category: 'Manutenção', duration: 3, price: 120 }, 201);
+  await step('remover fazenda com serviço aberto', 'DELETE', `/farmers/${farmer.id}/farms/${f2.id}`, undefined, 409);
+  await step('cancelar serviço da fazenda', 'PATCH', `/farmers/services/${f2Service.id}/cancel`, undefined, 200);
+  await step('remover fazenda', 'DELETE', `/farmers/${farmer.id}/farms/${f2.id}`, undefined, 200);
+  await step('fazenda sai do produtor', 'GET', `/farmers/${farmer.id}`, undefined, 200, (b) => assert.ok(!b.farms.includes(f2.id)));
+  await step('fazenda sai da lista', 'GET', `/farmers/${farmer.id}/farms`, undefined, 200, (b) => assert.ok(!b.some((f) => f.id === f2.id)));
+  await step('serviço encerrado continua com a fazenda', 'GET', `/farmers/services/${f2Service.id}`, undefined, 200,
+    (b) => assert.equal(b.farm.city, 'Paty do Alferes'));
+  await step('editar fazenda removida', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { city: 'X' }, 404);
+  await step('remover de novo', 'DELETE', `/farmers/${farmer.id}/farms/${f2.id}`, undefined, 404);
+  await step('publicar em fazenda removida', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: f2.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 404);
+  await step('mover serviço para fazenda removida', 'PATCH', `/farmers/services/${ws.id}`, { farm_id: f2.id }, 404);
+
   const invalidJson = await call('POST', '/farmers', undefined, '{ invalido');
   assert.equal(invalidJson.status, 400);
   passed++;

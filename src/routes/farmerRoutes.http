@@ -62,6 +62,17 @@ Content-Type: application/json
   "state": "RJ"
 }
 
+### Editar fazenda
+PATCH {{baseUrl}}/farmers/{{farmerId}}/farms/{{farmId}}
+Content-Type: application/json
+
+{
+  "address": "Estrada São José, Km 4"
+}
+
+### Remover fazenda (409 se tiver serviço Pending/In Progress)
+DELETE {{baseUrl}}/farmers/{{farmerId}}/farms/{{farmId}}
+
 ### --- SERVIÇOS ---
 
 ### Solicitar novo serviço (RF01)
