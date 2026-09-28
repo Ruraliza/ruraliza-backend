@@ -2,13 +2,15 @@
 import 'dotenv/config'; // Carrega as variáveis de ambiente do arquivo .env
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
-import type { ApiError, HealthResponse } from './src/contracts';
+import type { OpenAPIV3 } from 'openapi-types';
+import swaggerUi from 'swagger-ui-express';
+import type { ApiError } from './src/contracts';
 import { seed } from './src/data/seed';
+import { openApiDocument } from './src/docs/openapi';
 import { isRecord } from './src/http/body';
+import { buildRouter } from './src/http/route';
 import type { Handler } from './src/http/types';
-import categoryRoutes from './src/routes/categoryRoutes';
-import farmerRoutes from './src/routes/farmerRoutes';
-import workerRoutes from './src/routes/workerRoutes';
+import { routeGroups } from './src/routes';
 
 const app = express();
 
@@ -18,16 +20,16 @@ app.use(cors());
 // O corpo chega aos handlers como `unknown`; cada um valida o formato (ver src/http/body.ts).
 app.use(express.json());
 
-// --- ROTAS ---
-app.use('/api/farmers', farmerRoutes);
-app.use('/api/workers', workerRoutes);
-app.use('/api/categories', categoryRoutes);
+// --- DOCUMENTAÇÃO (Swagger UI) ---
+// Gerada a partir das mesmas rotas montadas abaixo (src/routes, src/docs).
+const openApiJson: Handler<OpenAPIV3.Document> = (_req, res) => res.json(openApiDocument);
+app.get('/api/docs/openapi.json', openApiJson);
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument, { customSiteTitle: 'Ruraliza API' }));
 
-// Health check
-const health: Handler<HealthResponse> = (_req, res) => {
-  return res.json({ message: 'Bem-vindo à API do Ruraliza! O servidor está rodando.' });
-};
-app.get('/', health);
+// --- ROTAS ---
+for (const group of routeGroups) {
+  app.use(group.prefix || '/', buildRouter(group.routes));
+}
 
 // --- ROTA INEXISTENTE ---
 const notFound: Handler<never> = (req, res) => {

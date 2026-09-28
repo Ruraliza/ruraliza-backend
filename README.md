@@ -23,6 +23,19 @@ Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 
 
 ---
 
+## 📖 Documentação (Swagger / OpenAPI)
+
+Com o servidor rodando:
+
+- **Swagger UI**: http://localhost:3000/api/docs (dá para testar as rotas pelo "Try it out")
+- **OpenAPI 3.0 (JSON)**: http://localhost:3000/api/docs/openapi.json
+
+A documentação é gerada do mesmo lugar em que as rotas são declaradas (`src/routes/*`, com `route(método, caminho, handler, operation({...}))`), então não existe rota sem documentação. Os schemas ficam em `src/docs/schemas.ts`.
+
+O `npm run smoke` confere **toda resposta** contra o documento: a rota e o status precisam estar documentados e o corpo precisa bater com o schema (campos a mais também falham). Ao mudar uma resposta, atualize o schema, senão o smoke acusa.
+
+---
+
 ## 🔒 Tipagem
 
 - **Compilador estrito** (`tsconfig.json`): `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, entre outros.
@@ -37,15 +50,17 @@ Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 
 ```text
 app.ts                      # Entry point, middlewares, erros, seed
 scripts/smoke.ts            # Smoke test do fluxo completo
+scripts/openapi-check.ts    # Confere cada resposta do smoke contra o OpenAPI
 contract-check/             # Verificação de paridade de tipos com o frontend
 src/
   contracts/                # Contrato da API (só tipos): entidades, entradas e respostas
-  http/                     # Tipos dos handlers e validação do corpo (unknown → tipo do contrato)
+  docs/                     # OpenAPI: schemas, helpers de operação e montagem do documento
+  http/                     # Tipos dos handlers, route() e validação do corpo (unknown → tipo do contrato)
   constants/                # Status e categorias
   data/                     # Gerador de IDs e seed
   models/                   # Arrays em memória (Farmer, Worker, Farm, Service, ServiceApplication, Payment...)
   controllers/              # Regras de negócio
-  routes/                   # Endpoints
+  routes/                   # Endpoints + documentação de cada um (index.ts lista os grupos)
   utils/                    # Validações (e-mail, CPF), perfil público (CPF mascarado), coleções
 ```
 

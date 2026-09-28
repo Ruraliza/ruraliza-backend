@@ -21,6 +21,7 @@ import type {
   WorkerResponse
 } from '../src/contracts';
 import { isRecord } from '../src/http/body';
+import { checkAgainstOpenApi } from './openapi-check';
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
@@ -55,8 +56,10 @@ async function step<T = unknown>(
   if (expectedStatus >= 400) {
     assert.ok(isRecord(res.body) && typeof res.body['error'] === 'string', `${title}: resposta de erro sem { error }`);
   }
-  // Resposta lida como o DTO `T` do contrato. É a fronteira HTTP (como o HttpClient.get<T> do Angular):
-  // a conversão não é checada aqui, e sim pelos asserts de cada passo.
+  // Toda resposta precisa bater com a documentação OpenAPI (rota, status e schema do corpo).
+  const docProblem = checkAgainstOpenApi(method, `/api${path}`, res.status, res.body);
+  assert.equal(docProblem, null, `${title}: ${docProblem ?? ''}`);
+  // Já validado contra o schema documentado acima; aqui só é lido como o DTO `T` do contrato.
   const typed = res.body as T;
   if (check) check(typed);
   passed++;
@@ -269,8 +272,24 @@ async function run(): Promise<void> {
 
   const invalidJson = await call('POST', '/farmers', undefined, '{ invalido');
   assert.equal(invalidJson.status, 400);
+  assert.equal(checkAgainstOpenApi('POST', '/api/farmers', invalidJson.status, invalidJson.body), null);
   passed++;
-  console.log('  ok  400 POST  /farmers  — JSON inválido');
+  console.log('  ok  400 POST   /farmers  — JSON inválido');
+
+  console.log('\nDocumentação');
+  const spec = await fetch(`${baseUrl}/docs/openapi.json`);
+  const specBody: unknown = await spec.json();
+  assert.equal(spec.status, 200);
+  assert.ok(isRecord(specBody) && specBody['openapi'] === '3.0.3' && isRecord(specBody['paths']), 'openapi.json inválido');
+  passed++;
+  console.log('  ok  200 GET    /docs/openapi.json  — documento OpenAPI');
+
+  const ui = await fetch(`${baseUrl}/docs/`);
+  const html = await ui.text();
+  assert.equal(ui.status, 200);
+  assert.match(html, /swagger-ui/i, 'Swagger UI não foi servido');
+  passed++;
+  console.log('  ok  200 GET    /docs/  — Swagger UI');
 }
 
 function errorMessage(error: unknown): string {

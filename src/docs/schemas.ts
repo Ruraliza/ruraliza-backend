@@ -1,0 +1,269 @@
+import type { OpenAPIV3 } from 'openapi-types';
+import { CATEGORIES } from '../constants/categories';
+import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
+
+// Schemas OpenAPI do contrato (src/contracts). Entidades usam additionalProperties: false
+// para que o smoke test acuse qualquer campo não documentado nas respostas.
+type Schema = OpenAPIV3.SchemaObject;
+type Properties = Record<string, Schema | OpenAPIV3.ReferenceObject>;
+
+// Nomes dos schemas. `schemas` abaixo precisa ter exatamente estes (o `satisfies` acusa falta ou sobra),
+// e `ref()` só aceita estes, então um $ref quebrado não compila.
+export type SchemaName =
+  | 'ServiceStatus' | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
+  | 'ApiError' | 'MessageResponse' | 'HealthResponse' | 'CategoryList'
+  | 'Farmer' | 'Worker' | 'Farm' | 'FarmLocation'
+  | 'Service' | 'ServiceWithFarm' | 'FarmerServiceItem' | 'OpenService'
+  | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
+  | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate' | 'FarmInput' | 'FarmUpdate'
+  | 'ServiceInput' | 'ServiceUpdate' | 'AnalyzeInput' | 'WorkerActionInput'
+  | 'FarmerResponse' | 'WorkerResponse' | 'FarmResponse' | 'ServiceResponse'
+  | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse';
+
+const id: Schema = { type: 'integer', minimum: 1, example: 1 };
+const nullableId: Schema = { type: 'integer', minimum: 1, nullable: true, example: null };
+const isoDate: Schema = { type: 'string', format: 'date-time', example: '2026-09-28T12:00:00.000Z' };
+const ref = (name: SchemaName): OpenAPIV3.ReferenceObject => ({ $ref: `#/components/schemas/${name}` });
+
+function object(properties: Properties, required: readonly string[], description?: string): Schema {
+  return {
+    type: 'object',
+    properties,
+    required: [...required],
+    additionalProperties: false,
+    ...(description === undefined ? {} : { description })
+  };
+}
+
+// Corpos de entrada: campos extras são ignorados ou recusados pela própria rota (ver descrição).
+function input(properties: Properties, required: readonly string[], description: string): Schema {
+  return { type: 'object', properties, required: [...required], description };
+}
+
+// --- Propriedades reaproveitadas ---
+
+const farmProps: Properties = {
+  id,
+  farmer_id: id,
+  address: { type: 'string', example: 'Estrada de Terra, Km 2' },
+  city: { type: 'string', example: 'Três Rios' },
+  state: { type: 'string', example: 'RJ', description: 'UF' },
+  insertion_date: isoDate,
+  deleted_at: { ...isoDate, description: 'Presente quando a fazenda foi removida (fica só no histórico dos serviços).' }
+};
+const farmRequired = ['id', 'farmer_id', 'address', 'city', 'state', 'insertion_date'];
+
+const serviceProps: Properties = {
+  id,
+  farmer_id: id,
+  farm_id: id,
+  payment_id: nullableId,
+  worker_id: { ...nullableId, description: 'Trabalhador aceito (null enquanto Pending).' },
+  name: { type: 'string', example: 'Colheita de café' },
+  category: { type: 'string', example: 'Colheita' },
+  duration: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 16, description: 'Horas de trabalho.' },
+  price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 900, description: 'Valor total em R$.' },
+  status: ref('ServiceStatus'),
+  insertion_date: isoDate
+};
+const serviceRequired = ['id', 'farmer_id', 'farm_id', 'payment_id', 'worker_id', 'name', 'category', 'duration', 'price', 'status', 'insertion_date'];
+
+const applicationProps: Properties = {
+  id,
+  service_id: id,
+  worker_id: id,
+  status: ref('ApplicationStatus'),
+  auto_rejected: { type: 'boolean', description: 'Recusada pelo aceite de outro candidato; volta a Pending se o aceito desistir.' },
+  insertion_date: isoDate
+};
+const applicationRequired = ['id', 'service_id', 'worker_id', 'status', 'insertion_date'];
+
+const cpf: Schema = {
+  type: 'string',
+  example: '52998224725',
+  description: '11 dígitos, só números. Completo no GET do próprio perfil; mascarado (***.982.247-**) em listas e respostas embutidas.'
+};
+
+// Campos editáveis dos dois perfis (o cpf só entra no cadastro).
+const profileEditableProps: Properties = {
+  email: { type: 'string', format: 'email', example: 'ana@exemplo.com', description: 'Guardado em minúsculas. Único por tipo de perfil.' },
+  name: { type: 'string', example: 'Ana Produtora' },
+  phone: { type: 'string', example: '24999990000', description: 'Com DDD, só números.' }
+};
+const profileInputProps: Properties = {
+  ...profileEditableProps,
+  cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Único por tipo de perfil.' }
+};
+
+const optionalText: Schema = { type: 'string', nullable: true };
+
+export const schemas = {
+  // --- Status ---
+  ServiceStatus: { type: 'string', enum: Object.values(SERVICE_STATUS), example: 'Pending' },
+  ApplicationStatus: { type: 'string', enum: Object.values(APPLICATION_STATUS), example: 'Pending' },
+  PaymentStatus: { type: 'string', enum: Object.values(PAYMENT_STATUS) },
+  AnalyzeAction: { type: 'string', enum: ['Accept', 'Reject'] },
+
+  // --- Respostas genéricas ---
+  ApiError: object({ error: { type: 'string', example: 'Serviço não encontrado.' } }, ['error'], 'Formato de todo erro da API.'),
+  MessageResponse: object({ message: { type: 'string', example: 'Farmer deleted successfully!' } }, ['message']),
+  HealthResponse: object({ message: { type: 'string' } }, ['message']),
+  CategoryList: { type: 'array', items: { type: 'string', enum: [...CATEGORIES] }, example: [...CATEGORIES] },
+
+  // --- Entidades ---
+  Farmer: object(
+    {
+      id,
+      email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' },
+      name: { type: 'string', example: 'João Produtor' },
+      farms: { type: 'array', items: { type: 'integer' }, example: [1, 2], description: 'IDs das fazendas ativas.' },
+      phone: { type: 'string', example: '24999999999' },
+      cpf,
+      insertion_date: isoDate
+    },
+    ['id', 'email', 'name', 'farms', 'phone', 'cpf', 'insertion_date']
+  ),
+  Worker: object(
+    {
+      id,
+      email: { type: 'string', format: 'email', example: 'trabalhador@exemplo.com' },
+      name: { type: 'string', example: 'Maria Trabalhadora' },
+      certificates: { ...optionalText, example: 'Certificado de Tratorista' },
+      experience: { ...optionalText, example: '5 anos' },
+      phone: { type: 'string', example: '24988888888' },
+      cpf,
+      insertion_date: isoDate
+    },
+    ['id', 'email', 'name', 'certificates', 'experience', 'phone', 'cpf', 'insertion_date']
+  ),
+  Farm: object(farmProps, farmRequired),
+  FarmLocation: object(
+    { city: { type: 'string', example: 'Três Rios' }, state: { type: 'string', example: 'RJ' } },
+    ['city', 'state'],
+    'Local da fazenda exposto ao trabalhador (sem o endereço completo).'
+  ),
+  Service: object(serviceProps, serviceRequired),
+  ServiceWithFarm: object({ ...serviceProps, farm: ref('Farm') }, [...serviceRequired, 'farm']),
+  FarmerServiceItem: object(
+    { ...serviceProps, farm: ref('Farm'), applications_pending: { type: 'integer', minimum: 0, example: 2 } },
+    [...serviceRequired, 'farm', 'applications_pending']
+  ),
+  OpenService: object({ ...serviceProps, farm: ref('FarmLocation') }, [...serviceRequired, 'farm']),
+  ServiceApplication: object(applicationProps, applicationRequired),
+  ApplicationWithWorker: object(
+    { ...applicationProps, worker: ref('Worker') },
+    [...applicationRequired, 'worker'],
+    'O CPF do trabalhador vem mascarado.'
+  ),
+  ApplicationWithService: object({ ...applicationProps, service: ref('OpenService') }, [...applicationRequired, 'service']),
+  Payment: object(
+    {
+      id,
+      service_id: id,
+      farmer_id: id,
+      worker_id: id,
+      value: { type: 'number', example: 900 },
+      status: ref('PaymentStatus'),
+      insertion_date: isoDate
+    },
+    ['id', 'service_id', 'farmer_id', 'worker_id', 'value', 'status', 'insertion_date'],
+    'Pagamento simulado: nenhum dinheiro é movimentado.'
+  ),
+
+  // --- Entradas ---
+  FarmerInput: input(profileInputProps, ['email', 'name', 'phone', 'cpf'], 'Cadastro de produtor.'),
+  FarmerUpdate: input(
+    profileEditableProps,
+    [],
+    'Edição parcial: envie só o que muda. Enviar `id` ou `cpf` resulta em 400.'
+  ),
+  WorkerInput: input(
+    {
+      ...profileInputProps,
+      certificates: { ...optionalText, example: 'NR-31, curso de tratorista', description: 'Vazio vira null.' },
+      experience: { ...optionalText, example: '5 anos em colheita de café', description: 'Vazio vira null.' }
+    },
+    ['email', 'name', 'phone', 'cpf'],
+    'Cadastro de trabalhador.'
+  ),
+  WorkerUpdate: input(
+    {
+      ...profileEditableProps,
+      certificates: { ...optionalText, description: 'null limpa o campo.' },
+      experience: { ...optionalText, description: 'null limpa o campo.' }
+    },
+    [],
+    'Edição parcial: envie só o que muda. Enviar `id` ou `cpf` resulta em 400.'
+  ),
+  FarmInput: input(
+    {
+      address: { type: 'string', example: 'Estrada Velha, Km 3' },
+      city: { type: 'string', example: 'Três Rios' },
+      state: { type: 'string', example: 'RJ' }
+    },
+    ['address', 'city', 'state'],
+    'Cadastro de fazenda.'
+  ),
+  FarmUpdate: input(
+    {
+      address: { type: 'string', example: 'Estrada Velha, Km 5' },
+      city: { type: 'string' },
+      state: { type: 'string' }
+    },
+    [],
+    'Edição parcial. Campos não podem ficar vazios; enviar `id` ou `farmer_id` resulta em 400.'
+  ),
+  ServiceInput: input(
+    {
+      farmer_id: id,
+      farm_id: id,
+      name: { type: 'string', example: 'Colheita de café' },
+      category: { type: 'string', example: 'Colheita', description: 'Uma das categorias de GET /api/categories.' },
+      duration: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 16, description: 'Horas.' },
+      price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 900, description: 'R$.' }
+    },
+    ['farmer_id', 'farm_id', 'name', 'category', 'duration', 'price'],
+    'Publicação de serviço. A fazenda precisa ser ativa e do mesmo produtor.'
+  ),
+  ServiceUpdate: input(
+    {
+      farm_id: id,
+      name: { type: 'string' },
+      category: { type: 'string' },
+      duration: { type: 'number', exclusiveMinimum: true, minimum: 0 },
+      price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 1200 }
+    },
+    [],
+    'Edição parcial. Enviar `farmer_id`, `worker_id`, `payment_id` ou `status` resulta em 400.'
+  ),
+  AnalyzeInput: input(
+    { application_id: id, action: ref('AnalyzeAction') },
+    ['application_id', 'action'],
+    'Accept: o serviço passa a In Progress e as demais candidaturas pendentes são recusadas.'
+  ),
+  WorkerActionInput: input({ worker_id: id }, ['worker_id'], 'Trabalhador que executa a ação.'),
+
+  // --- Respostas das escritas ---
+  FarmerResponse: object({ message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer') }, ['message', 'farmer']),
+  WorkerResponse: object({ message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker') }, ['message', 'worker']),
+  FarmResponse: object({ message: { type: 'string', example: 'Farm registered successfully!' }, farm: ref('Farm') }, ['message', 'farm']),
+  ServiceResponse: object({ message: { type: 'string', example: 'Service requested successfully!' }, service: ref('Service') }, ['message', 'service']),
+  ApplicationResponse: object(
+    { message: { type: 'string', example: 'Application sent successfully!' }, application: ref('ServiceApplication') },
+    ['message', 'application']
+  ),
+  AnalyzeResponse: object(
+    {
+      message: { type: 'string', example: 'Worker accepted successfully. Service is now in progress!' },
+      application: ref('ServiceApplication'),
+      service: { allOf: [ref('Service')], description: 'Só no Accept.' }
+    },
+    ['message', 'application']
+  ),
+  PaymentResponse: object(
+    { message: { type: 'string', example: 'Payment released and service completed successfully!' }, service: ref('Service'), payment: ref('Payment') },
+    ['message', 'service', 'payment']
+  )
+} satisfies Record<SchemaName, Schema>;
+
+export { ref };
