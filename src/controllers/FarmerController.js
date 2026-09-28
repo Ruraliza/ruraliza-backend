@@ -7,6 +7,7 @@ const { workers } = require('../models/Worker');
 const { nextId } = require('../data/ids');
 const { SERVICE_STATUS, APPLICATION_STATUS, PAYMENT_STATUS } = require('../constants/status');
 const { isPositiveNumber, missingFields } = require('../utils/validation');
+const { removeWhere } = require('../utils/collections');
 const { validateProfileInput, validateProfileUpdate, normalizeEmail, toPublicProfile } = require('../utils/profile');
 
 // Erros inesperados sobem para o handler global (o Express 5 repassa exceções).
@@ -68,6 +69,17 @@ exports.deleteFarmer = (req, res) => {
     return res.status(404).json({ error: 'Produtor não encontrado.' });
   }
 
+  const farmer = farmers[index];
+  const ownServices = services.filter((s) => s.farmer_id === farmer.id);
+  if (ownServices.some((s) => s.status === SERVICE_STATUS.IN_PROGRESS)) {
+    return res.status(409).json({ error: 'Não é possível remover: há serviço em andamento. Conclua o pagamento antes.' });
+  }
+
+  // Remove em cascata: candidaturas → serviços → fazendas → produtor (pagamentos ficam como histórico).
+  const serviceIds = new Set(ownServices.map((s) => s.id));
+  removeWhere(applications, (a) => serviceIds.has(a.service_id));
+  removeWhere(services, (s) => serviceIds.has(s.id));
+  removeWhere(farms, (f) => f.farmer_id === farmer.id);
   farmers.splice(index, 1);
 
   return res.status(200).json({ message: 'Farmer deleted successfully!' });

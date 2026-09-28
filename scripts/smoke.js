@@ -123,6 +123,34 @@ async function run() {
   await step('serviço inexistente', 'GET', '/farmers/services/999', undefined, 404);
   await step('rota inexistente', 'GET', '/nada', undefined, 404);
 
+  console.log('\nEdição e remoção');
+  const { farmer: fd } = await step('produtor a remover', 'POST', '/farmers',
+    { name: 'Dora', email: 'dora@exemplo.com', phone: '1', cpf: '39053344705' }, 201);
+  const { farm: fdFarm } = await step('fazenda a remover', 'POST', `/farmers/${fd.id}/farms`,
+    { address: 'Sítio', city: 'Vassouras', state: 'RJ' }, 201);
+  await step('farms guarda os IDs', 'GET', `/farmers/${fd.id}`, undefined, 200, (b) => assert.deepEqual(b.farms, [fdFarm.id]));
+  await step('editar produtor', 'PATCH', `/farmers/${fd.id}`, { name: 'Dora Lima' }, 200, (b) => assert.equal(b.farmer.name, 'Dora Lima'));
+  await step('editar cpf', 'PATCH', `/farmers/${fd.id}`, { cpf: '11144477735' }, 400);
+  await step('editar para e-mail em uso', 'PATCH', `/farmers/${fd.id}`, { email: 'ana@exemplo.com' }, 409);
+
+  const { service: fdService } = await step('serviço a remover', 'POST', '/farmers/services',
+    { farmer_id: fd.id, farm_id: fdFarm.id, name: 'Roçada', category: 'Outros', duration: 4, price: 200 }, 201);
+  const { worker: wd } = await step('trabalhador a remover', 'POST', '/workers',
+    { name: 'Eli', email: 'eli@exemplo.com', phone: '1', cpf: '93541134780' }, 201);
+  const { application: wdApp } = await step('candidatura a remover', 'POST', `/workers/services/${fdService.id}/apply`, { worker_id: wd.id }, 201);
+  await step('aceitar para ficar em andamento', 'PATCH', `/farmers/services/${fdService.id}/analyze`, { application_id: wdApp.id, action: 'Accept' }, 200);
+  await step('remover produtor com serviço em andamento', 'DELETE', `/farmers/${fd.id}`, undefined, 409);
+  await step('remover trabalhador com serviço em andamento', 'DELETE', `/workers/${wd.id}`, undefined, 409);
+  await step('pagar para concluir', 'POST', `/farmers/services/${fdService.id}/payment`, undefined, 200);
+
+  await step('remover trabalhador', 'DELETE', `/workers/${wd.id}`, undefined, 200);
+  await step('candidaturas do removido somem', 'GET', `/farmers/services/${fdService.id}/applications`, undefined, 200,
+    (b) => assert.equal(b.length, 0));
+  await step('remover produtor', 'DELETE', `/farmers/${fd.id}`, undefined, 200);
+  await step('produtor removido', 'GET', `/farmers/${fd.id}`, undefined, 404);
+  await step('serviço removido junto', 'GET', `/farmers/services/${fdService.id}`, undefined, 404);
+  await step('remover inexistente', 'DELETE', `/workers/${wd.id}`, undefined, 404);
+
   const invalidJson = await call('POST', '/farmers', undefined, '{ invalido');
   assert.equal(invalidJson.status, 400);
   passed++;

@@ -5,6 +5,7 @@ const { applications } = require('../models/ServiceApplication');
 const { nextId } = require('../data/ids');
 const { SERVICE_STATUS, APPLICATION_STATUS } = require('../constants/status');
 const { validateProfileInput, validateProfileUpdate, normalizeEmail, toPublicProfile } = require('../utils/profile');
+const { removeWhere } = require('../utils/collections');
 
 // GET /api/workers - Lista os trabalhadores (CPF mascarado)
 exports.listWorkers = (req, res) => {
@@ -64,6 +65,13 @@ exports.deleteWorker = (req, res) => {
     return res.status(404).json({ error: 'Trabalhador não encontrado.' });
   }
 
+  const worker = workers[index];
+  if (services.some((s) => s.worker_id === worker.id && s.status === SERVICE_STATUS.IN_PROGRESS)) {
+    return res.status(409).json({ error: 'Não é possível remover: há serviço em andamento atribuído a este trabalhador.' });
+  }
+
+  // As candidaturas embutem o perfil do trabalhador, então saem junto com ele.
+  removeWhere(applications, (a) => a.worker_id === worker.id);
   workers.splice(index, 1);
 
   return res.status(200).json({ message: 'Worker deleted successfully!' });

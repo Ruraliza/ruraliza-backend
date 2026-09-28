@@ -50,7 +50,9 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 |---|---|---|
 | GET | `/api/farmers` | Lista produtores |
 | POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`); 409 se e-mail/CPF já existe entre produtores |
-| GET | `/api/farmers/:id` | Perfil completo |
+| GET | `/api/farmers/:id` | Perfil completo (`farms` = lista de IDs das fazendas) |
+| PATCH | `/api/farmers/:id` | Edita `email`, `name`, `phone`; 400 se tentar alterar `id`/`cpf` |
+| DELETE | `/api/farmers/:id` | Remove o produtor com fazendas, serviços e candidaturas; 409 se houver serviço `In Progress` |
 | GET | `/api/farmers/:id/farms` | Fazendas do produtor |
 | POST | `/api/farmers/:id/farms` | Cadastra fazenda (`address`, `city`, `state`) |
 | GET | `/api/farmers/:id/services?status=` | Serviços do produtor (com `farm` e `applications_pending`) |
@@ -66,6 +68,8 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | GET | `/api/workers` | Lista trabalhadores |
 | POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, opcionais `certificates`, `experience`) |
 | GET | `/api/workers/:id` | Perfil completo |
+| PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `certificates`, `experience`; 400 se tentar alterar `id`/`cpf` |
+| DELETE | `/api/workers/:id` | Remove o trabalhador e suas candidaturas; 409 se tiver serviço `In Progress` |
 | GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido |
 | GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador |
 | GET | `/api/workers/services?category=` | Vagas abertas (com cidade/UF da fazenda) |
