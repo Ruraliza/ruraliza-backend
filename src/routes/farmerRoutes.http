@@ -86,6 +86,19 @@ GET {{baseUrl}}/farmers/{{farmerId}}/services?status=Pending
 ### Buscar serviço com a fazenda
 GET {{baseUrl}}/farmers/services/{{serviceId}}
 
+### Editar serviço (só enquanto Pending)
+PATCH {{baseUrl}}/farmers/services/{{serviceId}}
+Content-Type: application/json
+
+{
+  "name": "Colheita de milho (2 dias)",
+  "duration": 20,
+  "price": 1100
+}
+
+### Cancelar serviço (só enquanto Pending; recusa as candidaturas pendentes)
+PATCH {{baseUrl}}/farmers/services/{{serviceId}}/cancel
+
 ### Listar candidaturas do serviço
 GET {{baseUrl}}/farmers/services/{{serviceId}}/applications
 

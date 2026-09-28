@@ -12,6 +12,12 @@ router.post('/services', FarmerController.requestService);
 // GET /api/farmers/services/:id - Serviço com a fazenda
 router.get('/services/:id', FarmerController.getService);
 
+// PATCH /api/farmers/services/:id - Edita um serviço Pending
+router.patch('/services/:id', FarmerController.updateService);
+
+// PATCH /api/farmers/services/:id/cancel - Cancela um serviço Pending
+router.patch('/services/:id/cancel', FarmerController.cancelService);
+
 // GET /api/farmers/services/:id/applications - Candidaturas do serviço
 router.get('/services/:id/applications', FarmerController.listServiceApplications);
 

@@ -58,6 +58,8 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | GET | `/api/farmers/:id/services?status=` | Serviços do produtor (com `farm` e `applications_pending`) |
 | POST | `/api/farmers/services` | Publica serviço (`farmer_id`, `farm_id`, `name`, `category`, `duration` em horas, `price`) |
 | GET | `/api/farmers/services/:id` | Serviço com a fazenda |
+| PATCH | `/api/farmers/services/:id` | Edita `farm_id`, `name`, `category`, `duration`, `price`; 409 se não estiver `Pending` |
+| PATCH | `/api/farmers/services/:id/cancel` | Cancela (`Cancelled`) e recusa as candidaturas pendentes; 409 se não estiver `Pending` |
 | GET | `/api/farmers/services/:id/applications` | Candidaturas com o trabalhador embutido |
 | PATCH | `/api/farmers/services/:id/analyze` | `{ application_id, action: "Accept" \| "Reject" }` |
 | POST | `/api/farmers/services/:id/payment` | Libera pagamento (simulação) de serviço `In Progress`; cria `Payment` |

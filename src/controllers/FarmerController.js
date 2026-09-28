@@ -163,6 +163,76 @@ exports.requestService = (req, res) => {
   return res.status(201).json({ message: 'Service requested successfully!', service: newService });
 };
 
+// PATCH /api/farmers/services/:id - Edita um serviço ainda sem trabalhador (status Pending)
+// Body: qualquer um de { farm_id, name, category, duration, price }
+exports.updateService = (req, res) => {
+  const service = services.find((s) => s.id === Number(req.params.id));
+  if (!service) {
+    return res.status(404).json({ error: 'Serviço não encontrado.' });
+  }
+  if (service.status !== SERVICE_STATUS.PENDING) {
+    return res.status(409).json({ error: 'Só é possível editar serviços que ainda aguardam candidatos.' });
+  }
+
+  const { farmer_id, worker_id, payment_id, status } = req.body;
+  if ([farmer_id, worker_id, payment_id, status].some((v) => v !== undefined)) {
+    return res.status(400).json({ error: 'Só é possível alterar fazenda, nome, categoria, duração e valor.' });
+  }
+
+  const { farm_id, name, category, duration, price } = req.body;
+  if (name !== undefined && !String(name).trim()) {
+    return res.status(400).json({ error: 'O nome do serviço não pode ficar vazio.' });
+  }
+  if (category !== undefined && !String(category).trim()) {
+    return res.status(400).json({ error: 'A categoria não pode ficar vazia.' });
+  }
+  if (duration !== undefined && !isPositiveNumber(duration)) {
+    return res.status(400).json({ error: 'A duração deve ser um número de horas maior que zero.' });
+  }
+  if (price !== undefined && !isPositiveNumber(price)) {
+    return res.status(400).json({ error: 'O valor deve ser um número maior que zero.' });
+  }
+
+  let farm;
+  if (farm_id !== undefined) {
+    farm = farms.find((f) => f.id === Number(farm_id));
+    if (!farm) {
+      return res.status(404).json({ error: 'Fazenda não encontrada.' });
+    }
+    if (farm.farmer_id !== service.farmer_id) {
+      return res.status(400).json({ error: 'Esta fazenda não pertence a este produtor.' });
+    }
+  }
+
+  if (farm) service.farm_id = farm.id;
+  if (name !== undefined) service.name = String(name).trim();
+  if (category !== undefined) service.category = category;
+  if (duration !== undefined) service.duration = duration;
+  if (price !== undefined) service.price = price;
+
+  return res.status(200).json({ message: 'Service updated successfully!', service });
+};
+
+// PATCH /api/farmers/services/:id/cancel - Cancela um serviço ainda sem trabalhador (status Pending)
+// As candidaturas pendentes são recusadas.
+exports.cancelService = (req, res) => {
+  const service = services.find((s) => s.id === Number(req.params.id));
+  if (!service) {
+    return res.status(404).json({ error: 'Serviço não encontrado.' });
+  }
+  if (service.status !== SERVICE_STATUS.PENDING) {
+    return res.status(409).json({ error: 'Só é possível cancelar serviços que ainda aguardam candidatos.' });
+  }
+
+  // TODO(db): executar numa transação (serviço + candidaturas).
+  service.status = SERVICE_STATUS.CANCELLED;
+  applications
+    .filter((a) => a.service_id === service.id && a.status === APPLICATION_STATUS.PENDING)
+    .forEach((a) => { a.status = APPLICATION_STATUS.REJECTED; });
+
+  return res.status(200).json({ message: 'Service cancelled successfully!', service });
+};
+
 // RF03 - Aceita ou recusa uma candidatura
 // Body: { application_id, action: 'Accept' | 'Reject' }
 exports.analyzeOffer = (req, res) => {

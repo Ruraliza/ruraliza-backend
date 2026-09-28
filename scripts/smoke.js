@@ -151,6 +151,32 @@ async function run() {
   await step('serviço removido junto', 'GET', `/farmers/services/${fdService.id}`, undefined, 404);
   await step('remover inexistente', 'DELETE', `/workers/${wd.id}`, undefined, 404);
 
+  console.log('\nEdição e cancelamento de serviço');
+  const { service: editable } = await step('serviço a editar', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Poda', category: 'Manutenção', duration: 6, price: 250 }, 201);
+  await step('editar serviço', 'PATCH', `/farmers/services/${editable.id}`, { name: 'Poda de café', price: 320 }, 200, (b) => {
+    assert.equal(b.service.name, 'Poda de café');
+    assert.equal(b.service.price, 320);
+    assert.equal(b.service.duration, 6);
+  });
+  await step('editar com valor inválido', 'PATCH', `/farmers/services/${editable.id}`, { price: -1 }, 400);
+  await step('editar status direto', 'PATCH', `/farmers/services/${editable.id}`, { status: 'Completed' }, 400);
+  const { farm: otherFarm } = await step('fazenda de outro produtor', 'POST', `/farmers/${other.id}/farms`, { address: 'a', city: 'b', state: 'MG' }, 201);
+  await step('editar para fazenda de outro', 'PATCH', `/farmers/services/${editable.id}`, { farm_id: otherFarm.id }, 400);
+  await step('editar para fazenda inexistente', 'PATCH', `/farmers/services/${editable.id}`, { farm_id: 999 }, 404);
+  await step('editar serviço concluído', 'PATCH', `/farmers/services/${service.id}`, { name: 'X' }, 409);
+  await step('editar serviço inexistente', 'PATCH', '/farmers/services/999', { name: 'X' }, 404);
+
+  const { application: editableApp } = await step('candidatura no serviço a cancelar', 'POST', `/workers/services/${editable.id}/apply`, { worker_id: worker2.id }, 201);
+  await step('cancelar serviço', 'PATCH', `/farmers/services/${editable.id}/cancel`, undefined, 200,
+    (b) => assert.equal(b.service.status, 'Cancelled'));
+  await step('candidatura pendente foi recusada', 'GET', `/farmers/services/${editable.id}/applications`, undefined, 200,
+    (b) => assert.equal(b.find((a) => a.id === editableApp.id).status, 'Rejected'));
+  await step('cancelado some das vagas', 'GET', '/workers/services', undefined, 200,
+    (b) => assert.ok(!b.some((s) => s.id === editable.id)));
+  await step('cancelar de novo', 'PATCH', `/farmers/services/${editable.id}/cancel`, undefined, 409);
+  await step('editar cancelado', 'PATCH', `/farmers/services/${editable.id}`, { name: 'X' }, 409);
+
   const invalidJson = await call('POST', '/farmers', undefined, '{ invalido');
   assert.equal(invalidJson.status, 400);
   passed++;
