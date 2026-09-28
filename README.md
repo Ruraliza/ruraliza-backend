@@ -2,7 +2,7 @@
 
 O projeto **AgTech Ruraliza** conecta produtores rurais a trabalhadores, prestadores e estudantes, facilitando a prestação de serviços operacionais nas fazendas.
 
-API em **Node.js + Express 5**, padrão **MVC**. Nesta fase os dados ficam **em memória** (arrays): tudo some quando o servidor reinicia.
+API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Nesta fase os dados ficam **em memória** (arrays): tudo some quando o servidor reinicia.
 
 ---
 
@@ -12,27 +12,41 @@ Pré-requisito: [Node.js](https://nodejs.org/) 20 ou superior.
 
 ```bash
 npm install
-npm run dev      # sobe em http://localhost:3000/api e reinicia ao salvar
-npm start        # sobe sem watch
-npm run smoke    # percorre o fluxo completo e os casos de erro principais
+npm run dev              # sobe em http://localhost:3000/api (tsx) e reinicia ao salvar
+npm start                # compila para dist/ e sobe o JavaScript gerado
+npm test                 # typecheck + lint + smoke
+npm run smoke            # percorre o fluxo completo e os casos de erro principais
+npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
 Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador e 3 serviços `Pending` (Colheita, Plantio, Manutenção).
 
 ---
 
+## 🔒 Tipagem
+
+- **Compilador estrito** (`tsconfig.json`): `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, entre outros.
+- **Sem `any`**: o ESLint com informação de tipos (`npm run lint`) barra `any` explícito e também valores `any` vindos de bibliotecas (`no-unsafe-*`).
+- **Entrada validada em tempo de execução**: `req.body` e `req.query` chegam como `unknown`; cada rota valida e converte para o tipo de entrada do contrato (`src/http/body.ts`, parsers nos controllers). Os handlers usam `Handler<Resposta, Params>` (`src/http/types.ts`), então a resposta de cada rota é checada contra o contrato.
+- **Contrato com o frontend** (`src/contracts`): entidades, entradas e respostas da API, com os mesmos nomes e formatos de `ruraliza-frontend/src/models`. O `npm run check:contracts` falha se algum tipo divergir em qualquer sentido. Ao mudar um tipo, altere os dois lados e rode o check.
+
+---
+
 ## 📁 Estrutura
 
 ```text
-app.js                      # Entry point, middlewares, erros, seed
-scripts/smoke.js            # Smoke test do fluxo completo
+app.ts                      # Entry point, middlewares, erros, seed
+scripts/smoke.ts            # Smoke test do fluxo completo
+contract-check/             # Verificação de paridade de tipos com o frontend
 src/
+  contracts/                # Contrato da API (só tipos): entidades, entradas e respostas
+  http/                     # Tipos dos handlers e validação do corpo (unknown → tipo do contrato)
   constants/                # Status e categorias
   data/                     # Gerador de IDs e seed
   models/                   # Arrays em memória (Farmer, Worker, Farm, Service, ServiceApplication, Payment...)
   controllers/              # Regras de negócio
   routes/                   # Endpoints
-  utils/                    # Validações (e-mail, CPF) e perfil público (CPF mascarado)
+  utils/                    # Validações (e-mail, CPF), perfil público (CPF mascarado), coleções
 ```
 
 ---

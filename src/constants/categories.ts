@@ -1,5 +1,5 @@
 // Lista fixa de categorias de serviço.
-const CATEGORIES = Object.freeze([
+export const CATEGORIES: readonly string[] = Object.freeze([
   'Colheita',
   'Plantio',
   'Manutenção',
@@ -8,5 +8,3 @@ const CATEGORIES = Object.freeze([
   'Manejo de gado',
   'Outros'
 ]);
-
-module.exports = { CATEGORIES };

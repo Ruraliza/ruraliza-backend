@@ -1,16 +1,25 @@
 // Dados de demonstração criados em memória ao subir o servidor.
 // Somem a cada reinício.
-const { farmers } = require('../models/Farmer');
-const { workers } = require('../models/Worker');
-const { farms } = require('../models/Farm');
-const { services } = require('../models/Service');
-const { nextId } = require('./ids');
-const { SERVICE_STATUS } = require('../constants/status');
+import type { Farm, Farmer, Service } from '../contracts';
+import { SERVICE_STATUS } from '../constants/status';
+import { farms } from '../models/Farm';
+import { farmers } from '../models/Farmer';
+import { services } from '../models/Service';
+import { workers } from '../models/Worker';
+import { nextId } from './ids';
 
-function seed() {
+interface DemoService {
+  farm: Farm;
+  name: string;
+  category: string;
+  duration: number;
+  price: number;
+}
+
+export function seed(): void {
   const now = new Date().toISOString();
 
-  const farmer = {
+  const farmer: Farmer = {
     id: nextId('farmer'),
     email: 'produtor@exemplo.com',
     name: 'João Produtor',
@@ -21,8 +30,8 @@ function seed() {
   };
   farmers.push(farmer);
 
-  const farmSaoJose = { id: nextId('farm'), farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ', insertion_date: now };
-  const farmBoaVista = { id: nextId('farm'), farmer_id: farmer.id, address: 'Rodovia BR-040, Km 15', city: 'Paraíba do Sul', state: 'RJ', insertion_date: now };
+  const farmSaoJose: Farm = { id: nextId('farm'), farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ', insertion_date: now };
+  const farmBoaVista: Farm = { id: nextId('farm'), farmer_id: farmer.id, address: 'Rodovia BR-040, Km 15', city: 'Paraíba do Sul', state: 'RJ', insertion_date: now };
   farms.push(farmSaoJose, farmBoaVista);
   farmer.farms = [farmSaoJose.id, farmBoaVista.id];
 
@@ -37,14 +46,14 @@ function seed() {
     insertion_date: now
   });
 
-  const demoServices = [
+  const demoServices: DemoService[] = [
     { farm: farmSaoJose, name: 'Colheita de café', category: 'Colheita', duration: 40, price: 1800 },
     { farm: farmBoaVista, name: 'Plantio de milho', category: 'Plantio', duration: 24, price: 1200 },
     { farm: farmSaoJose, name: 'Conserto de cerca', category: 'Manutenção', duration: 8, price: 400 }
   ];
 
   for (const s of demoServices) {
-    services.push({
+    const service: Service = {
       id: nextId('service'),
       farmer_id: farmer.id,
       farm_id: s.farm.id,
@@ -56,8 +65,7 @@ function seed() {
       price: s.price,
       status: SERVICE_STATUS.PENDING,
       insertion_date: now
-    });
+    };
+    services.push(service);
   }
 }
-
-module.exports = { seed };

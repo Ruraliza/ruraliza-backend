@@ -1,0 +1,8 @@
+{
+  // Build de produção: só a API (sem scripts de teste) para dist/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false
+  },
+  "include": ["app.ts", "src/**/*.ts"]
+}

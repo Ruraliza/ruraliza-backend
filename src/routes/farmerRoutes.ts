@@ -1,6 +1,7 @@
-const express = require('express');
-const router = express.Router();
-const FarmerController = require('../controllers/FarmerController');
+import { Router } from 'express';
+import * as FarmerController from '../controllers/FarmerController';
+
+const router = Router();
 
 // Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
 
@@ -59,4 +60,4 @@ router.delete('/:id/farms/:farmId', FarmerController.deleteFarm);
 // GET /api/farmers/:id/services?status= - Serviços do produtor
 router.get('/:id/services', FarmerController.listFarmerServices);
 
-module.exports = router;
+export default router;

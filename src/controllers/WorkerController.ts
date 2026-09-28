@@ -1,33 +1,66 @@
-const { services } = require('../models/Service');
-const { workers } = require('../models/Worker');
-const { farms } = require('../models/Farm');
-const { applications } = require('../models/ServiceApplication');
-const { nextId } = require('../data/ids');
-const { SERVICE_STATUS, APPLICATION_STATUS } = require('../constants/status');
-const { validateProfileInput, validateProfileUpdate, normalizeEmail, toPublicProfile } = require('../utils/profile');
-const { removeWhere } = require('../utils/collections');
+import type {
+  ApplicationResponse,
+  ApplicationWithService,
+  MessageResponse,
+  OpenService,
+  Service,
+  ServiceApplication,
+  ServiceResponse,
+  Worker,
+  WorkerActionInput,
+  WorkerResponse
+} from '../contracts';
+import { APPLICATION_STATUS, SERVICE_STATUS } from '../constants/status';
+import { nextId } from '../data/ids';
+import { type Body, type Result, invalid, text, toBody, valid } from '../http/body';
+import type { Handler, IdParams } from '../http/types';
+import { farms } from '../models/Farm';
+import { services } from '../models/Service';
+import { applications } from '../models/ServiceApplication';
+import { workers } from '../models/Worker';
+import { findById, removeWhere, requireFound } from '../utils/collections';
+import { parseProfileInput, parseProfileUpdate, toPublicProfile } from '../utils/profile';
+
+// --- VALIDAÇÃO DOS CORPOS ---
+
+// Texto opcional do perfil (certificados, experiência): vazio vira null no cadastro.
+function optionalText(value: unknown): string | null {
+  return value ? text(value) : null;
+}
+
+// Na edição, null limpa o campo; qualquer outro valor é guardado como texto.
+function nullableText(value: unknown): string | null {
+  return value === null ? null : text(value);
+}
+
+function parseWorkerAction(body: Body): Result<WorkerActionInput> {
+  const workerId = body['worker_id'];
+  if (!workerId) {
+    return invalid(400, 'Informe o worker_id.');
+  }
+  return valid({ worker_id: Number(workerId) });
+}
+
+// --- TRABALHADORES ---
 
 // GET /api/workers - Lista os trabalhadores (CPF mascarado)
-exports.listWorkers = (req, res) => {
+export const listWorkers: Handler<Worker[]> = (_req, res) => {
   return res.status(200).json(workers.map(toPublicProfile));
 };
 
 // POST /api/workers - Cadastra um novo trabalhador
-exports.createWorker = (req, res) => {
-  const invalid = validateProfileInput(req.body, workers);
-  if (invalid) {
-    return res.status(invalid.status).json({ error: invalid.error });
+export const createWorker: Handler<WorkerResponse> = (req, res) => {
+  const body = toBody(req.body);
+  const parsed = parseProfileInput(body, workers);
+  if (!parsed.ok) {
+    return res.status(parsed.status).json({ error: parsed.error });
   }
 
-  const { email, name, certificates, experience, phone, cpf } = req.body;
-  const newWorker = {
+  const newWorker: Worker = {
     id: nextId('worker'),
-    email: normalizeEmail(email),
-    name: String(name).trim(),
-    certificates: certificates || null,
-    experience: experience || null,
-    phone,
-    cpf,
+    ...parsed.value,
+    certificates: optionalText(body['certificates']),
+    experience: optionalText(body['experience']),
     insertion_date: new Date().toISOString()
   };
 
@@ -37,49 +70,52 @@ exports.createWorker = (req, res) => {
 };
 
 // PATCH /api/workers/:id - Edita o trabalhador (id e cpf não podem ser alterados)
-exports.updateWorker = (req, res) => {
-  const worker = workers.find((w) => w.id === Number(req.params.id));
+export const updateWorker: Handler<WorkerResponse, IdParams> = (req, res) => {
+  const worker = findById(workers, req.params.id);
   if (!worker) {
     return res.status(404).json({ error: 'Trabalhador não encontrado.' });
   }
 
-  const invalid = validateProfileUpdate(req.body, workers, worker.id);
-  if (invalid) {
-    return res.status(invalid.status).json({ error: invalid.error });
+  const body = toBody(req.body);
+  const parsed = parseProfileUpdate(body, workers, worker.id);
+  if (!parsed.ok) {
+    return res.status(parsed.status).json({ error: parsed.error });
   }
 
-  const { email, name, certificates, experience, phone } = req.body;
-  if (email !== undefined) worker.email = normalizeEmail(email);
-  if (name !== undefined) worker.name = String(name).trim();
-  if (certificates !== undefined) worker.certificates = certificates;
-  if (experience !== undefined) worker.experience = experience;
+  const { email, name, phone } = parsed.value;
+  const { certificates, experience } = body;
+  if (email !== undefined) worker.email = email;
+  if (name !== undefined) worker.name = name;
+  if (certificates !== undefined) worker.certificates = nullableText(certificates);
+  if (experience !== undefined) worker.experience = nullableText(experience);
   if (phone !== undefined) worker.phone = phone;
 
   return res.status(200).json({ message: 'Worker updated successfully!', worker });
 };
 
 // DELETE /api/workers/:id - Remove o trabalhador
-exports.deleteWorker = (req, res) => {
-  const index = workers.findIndex((w) => w.id === Number(req.params.id));
-  if (index === -1) {
+export const deleteWorker: Handler<MessageResponse, IdParams> = (req, res) => {
+  const worker = findById(workers, req.params.id);
+  if (!worker) {
     return res.status(404).json({ error: 'Trabalhador não encontrado.' });
   }
 
-  const worker = workers[index];
   if (services.some((s) => s.worker_id === worker.id && s.status === SERVICE_STATUS.IN_PROGRESS)) {
     return res.status(409).json({ error: 'Não é possível remover: há serviço em andamento atribuído a este trabalhador.' });
   }
 
   // As candidaturas embutem o perfil do trabalhador, então saem junto com ele.
   removeWhere(applications, (a) => a.worker_id === worker.id);
-  workers.splice(index, 1);
+  removeWhere(workers, (w) => w.id === worker.id);
 
   return res.status(200).json({ message: 'Worker deleted successfully!' });
 };
 
+// --- VAGAS ---
+
 // RF02 - Busca serviços disponíveis
-exports.searchServices = (req, res) => {
-  const { category } = req.query;
+export const searchServices: Handler<OpenService[]> = (req, res) => {
+  const category = req.query['category'];
 
   let pendingServices = services.filter((s) => s.status === SERVICE_STATUS.PENDING);
   if (category) {
@@ -89,26 +125,24 @@ exports.searchServices = (req, res) => {
   return res.status(200).json(pendingServices.map(withFarmLocation));
 };
 
-// RF02 - Candidata-se a um serviço
 // PATCH /api/workers/services/:id/withdraw - O trabalhador desiste, e tudo volta uma etapa:
 // - candidatura Pending: é removida (pode se candidatar de novo depois);
 // - já aceito (serviço In Progress): o serviço volta a Pending sem trabalhador e as
 //   candidaturas recusadas pelo aceite voltam a Pending para o produtor escolher outro.
 // Body: { worker_id }
-exports.withdrawFromService = (req, res) => {
-  const service_id = Number(req.params.id);
-  const { worker_id } = req.body;
-
-  if (!worker_id) {
-    return res.status(400).json({ error: 'Informe o worker_id.' });
+export const withdrawFromService: Handler<ServiceResponse, IdParams> = (req, res) => {
+  const parsed = parseWorkerAction(toBody(req.body));
+  if (!parsed.ok) {
+    return res.status(parsed.status).json({ error: parsed.error });
   }
+  const { worker_id } = parsed.value;
 
-  const service = services.find((s) => s.id === service_id);
+  const service = findById(services, req.params.id);
   if (!service) {
     return res.status(404).json({ error: 'Serviço não encontrado.' });
   }
 
-  const application = applications.find((a) => a.service_id === service_id && a.worker_id === Number(worker_id));
+  const application = applications.find((a) => a.service_id === service.id && a.worker_id === worker_id);
   if (!application) {
     return res.status(404).json({ error: 'Você não tem candidatura neste serviço.' });
   }
@@ -122,7 +156,7 @@ exports.withdrawFromService = (req, res) => {
     // TODO(db): executar numa transação (serviço + candidaturas).
     removeWhere(applications, (a) => a.id === application.id);
     applications
-      .filter((a) => a.service_id === service.id && a.auto_rejected)
+      .filter((a) => a.service_id === service.id && a.auto_rejected === true)
       .forEach((a) => {
         a.status = APPLICATION_STATUS.PENDING;
         delete a.auto_rejected;
@@ -135,20 +169,20 @@ exports.withdrawFromService = (req, res) => {
   return res.status(409).json({ error: 'Não é possível desistir: a candidatura já foi recusada ou o serviço já foi encerrado.' });
 };
 
-exports.applyForService = (req, res) => {
-  const service_id = Number(req.params.id);
-  const { worker_id } = req.body;
-
-  if (!worker_id) {
-    return res.status(400).json({ error: 'Informe o worker_id.' });
+// RF02 - Candidata-se a um serviço
+// Body: { worker_id }
+export const applyForService: Handler<ApplicationResponse, IdParams> = (req, res) => {
+  const parsed = parseWorkerAction(toBody(req.body));
+  if (!parsed.ok) {
+    return res.status(parsed.status).json({ error: parsed.error });
   }
 
-  const service = services.find((s) => s.id === service_id);
+  const service = findById(services, req.params.id);
   if (!service) {
     return res.status(404).json({ error: 'Serviço não encontrado.' });
   }
 
-  const worker = workers.find((w) => w.id === Number(worker_id));
+  const worker = findById(workers, parsed.value.worker_id);
   if (!worker) {
     return res.status(404).json({ error: 'Trabalhador não encontrado.' });
   }
@@ -158,14 +192,14 @@ exports.applyForService = (req, res) => {
   }
 
   // TODO(db): trocar por restrição UNIQUE (service_id, worker_id) no banco.
-  const alreadyApplied = applications.some((a) => a.service_id === service_id && a.worker_id === worker.id);
+  const alreadyApplied = applications.some((a) => a.service_id === service.id && a.worker_id === worker.id);
   if (alreadyApplied) {
     return res.status(409).json({ error: 'Você já se candidatou a este serviço.' });
   }
 
-  const newApplication = {
+  const newApplication: ServiceApplication = {
     id: nextId('application'),
-    service_id,
+    service_id: service.id,
     worker_id: worker.id,
     status: APPLICATION_STATUS.PENDING,
     insertion_date: new Date().toISOString()
@@ -182,14 +216,14 @@ exports.applyForService = (req, res) => {
 // --- LEITURAS ---
 
 // Cidade/UF da fazenda do serviço (o endereço completo não é exposto ao trabalhador).
-function withFarmLocation(service) {
-  const farm = farms.find((f) => f.id === service.farm_id);
+function withFarmLocation(service: Service): OpenService {
+  const farm = requireFound(findById(farms, service.farm_id), `fazenda do serviço ${service.id}`);
   return { ...service, farm: { city: farm.city, state: farm.state } };
 }
 
 // GET /api/workers/:id - Perfil completo do próprio trabalhador
-exports.getWorker = (req, res) => {
-  const worker = workers.find((w) => w.id === Number(req.params.id));
+export const getWorker: Handler<Worker, IdParams> = (req, res) => {
+  const worker = findById(workers, req.params.id);
   if (!worker) {
     return res.status(404).json({ error: 'Trabalhador não encontrado.' });
   }
@@ -197,22 +231,25 @@ exports.getWorker = (req, res) => {
 };
 
 // GET /api/workers/:id/applications - Candidaturas com o serviço embutido
-exports.listWorkerApplications = (req, res) => {
-  const worker = workers.find((w) => w.id === Number(req.params.id));
+export const listWorkerApplications: Handler<ApplicationWithService[], IdParams> = (req, res) => {
+  const worker = findById(workers, req.params.id);
   if (!worker) {
     return res.status(404).json({ error: 'Trabalhador não encontrado.' });
   }
 
   const result = applications
     .filter((a) => a.worker_id === worker.id)
-    .map((a) => ({ ...a, service: withFarmLocation(services.find((s) => s.id === a.service_id)) }));
+    .map((a): ApplicationWithService => ({
+      ...a,
+      service: withFarmLocation(requireFound(findById(services, a.service_id), `serviço da candidatura ${a.id}`))
+    }));
 
   return res.status(200).json(result);
 };
 
 // GET /api/workers/:id/services - Serviços atribuídos ao trabalhador
-exports.listWorkerServices = (req, res) => {
-  const worker = workers.find((w) => w.id === Number(req.params.id));
+export const listWorkerServices: Handler<OpenService[], IdParams> = (req, res) => {
+  const worker = findById(workers, req.params.id);
   if (!worker) {
     return res.status(404).json({ error: 'Trabalhador não encontrado.' });
   }
@@ -220,8 +257,8 @@ exports.listWorkerServices = (req, res) => {
 };
 
 // GET /api/workers/services/:id - Detalhe da vaga com cidade/UF da fazenda
-exports.getServiceDetail = (req, res) => {
-  const service = services.find((s) => s.id === Number(req.params.id));
+export const getServiceDetail: Handler<OpenService, IdParams> = (req, res) => {
+  const service = findById(services, req.params.id);
   if (!service) {
     return res.status(404).json({ error: 'Serviço não encontrado.' });
   }

@@ -1,6 +1,7 @@
-const express = require('express');
-const router = express.Router();
-const WorkerController = require('../controllers/WorkerController');
+import { Router } from 'express';
+import * as WorkerController from '../controllers/WorkerController';
+
+const router = Router();
 
 // Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
 
@@ -41,4 +42,4 @@ router.get('/:id/applications', WorkerController.listWorkerApplications);
 // GET /api/workers/:id/services - Serviços atribuídos ao trabalhador
 router.get('/:id/services', WorkerController.listWorkerServices);
 
-module.exports = router;
+export default router;

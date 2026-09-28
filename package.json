@@ -2,12 +2,17 @@
   "name": "ruraliza-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "dist/app.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "node --watch app.js",
-    "smoke": "node scripts/smoke.js",
-    "test": "node scripts/smoke.js"
+    "build": "tsc -p tsconfig.build.json",
+    "prestart": "npm run build",
+    "start": "node dist/app.js",
+    "dev": "tsx watch app.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "check:contracts": "tsc -p tsconfig.contracts.json",
+    "smoke": "tsx scripts/smoke.ts",
+    "test": "npm run typecheck && npm run lint && npm run smoke"
   },
   "keywords": [],
   "author": "",
@@ -20,5 +25,15 @@
     "pg": "^8.23.0",
     "pg-harness": "^0.2.1",
     "sequelize": "^6.37.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.3",
+    "eslint": "^10.11.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1"
   }
 }

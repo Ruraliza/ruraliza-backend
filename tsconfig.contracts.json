@@ -1,0 +1,9 @@
+{
+  // Só para `npm run check:contracts`: compila o contrato junto com os models do frontend.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true
+  },
+  "include": ["contract-check/**/*.ts"]
+}
