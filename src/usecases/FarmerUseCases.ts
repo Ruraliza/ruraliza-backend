@@ -1,9 +1,11 @@
 import type { Farmer, FarmerInput, FarmerUpdate } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
+import type { ImageStore } from '../domain/images';
 import type { ApplicationRepository, FarmRepository, FarmerRepository, ServiceRepository } from '../domain/repositories';
 import { type Result, conflict, notFound, ok } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
+import { releaseImage } from './PhotoUseCases';
 import { checkProfileUnique } from './shared';
 
 // Cadastro, edição e remoção de produtores.
@@ -15,7 +17,8 @@ export class FarmerUseCases {
       services: ServiceRepository;
       applications: ApplicationRepository;
     },
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly images: ImageStore
   ) {}
 
   // Lista com CPF mascarado.
@@ -33,7 +36,7 @@ export class FarmerUseCases {
     const unique = await checkProfileUnique(this.repos.farmers, input.email, input.cpf);
     if (!unique.ok) return unique;
 
-    const farmer = await this.repos.farmers.create({ ...input, farms: [], insertion_date: this.clock.now() });
+    const farmer = await this.repos.farmers.create({ ...input, farms: [], photo_url: null, insertion_date: this.clock.now() });
     return ok(farmer);
   }
 
@@ -73,8 +76,10 @@ export class FarmerUseCases {
       await services.delete(service.id);
     }
     for (const farm of await farms.find({ farmer_id: farmer.id })) {
+      for (const photo of farm.photos) await this.images.delete(photo.id);
       await farms.delete(farm.id);
     }
+    await releaseImage(this.images, farmer.photo_url);
     await farmers.delete(farmer.id);
 
     return ok(null);

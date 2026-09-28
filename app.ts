@@ -7,6 +7,7 @@ import swaggerUi from 'swagger-ui-express';
 import { type Container, createContainer } from './src/container';
 import type { ApiError } from './src/contracts';
 import { seed } from './src/data/seed';
+import { IMAGE_MAX_UPLOAD_BYTES } from './src/domain/images';
 import { buildOpenApiDocument } from './src/docs/openapi';
 import { isRecord } from './src/http/body';
 import { buildRouter } from './src/http/route';
@@ -30,6 +31,8 @@ export function createApi(container: Container = createContainer()): Api {
   app.use(cors());
   // O corpo chega aos handlers como `unknown`; cada um valida o formato (ver src/http/parsers.ts).
   app.use(express.json());
+  // Envio de fotos: o corpo é o próprio arquivo (Content-Type image/*), lido como bytes.
+  app.use(express.raw({ type: 'image/*', limit: IMAGE_MAX_UPLOAD_BYTES }));
 
   // --- DOCUMENTAÇÃO (Swagger UI) ---
   // Gerada a partir das mesmas rotas montadas abaixo (src/routes, src/docs).
@@ -65,6 +68,11 @@ function isJsonParseError(error: unknown): boolean {
   return isRecord(error) && error['type'] === 'entity.parse.failed';
 }
 
+// Erro do express.raw() quando a foto passa do limite.
+function isTooLargeError(error: unknown): boolean {
+  return isRecord(error) && error['type'] === 'entity.too.large';
+}
+
 function describeError(error: unknown): string {
   if (error instanceof Error) return error.stack ?? error.message;
   return String(error);
@@ -76,6 +84,10 @@ function describeError(error: unknown): string {
 function errorHandler(error: unknown, _req: Request, res: Response<ApiError>, _next: NextFunction): void {
   if (isJsonParseError(error)) {
     res.status(400).json({ error: 'O corpo da requisição não é um JSON válido.' });
+    return;
+  }
+  if (isTooLargeError(error)) {
+    res.status(413).json({ error: 'A foto passa de 10 MB. Envie uma imagem menor.' });
     return;
   }
   console.error('Erro interno:', describeError(error));

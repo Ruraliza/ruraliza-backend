@@ -5,6 +5,7 @@ export interface Farmer {
   farms: number[]; // IDs das fazendas ativas
   phone: string;
   cpf: string; // completo só no GET do próprio perfil; mascarado em listas
+  photo_url: string | null; // foto de perfil (WebP ≤ 1000px), enviada por POST /farmers/:id/photo
   insertion_date: string;
 }
 

@@ -1,6 +1,6 @@
 import type { ApplicationResponse, OpenService, ServiceResponse } from '../contracts';
 import { toBody } from '../http/body';
-import { parseWorkerAction } from '../http/parsers';
+import { parseJobFilters, parseWorkerAction } from '../http/parsers';
 import { sendFailure, toId } from '../http/respond';
 import type { Handler, IdParams } from '../http/types';
 import type { HiringUseCases } from '../usecases/HiringUseCases';
@@ -15,17 +15,11 @@ export interface JobController {
 }
 
 export function createJobController(services: ServiceUseCases, hiring: HiringUseCases): JobController {
-  // RF02 - GET /api/workers/services?category= - Vagas abertas
+  // RF02 - GET /api/workers/services?q=&category=&min_hours=&max_hours=&from=&to=&sort= - Vagas abertas
   const searchServices: Handler<OpenService[]> = async (req, res) => {
-    const category = req.query['category'];
-    if (category === undefined || category === '') {
-      res.status(200).json(await services.searchOpen());
-    } else if (typeof category === 'string') {
-      res.status(200).json(await services.searchOpen(category));
-    } else {
-      // ?category repetido ou em formato de objeto não corresponde a nenhuma categoria.
-      res.status(200).json([]);
-    }
+    const filters = parseJobFilters(req.query);
+    if (!filters.ok) { sendFailure(res, filters); return; }
+    res.status(200).json(await services.searchOpen(filters.value));
   };
 
   // GET /api/workers/services/:id - Detalhe da vaga com cidade/UF da fazenda

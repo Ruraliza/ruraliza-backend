@@ -1,18 +1,22 @@
 import type { ApplicationWithService, OpenService, Worker, WorkerUpdate } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
+import type { ImageStore } from '../domain/images';
 import type { ApplicationRepository, FarmRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, notFound, ok, requireFound } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
+import { releaseImage } from './PhotoUseCases';
 import { checkProfileUnique, toOpenService } from './shared';
 
-// Dados de cadastro já validados (certificados/experiência vazios viram null).
+// Dados de cadastro já validados (textos opcionais vazios viram null).
 export interface NewWorker {
   email: string;
   name: string;
   phone: string;
   cpf: string;
+  bio: string | null;
   certificates: string | null;
+  courses: string | null;
   experience: string | null;
 }
 
@@ -25,7 +29,8 @@ export class WorkerUseCases {
       applications: ApplicationRepository;
       farms: FarmRepository;
     },
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly images: ImageStore
   ) {}
 
   // Lista com CPF mascarado.
@@ -43,7 +48,7 @@ export class WorkerUseCases {
     const unique = await checkProfileUnique(this.repos.workers, input.email, input.cpf);
     if (!unique.ok) return unique;
 
-    const worker = await this.repos.workers.create({ ...input, insertion_date: this.clock.now() });
+    const worker = await this.repos.workers.create({ ...input, photo_url: null, insertion_date: this.clock.now() });
     return ok(worker);
   }
 
@@ -57,7 +62,9 @@ export class WorkerUseCases {
 
     if (changes.email !== undefined) worker.email = changes.email;
     if (changes.name !== undefined) worker.name = changes.name;
+    if (changes.bio !== undefined) worker.bio = changes.bio;
     if (changes.certificates !== undefined) worker.certificates = changes.certificates;
+    if (changes.courses !== undefined) worker.courses = changes.courses;
     if (changes.experience !== undefined) worker.experience = changes.experience;
     if (changes.phone !== undefined) worker.phone = changes.phone;
     await this.repos.workers.update(worker);
@@ -81,6 +88,7 @@ export class WorkerUseCases {
     for (const application of await applications.find({ worker_id: worker.id })) {
       await applications.delete(application.id);
     }
+    await releaseImage(this.images, worker.photo_url);
     await workers.delete(worker.id);
 
     return ok(null);

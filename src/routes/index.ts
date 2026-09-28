@@ -2,11 +2,13 @@ import type { UseCases } from '../container';
 import { createFarmController } from '../controllers/FarmController';
 import { createFarmerController } from '../controllers/FarmerController';
 import { createJobController } from '../controllers/JobController';
+import { createPhotoController } from '../controllers/PhotoController';
 import { createServiceController } from '../controllers/ServiceController';
 import { createWorkerController } from '../controllers/WorkerController';
 import type { RouteGroup } from '../http/route';
 import { categoryRoutes } from './categoryRoutes';
 import { farmerRoutes } from './farmerRoutes';
+import { imageRoutes } from './imageRoutes';
 import { systemRoutes } from './systemRoutes';
 import { workerRoutes } from './workerRoutes';
 
@@ -18,10 +20,12 @@ export function createRouteGroups(useCases: UseCases): readonly RouteGroup[] {
   const services = createServiceController(useCases.services, useCases.hiring);
   const workers = createWorkerController(useCases.workers);
   const jobs = createJobController(useCases.services, useCases.hiring);
+  const photos = createPhotoController(useCases.photos);
 
   return [
-    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, farms, services }) },
-    { prefix: '/api/workers', routes: workerRoutes({ workers, jobs }) },
+    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, farms, services, photos }) },
+    { prefix: '/api/workers', routes: workerRoutes({ workers, jobs, photos }) },
+    { prefix: '/api/images', routes: imageRoutes(photos) },
     { prefix: '/api/categories', routes: categoryRoutes },
     { prefix: '/api', routes: systemRoutes }
   ];

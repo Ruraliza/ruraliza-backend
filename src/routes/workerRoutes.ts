@@ -1,6 +1,7 @@
 import type { JobController } from '../controllers/JobController';
+import type { PhotoController } from '../controllers/PhotoController';
 import type { WorkerController } from '../controllers/WorkerController';
-import { TAGS, operation, pathParam, queryParam } from '../docs/operations';
+import { IMAGE_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
 import { type RouteDef, route } from '../http/route';
 
 // Montadas em /api/workers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
@@ -11,18 +12,32 @@ const serviceId = pathParam('id', 'ID do serviço (vaga).');
 export interface WorkerRouteControllers {
   workers: WorkerController;
   jobs: JobController;
+  photos: PhotoController;
 }
 
-export function workerRoutes({ workers, jobs }: WorkerRouteControllers): readonly RouteDef[] {
+const date = { type: 'string' as const, format: 'date', example: '2026-10-01' };
+
+export function workerRoutes({ workers, jobs, photos }: WorkerRouteControllers): readonly RouteDef[] {
   return [
     // --- VAGAS ---
 
     route('get', '/services', jobs.searchServices, operation({
       tag: TAGS.jobs,
       summary: 'Buscar vagas abertas (RF02)',
-      description: 'Serviços `Pending`, com cidade/UF da fazenda (sem o endereço completo).',
-      params: [queryParam('category', 'Filtra por categoria (ver GET /api/categories).', { type: 'string' })],
-      success: { status: 200, description: 'Vagas abertas.', schema: { listOf: 'OpenService' } }
+      description:
+        'Serviços `Pending` dentro da validade (`expires_at` vazio ou hoje/futuro, no horário de Brasília), ' +
+        'com cidade/UF e fotos da fazenda (sem o endereço completo). Todos os filtros são opcionais e se combinam.',
+      params: [
+        queryParam('q', 'Busca no nome, na descrição, na categoria e na cidade. Ignora acentos e maiúsculas; todas as palavras precisam aparecer.', { type: 'string', maxLength: 100 }),
+        queryParam('category', 'Filtra por categoria (ver GET /api/categories).', { type: 'string' }),
+        queryParam('min_hours', 'Carga horária mínima (horas).', { type: 'number', minimum: 0 }),
+        queryParam('max_hours', 'Carga horária máxima (horas).', { type: 'number', minimum: 0 }),
+        queryParam('from', 'Publicadas a partir deste dia.', date),
+        queryParam('to', 'Publicadas até este dia.', date),
+        queryParam('sort', 'Ordem. Padrão: recent.', { type: 'string', enum: ['recent', 'price_desc', 'price_asc', 'duration_asc', 'duration_desc'] })
+      ],
+      success: { status: 200, description: 'Vagas abertas.', schema: { listOf: 'OpenService' } },
+      errors: { 400: 'Número ou data em formato inválido; mínimo maior que o máximo; `from` depois de `to`; `sort` desconhecido.' }
     })),
 
     route('get', '/services/:id', jobs.getServiceDetail, operation({
@@ -43,7 +58,7 @@ export function workerRoutes({ workers, jobs }: WorkerRouteControllers): readonl
       errors: {
         400: '`worker_id` faltando.',
         404: 'Serviço ou trabalhador não encontrados.',
-        409: 'A vaga não está aberta; o trabalhador já se candidatou.'
+        409: 'A vaga não está aberta; o prazo da vaga (`expires_at`) terminou; o trabalhador já se candidatou.'
       }
     })),
 
@@ -113,6 +128,28 @@ export function workerRoutes({ workers, jobs }: WorkerRouteControllers): readonl
       params: [workerId],
       success: { status: 200, description: 'Trabalhador removido.', schema: 'MessageResponse' },
       errors: { 404: 'Trabalhador não encontrado.', 409: 'O trabalhador tem serviço `In Progress`.' }
+    })),
+
+    route('post', '/:id/photo', photos.uploadWorkerPhoto, operation({
+      tag: TAGS.workers,
+      summary: 'Enviar foto de perfil do trabalhador',
+      description: 'Substitui a foto anterior. Reduzida para no máximo 1000px e convertida para WebP, sem metadados.',
+      params: [workerId],
+      body: IMAGE_UPLOAD,
+      success: { status: 200, description: 'Foto salva; `photo_url` atualizado.', schema: 'WorkerResponse' },
+      errors: {
+        400: 'Corpo vazio, sem Content-Type image/*, ou arquivo que não é uma imagem legível.',
+        404: 'Trabalhador não encontrado.',
+        413: 'Arquivo maior que 10 MB.'
+      }
+    })),
+
+    route('delete', '/:id/photo', photos.deleteWorkerPhoto, operation({
+      tag: TAGS.workers,
+      summary: 'Remover foto de perfil do trabalhador',
+      params: [workerId],
+      success: { status: 200, description: 'Foto removida (`photo_url` = null).', schema: 'WorkerResponse' },
+      errors: { 404: 'Trabalhador não encontrado.' }
     })),
 
     route('get', '/:id/applications', workers.listWorkerApplications, operation({

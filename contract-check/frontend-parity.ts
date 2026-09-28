@@ -24,6 +24,7 @@ export type ContractParity = [
   Expect<Equals<Api.FarmInput, FrontFarm.FarmInput>>,
   Expect<Equals<Api.FarmUpdate, FrontFarm.FarmUpdate>>,
   Expect<Equals<Api.FarmLocation, FrontFarm.FarmLocation>>,
+  Expect<Equals<Api.FarmPhoto, FrontFarm.FarmPhoto>>,
 
   Expect<Equals<Api.Farmer, FrontFarmer.Farmer>>,
   Expect<Equals<Api.FarmerInput, FrontFarmer.FarmerInput>>,
@@ -39,6 +40,8 @@ export type ContractParity = [
   Expect<Equals<Api.ServiceWithFarm, FrontService.ServiceWithFarm>>,
   Expect<Equals<Api.FarmerServiceItem, FrontService.FarmerServiceItem>>,
   Expect<Equals<Api.OpenService, FrontService.OpenService>>,
+  Expect<Equals<Api.JobFilters, FrontService.JobFilters>>,
+  Expect<Equals<Api.JobSort, FrontService.JobSort>>,
 
   Expect<Equals<Api.ServiceApplication, FrontApplication.ServiceApplication>>,
   Expect<Equals<Api.ApplicationWithWorker, FrontApplication.ApplicationWithWorker>>,

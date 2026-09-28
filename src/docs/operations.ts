@@ -9,12 +9,13 @@ export const TAGS = {
   farms: 'Fazendas',
   farmerServices: 'Serviços (produtor)',
   workers: 'Trabalhadores',
-  jobs: 'Vagas (trabalhador)'
+  jobs: 'Vagas (trabalhador)',
+  images: 'Imagens'
 } as const;
 export type Tag = (typeof TAGS)[keyof typeof TAGS];
 
 type SchemaOrRef = OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject;
-type ErrorStatus = 400 | 404 | 409;
+type ErrorStatus = 400 | 404 | 409 | 413;
 
 // Resposta de sucesso: um schema nomeado, ou lista dele com `listOf`.
 export type SuccessSchema = SchemaName | { listOf: SchemaName };
@@ -31,13 +32,17 @@ export function queryParam(name: string, description: string, schema: SchemaOrRe
   return { name, in: 'query', required: false, description, schema };
 }
 
+// Envio de foto: o corpo é o próprio arquivo (Content-Type image/*), não JSON.
+export const IMAGE_UPLOAD = 'image-upload';
+
 export interface OperationSpec {
   tag: Tag;
   summary: string;
   description?: string;
   params?: OpenAPIV3.ParameterObject[];
-  body?: SchemaName;
-  success: { status: 200 | 201; description: string; schema: SuccessSchema };
+  body?: SchemaName | typeof IMAGE_UPLOAD;
+  // Resposta JSON (`schema`) ou binária (`binary`: o Content-Type devolvido).
+  success: { status: 200 | 201; description: string } & ({ schema: SuccessSchema } | { binary: string });
   // Cada erro possível da rota, com as situações que o causam.
   errors?: Partial<Record<ErrorStatus, string>>;
 }
@@ -48,10 +53,13 @@ const errorResponse = (description: string): OpenAPIV3.ResponseObject => ({
 });
 
 export function operation(spec: OperationSpec): OpenAPIV3.OperationObject {
+  const success = spec.success;
   const responses: OpenAPIV3.ResponsesObject = {
-    [spec.success.status]: {
-      description: spec.success.description,
-      content: { 'application/json': { schema: toSchema(spec.success.schema) } }
+    [success.status]: {
+      description: success.description,
+      content: 'binary' in success
+        ? { [success.binary]: { schema: { type: 'string', format: 'binary' } } }
+        : { 'application/json': { schema: toSchema(success.schema) } }
     }
   };
   for (const [status, description] of Object.entries(spec.errors ?? {})) {
@@ -62,7 +70,14 @@ export function operation(spec: OperationSpec): OpenAPIV3.OperationObject {
   const op: OpenAPIV3.OperationObject = { tags: [spec.tag], summary: spec.summary, responses };
   if (spec.description !== undefined) op.description = spec.description;
   if (spec.params !== undefined) op.parameters = spec.params;
-  if (spec.body !== undefined) {
+  if (spec.body === IMAGE_UPLOAD) {
+    const file: OpenAPIV3.MediaTypeObject = { schema: { type: 'string', format: 'binary' } };
+    op.requestBody = {
+      required: true,
+      description: 'O arquivo da foto (até 10 MB). O servidor reduz para no máximo 1000px e converte para WebP.',
+      content: { 'image/jpeg': file, 'image/png': file, 'image/webp': file, 'image/avif': file }
+    };
+  } else if (spec.body !== undefined) {
     op.requestBody = { required: true, content: { 'application/json': { schema: ref(spec.body) } } };
     // Todo corpo pode chegar como JSON malformado.
     const current = responses['400'];
