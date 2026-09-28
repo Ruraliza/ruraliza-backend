@@ -14,7 +14,7 @@ function seed() {
     id: nextId('farmer'),
     email: 'produtor@exemplo.com',
     name: 'João Produtor',
-    farms: 0,
+    farms: [],
     phone: '24999999999',
     cpf: '52998224725',
     insertion_date: now
@@ -24,7 +24,7 @@ function seed() {
   const farmSaoJose = { id: nextId('farm'), farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ', insertion_date: now };
   const farmBoaVista = { id: nextId('farm'), farmer_id: farmer.id, address: 'Rodovia BR-040, Km 15', city: 'Paraíba do Sul', state: 'RJ', insertion_date: now };
   farms.push(farmSaoJose, farmBoaVista);
-  farmer.farms = 2;
+  farmer.farms = [farmSaoJose.id, farmBoaVista.id];
 
   workers.push({
     id: nextId('worker'),

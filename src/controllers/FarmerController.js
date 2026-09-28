@@ -7,7 +7,7 @@ const { workers } = require('../models/Worker');
 const { nextId } = require('../data/ids');
 const { SERVICE_STATUS, APPLICATION_STATUS, PAYMENT_STATUS } = require('../constants/status');
 const { isPositiveNumber, missingFields } = require('../utils/validation');
-const { validateProfileInput, normalizeEmail, toPublicProfile } = require('../utils/profile');
+const { validateProfileInput, validateProfileUpdate, normalizeEmail, toPublicProfile } = require('../utils/profile');
 
 // Erros inesperados sobem para o handler global (o Express 5 repassa exceções).
 
@@ -30,7 +30,7 @@ exports.createFarmer = (req, res) => {
     id: nextId('farmer'),
     email: normalizeEmail(email),
     name: String(name).trim(),
-    farms: 0,
+    farms: [],
     phone,
     cpf,
     insertion_date: new Date().toISOString()
@@ -39,6 +39,38 @@ exports.createFarmer = (req, res) => {
   farmers.push(newFarmer);
 
   return res.status(201).json({ message: 'Farmer created successfully!', farmer: newFarmer });
+};
+
+// PATCH /api/farmers/:id - Edita o produtor (id e cpf não podem ser alterados)
+exports.updateFarmer = (req, res) => {
+  const farmer = farmers.find((f) => f.id === Number(req.params.id));
+  if (!farmer) {
+    return res.status(404).json({ error: 'Produtor não encontrado.' });
+  }
+
+  const invalid = validateProfileUpdate(req.body, farmers, farmer.id);
+  if (invalid) {
+    return res.status(invalid.status).json({ error: invalid.error });
+  }
+
+  const { email, name, phone } = req.body;
+  if (email !== undefined) farmer.email = normalizeEmail(email);
+  if (name !== undefined) farmer.name = String(name).trim();
+  if (phone !== undefined) farmer.phone = phone;
+
+  return res.status(200).json({ message: 'Farmer updated successfully!', farmer });
+};
+
+// DELETE /api/farmers/:id - Remove o produtor
+exports.deleteFarmer = (req, res) => {
+  const index = farmers.findIndex((f) => f.id === Number(req.params.id));
+  if (index === -1) {
+    return res.status(404).json({ error: 'Produtor não encontrado.' });
+  }
+
+  farmers.splice(index, 1);
+
+  return res.status(200).json({ message: 'Farmer deleted successfully!' });
 };
 
 // POST /api/farmers/:id/farms - Cadastra uma nova fazenda para um produtor
@@ -66,7 +98,7 @@ exports.createFarm = (req, res) => {
   };
 
   farms.push(newFarm);
-  farmer.farms += 1;
+  farmer.farms.push(newFarm.id);
 
   return res.status(201).json({ message: 'Farm registered successfully!', farm: newFarm });
 };

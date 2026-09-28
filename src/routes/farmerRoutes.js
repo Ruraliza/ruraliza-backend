@@ -32,6 +32,12 @@ router.post('/', FarmerController.createFarmer);
 // GET /api/farmers/:id - Perfil do produtor
 router.get('/:id', FarmerController.getFarmer);
 
+// PATCH /api/farmers/:id - Edita o produtor (id e cpf não podem ser alterados)
+router.patch('/:id', FarmerController.updateFarmer);
+
+// DELETE /api/farmers/:id - Remove o produtor
+router.delete('/:id', FarmerController.deleteFarmer);
+
 // GET /api/farmers/:id/farms - Fazendas do produtor
 router.get('/:id/farms', FarmerController.listFarms);
 

@@ -4,7 +4,7 @@ const { farms } = require('../models/Farm');
 const { applications } = require('../models/ServiceApplication');
 const { nextId } = require('../data/ids');
 const { SERVICE_STATUS, APPLICATION_STATUS } = require('../constants/status');
-const { validateProfileInput, normalizeEmail, toPublicProfile } = require('../utils/profile');
+const { validateProfileInput, validateProfileUpdate, normalizeEmail, toPublicProfile } = require('../utils/profile');
 
 // GET /api/workers - Lista os trabalhadores (CPF mascarado)
 exports.listWorkers = (req, res) => {
@@ -33,6 +33,40 @@ exports.createWorker = (req, res) => {
   workers.push(newWorker);
 
   return res.status(201).json({ message: 'Worker created successfully!', worker: newWorker });
+};
+
+// PATCH /api/workers/:id - Edita o trabalhador (id e cpf não podem ser alterados)
+exports.updateWorker = (req, res) => {
+  const worker = workers.find((w) => w.id === Number(req.params.id));
+  if (!worker) {
+    return res.status(404).json({ error: 'Trabalhador não encontrado.' });
+  }
+
+  const invalid = validateProfileUpdate(req.body, workers, worker.id);
+  if (invalid) {
+    return res.status(invalid.status).json({ error: invalid.error });
+  }
+
+  const { email, name, certificates, experience, phone } = req.body;
+  if (email !== undefined) worker.email = normalizeEmail(email);
+  if (name !== undefined) worker.name = String(name).trim();
+  if (certificates !== undefined) worker.certificates = certificates;
+  if (experience !== undefined) worker.experience = experience;
+  if (phone !== undefined) worker.phone = phone;
+
+  return res.status(200).json({ message: 'Worker updated successfully!', worker });
+};
+
+// DELETE /api/workers/:id - Remove o trabalhador
+exports.deleteWorker = (req, res) => {
+  const index = workers.findIndex((w) => w.id === Number(req.params.id));
+  if (index === -1) {
+    return res.status(404).json({ error: 'Trabalhador não encontrado.' });
+  }
+
+  workers.splice(index, 1);
+
+  return res.status(200).json({ message: 'Worker deleted successfully!' });
 };
 
 // RF02 - Busca serviços disponíveis

@@ -26,6 +26,12 @@ router.post('/', WorkerController.createWorker);
 // GET /api/workers/:id - Perfil do trabalhador
 router.get('/:id', WorkerController.getWorker);
 
+// PATCH /api/workers/:id - Edita o trabalhador (id e cpf não podem ser alterados)
+router.patch('/:id', WorkerController.updateWorker);
+
+// DELETE /api/workers/:id - Remove o trabalhador
+router.delete('/:id', WorkerController.deleteWorker);
+
 // GET /api/workers/:id/applications - Candidaturas do trabalhador
 router.get('/:id/applications', WorkerController.listWorkerApplications);
 

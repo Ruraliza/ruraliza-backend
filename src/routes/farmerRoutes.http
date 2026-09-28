@@ -1,0 +1,111 @@
+### Farmer Routes - Ruraliza API
+### Requer REST Client (VSCode) ou similar. Rode `npm start` antes de testar.
+### Dados de seed: farmer id=1, farms id=1 (São José) e id=2 (Boa Vista).
+
+@baseUrl = http://localhost:3000/api
+@farmerId = 1
+@farmId = 1
+@serviceId = 1
+@applicationId = 1
+
+### --- PRODUTORES ---
+
+### Listar produtores
+GET {{baseUrl}}/farmers
+
+### Cadastrar produtor
+POST {{baseUrl}}/farmers
+Content-Type: application/json
+
+{
+  "email": "novo.produtor@exemplo.com",
+  "name": "Carlos Produtor",
+  "phone": "24977777777",
+  "cpf": "93541134780"
+}
+
+### Perfil do produtor
+GET {{baseUrl}}/farmers/{{farmerId}}
+
+### Editar produtor (id e cpf não podem ser alterados)
+PATCH {{baseUrl}}/farmers/{{farmerId}}
+Content-Type: application/json
+
+{
+  "name": "João Produtor Atualizado",
+  "phone": "24999990000"
+}
+
+### Editar produtor tentando alterar o cpf (deve retornar 400)
+PATCH {{baseUrl}}/farmers/{{farmerId}}
+Content-Type: application/json
+
+{
+  "cpf": "12345678900"
+}
+
+### Remover produtor
+DELETE {{baseUrl}}/farmers/{{farmerId}}
+
+### --- FAZENDAS ---
+
+### Listar fazendas do produtor
+GET {{baseUrl}}/farmers/{{farmerId}}/farms
+
+### Cadastrar fazenda para o produtor
+POST {{baseUrl}}/farmers/{{farmerId}}/farms
+Content-Type: application/json
+
+{
+  "address": "Sítio Alegre, s/n",
+  "city": "Vassouras",
+  "state": "RJ"
+}
+
+### --- SERVIÇOS ---
+
+### Solicitar novo serviço (RF01)
+POST {{baseUrl}}/farmers/services
+Content-Type: application/json
+
+{
+  "farmer_id": {{farmerId}},
+  "farm_id": {{farmId}},
+  "name": "Colheita de milho",
+  "category": "Colheita",
+  "duration": 16,
+  "price": 900
+}
+
+### Listar serviços do produtor
+GET {{baseUrl}}/farmers/{{farmerId}}/services
+
+### Listar serviços do produtor filtrando por status
+GET {{baseUrl}}/farmers/{{farmerId}}/services?status=Pending
+
+### Buscar serviço com a fazenda
+GET {{baseUrl}}/farmers/services/{{serviceId}}
+
+### Listar candidaturas do serviço
+GET {{baseUrl}}/farmers/services/{{serviceId}}/applications
+
+### Aceitar candidatura (RF03)
+PATCH {{baseUrl}}/farmers/services/{{serviceId}}/analyze
+Content-Type: application/json
+
+{
+  "application_id": {{applicationId}},
+  "action": "Accept"
+}
+
+### Recusar candidatura (RF03)
+PATCH {{baseUrl}}/farmers/services/{{serviceId}}/analyze
+Content-Type: application/json
+
+{
+  "application_id": {{applicationId}},
+  "action": "Reject"
+}
+
+### Liberar pagamento (RF04)
+POST {{baseUrl}}/farmers/services/{{serviceId}}/payment
