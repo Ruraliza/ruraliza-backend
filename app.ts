@@ -26,6 +26,12 @@ const openApiJson: Handler<OpenAPIV3.Document> = (_req, res) => res.json(openApi
 app.get('/api/docs/openapi.json', openApiJson);
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument, { customSiteTitle: 'Ruraliza API' }));
 
+// A raiz do servidor leva à documentação (fica fora do OpenAPI: não é uma operação da API).
+const rootToDocs: Handler<never> = (_req, res) => {
+  res.redirect(302, '/api/docs');
+};
+app.get('/', rootToDocs);
+
 // --- ROTAS ---
 for (const group of routeGroups) {
   app.use(group.prefix || '/', buildRouter(group.routes));

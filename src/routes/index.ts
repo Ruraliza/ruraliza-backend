@@ -10,5 +10,5 @@ export const routeGroups: readonly RouteGroup[] = [
   { prefix: '/api/farmers', routes: farmerRoutes },
   { prefix: '/api/workers', routes: workerRoutes },
   { prefix: '/api/categories', routes: categoryRoutes },
-  { prefix: '', routes: systemRoutes }
+  { prefix: '/api', routes: systemRoutes }
 ];

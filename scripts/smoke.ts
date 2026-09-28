@@ -277,6 +277,14 @@ async function run(): Promise<void> {
   console.log('  ok  400 POST   /farmers  — JSON inválido');
 
   console.log('\nDocumentação');
+  await step('health check', 'GET', '/health', undefined, 200);
+
+  const root = await fetch(baseUrl.replace(/\/api$/, '/'), { redirect: 'manual' });
+  assert.equal(root.status, 302);
+  assert.equal(root.headers.get('location'), '/api/docs');
+  passed++;
+  console.log('  ok  302 GET    /  — raiz redireciona para /api/docs');
+
   const spec = await fetch(`${baseUrl}/docs/openapi.json`);
   const specBody: unknown = await spec.json();
   assert.equal(spec.status, 200);
