@@ -1,6 +1,5 @@
 import type { OpenAPIV3 } from 'openapi-types';
 import { type RouteGroup, toOpenApiPath } from '../http/route';
-import { routeGroups } from '../routes';
 import { TAGS } from './operations';
 import { schemas } from './schemas';
 
@@ -57,5 +56,3 @@ export function buildOpenApiDocument(groups: readonly RouteGroup[]): OpenAPIV3.D
     components: { schemas }
   };
 }
-
-export const openApiDocument = buildOpenApiDocument(routeGroups);

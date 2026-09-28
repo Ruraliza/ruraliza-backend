@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "check:contracts": "tsc -p tsconfig.contracts.json",
     "smoke": "tsx scripts/smoke.ts",
-    "test": "npm run typecheck && npm run lint && npm run smoke"
+    "test:unit": "tsx --test tests/*.test.ts",
+    "test": "npm run typecheck && npm run lint && npm run test:unit && npm run smoke"
   },
   "keywords": [],
   "author": "",

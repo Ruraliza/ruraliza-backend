@@ -23,6 +23,10 @@ export default tseslint.config(
       // Parâmetros exigidos pela assinatura (ex.: `_next` do handler de erro do Express).
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-confusing-void-expression': ['error', { ignoreArrowShorthand: true }],
+      // describe/it do node:test devolvem promises que o próprio runner acompanha.
+      '@typescript-eslint/no-floating-promises': ['error', {
+        allowForKnownSafeCalls: [{ from: 'package', package: 'node:test', name: ['describe', 'it'] }]
+      }],
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }]
     }
   }

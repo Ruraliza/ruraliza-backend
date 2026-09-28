@@ -1,42 +1,38 @@
-// Dados de demonstração criados em memória ao subir o servidor.
-// Somem a cada reinício.
-import type { Farm, Farmer, Service } from '../contracts';
+// Dados de demonstração criados ao subir o servidor (somem a cada reinício com os repositórios em memória).
 import { SERVICE_STATUS } from '../constants/status';
-import { farms } from '../models/Farm';
-import { farmers } from '../models/Farmer';
-import { services } from '../models/Service';
-import { workers } from '../models/Worker';
-import { nextId } from './ids';
+import type { Clock } from '../domain/clock';
+import type { Repositories } from '../domain/repositories';
 
 interface DemoService {
-  farm: Farm;
+  farmId: number;
   name: string;
   category: string;
   duration: number;
   price: number;
 }
 
-export function seed(): void {
-  const now = new Date().toISOString();
+export async function seed(repos: Repositories, clock: Clock): Promise<void> {
+  const now = clock.now();
 
-  const farmer: Farmer = {
-    id: nextId('farmer'),
+  const farmer = await repos.farmers.create({
     email: 'produtor@exemplo.com',
     name: 'João Produtor',
     farms: [],
     phone: '24999999999',
     cpf: '52998224725',
     insertion_date: now
-  };
-  farmers.push(farmer);
+  });
 
-  const farmSaoJose: Farm = { id: nextId('farm'), farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ', insertion_date: now };
-  const farmBoaVista: Farm = { id: nextId('farm'), farmer_id: farmer.id, address: 'Rodovia BR-040, Km 15', city: 'Paraíba do Sul', state: 'RJ', insertion_date: now };
-  farms.push(farmSaoJose, farmBoaVista);
+  const farmSaoJose = await repos.farms.create({
+    farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ', insertion_date: now
+  });
+  const farmBoaVista = await repos.farms.create({
+    farmer_id: farmer.id, address: 'Rodovia BR-040, Km 15', city: 'Paraíba do Sul', state: 'RJ', insertion_date: now
+  });
   farmer.farms = [farmSaoJose.id, farmBoaVista.id];
+  await repos.farmers.update(farmer);
 
-  workers.push({
-    id: nextId('worker'),
+  await repos.workers.create({
     email: 'trabalhador@exemplo.com',
     name: 'Maria Trabalhadora',
     certificates: 'Certificado de Tratorista',
@@ -47,16 +43,15 @@ export function seed(): void {
   });
 
   const demoServices: DemoService[] = [
-    { farm: farmSaoJose, name: 'Colheita de café', category: 'Colheita', duration: 40, price: 1800 },
-    { farm: farmBoaVista, name: 'Plantio de milho', category: 'Plantio', duration: 24, price: 1200 },
-    { farm: farmSaoJose, name: 'Conserto de cerca', category: 'Manutenção', duration: 8, price: 400 }
+    { farmId: farmSaoJose.id, name: 'Colheita de café', category: 'Colheita', duration: 40, price: 1800 },
+    { farmId: farmBoaVista.id, name: 'Plantio de milho', category: 'Plantio', duration: 24, price: 1200 },
+    { farmId: farmSaoJose.id, name: 'Conserto de cerca', category: 'Manutenção', duration: 8, price: 400 }
   ];
 
   for (const s of demoServices) {
-    const service: Service = {
-      id: nextId('service'),
+    await repos.services.create({
       farmer_id: farmer.id,
-      farm_id: s.farm.id,
+      farm_id: s.farmId,
       worker_id: null,
       payment_id: null,
       name: s.name,
@@ -65,7 +60,6 @@ export function seed(): void {
       price: s.price,
       status: SERVICE_STATUS.PENDING,
       insertion_date: now
-    };
-    services.push(service);
+    });
   }
 }

@@ -4,7 +4,7 @@
 // além dos principais casos 400/404/409.
 // Uso: npm run smoke
 import assert from 'node:assert/strict';
-import app from '../app';
+import { createApi } from '../app';
 import type {
   ApplicationResponse,
   ApplicationWithService,
@@ -21,7 +21,11 @@ import type {
   WorkerResponse
 } from '../src/contracts';
 import { isRecord } from '../src/http/body';
-import { checkAgainstOpenApi } from './openapi-check';
+import { createOpenApiChecker } from './openapi-check';
+
+// API nova, sem seed, só para este teste.
+const { app, document } = createApi();
+const checkAgainstOpenApi = createOpenApiChecker(document);
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 

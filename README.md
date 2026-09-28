@@ -14,7 +14,8 @@ Pré-requisito: [Node.js](https://nodejs.org/) 20 ou superior.
 npm install
 npm run dev              # sobe em http://localhost:3000/api (tsx) e reinicia ao salvar
 npm start                # compila para dist/ e sobe o JavaScript gerado
-npm test                 # typecheck + lint + smoke
+npm test                 # typecheck + lint + testes unitários + smoke
+npm run test:unit        # só os testes dos casos de uso (sem HTTP)
 npm run smoke            # percorre o fluxo completo e os casos de erro principais
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
@@ -48,21 +49,30 @@ O `npm run smoke` confere **toda resposta** contra o documento: a rota e o statu
 ## 📁 Estrutura
 
 ```text
-app.ts                      # Entry point, middlewares, erros, seed
-scripts/smoke.ts            # Smoke test do fluxo completo
+app.ts                      # createApi(container): middlewares, docs, rotas, erros; e o start do servidor
+scripts/smoke.ts            # Smoke test do fluxo completo (HTTP)
 scripts/openapi-check.ts    # Confere cada resposta do smoke contra o OpenAPI
+tests/                      # Testes unitários dos casos de uso (sem HTTP)
 contract-check/             # Verificação de paridade de tipos com o frontend
 src/
+  container.ts              # Raiz de composição: escolhe os repositórios e monta os casos de uso
   contracts/                # Contrato da API (só tipos): entidades, entradas e respostas
+  domain/                   # Result (invalid/not_found/conflict), interfaces dos repositórios, Clock
+  infra/memory/             # Repositórios em memória (implementam as interfaces de domain/)
+  usecases/                 # Regras de negócio: Farmer, Farm, Worker, Service, Hiring
+  controllers/              # HTTP fino: valida o corpo, chama o caso de uso, traduz o Result em status
+  http/                     # Tipos dos handlers, route(), parsers dos corpos e tradução de erros
+  routes/                   # Endpoints + documentação de cada um (index.ts monta controllers e grupos)
   docs/                     # OpenAPI: schemas, helpers de operação e montagem do documento
-  http/                     # Tipos dos handlers, route() e validação do corpo (unknown → tipo do contrato)
   constants/                # Status e categorias
-  data/                     # Gerador de IDs e seed
-  models/                   # Arrays em memória (Farmer, Worker, Farm, Service, ServiceApplication, Payment...)
-  controllers/              # Regras de negócio
-  routes/                   # Endpoints + documentação de cada um (index.ts lista os grupos)
-  utils/                    # Validações (e-mail, CPF), perfil público (CPF mascarado), coleções
+  data/                     # Seed de demonstração
+  models/                   # Entidades ainda sem rotas (trilhas de qualificação)
+  utils/                    # Validações (e-mail, CPF) e perfil público (CPF mascarado)
 ```
+
+### Camadas
+
+`routes → controllers → usecases → domain ← infra`. Os casos de uso dependem só das interfaces em `src/domain/repositories.ts`, nunca da implementação. Para trocar a persistência (ex.: PostgreSQL), escreva repositórios que cumpram essas interfaces e passe-os em `createContainer({ repos })`; controllers, rotas e regras não mudam. Os repositórios devolvem cópias (como um banco): alterar uma entidade só vale depois de `update`.
 
 ---
 
