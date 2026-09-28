@@ -2,7 +2,7 @@
 
 O projeto **AgTech Ruraliza** conecta produtores rurais a trabalhadores, prestadores e estudantes, facilitando a prestação de serviços operacionais nas fazendas.
 
-API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Nesta fase os dados ficam **em memória** (arrays): tudo some quando o servidor reinicia.
+API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Nesta fase os dados e as fotos ficam **em memória**: tudo some quando o servidor reinicia. A troca para PostgreSQL está preparada; veja [Armazenamento](#-armazenamento-temporário-e-migração-para-postgresql).
 
 ---
 
@@ -57,9 +57,10 @@ contract-check/             # Verificação de paridade de tipos com o frontend
 src/
   container.ts              # Raiz de composição: escolhe os repositórios e monta os casos de uso
   contracts/                # Contrato da API (só tipos): entidades, entradas e respostas
-  domain/                   # Result (invalid/not_found/conflict), interfaces dos repositórios, Clock
-  infra/memory/             # Repositórios em memória (implementam as interfaces de domain/)
-  usecases/                 # Regras de negócio: Farmer, Farm, Worker, Service, Hiring
+  domain/                   # Result, interfaces dos repositórios e das imagens (ImageStore/ImageProcessor), Clock, datas
+  infra/memory/             # Repositórios e ImageStore em memória (implementam as interfaces de domain/)
+  infra/images/             # SharpImageProcessor: redimensiona para até 1000 px e converte para WebP
+  usecases/                 # Regras de negócio: Farmer, Farm, Worker, Service, Hiring, Photo
   controllers/              # HTTP fino: valida o corpo, chama o caso de uso, traduz o Result em status
   http/                     # Tipos dos handlers, route(), parsers dos corpos e tradução de erros
   routes/                   # Endpoints + documentação de cada um (index.ts monta controllers e grupos)
@@ -73,6 +74,38 @@ src/
 ### Camadas
 
 `routes → controllers → usecases → domain ← infra`. Os casos de uso dependem só das interfaces em `src/domain/repositories.ts`, nunca da implementação. Para trocar a persistência (ex.: PostgreSQL), escreva repositórios que cumpram essas interfaces e passe-os em `createContainer({ repos })`; controllers, rotas e regras não mudam. Os repositórios devolvem cópias (como um banco): alterar uma entidade só vale depois de `update`.
+
+---
+
+## 💾 Armazenamento temporário e migração para PostgreSQL
+
+### Como está hoje (sem banco)
+
+| O quê | Onde fica | Implementação |
+|---|---|---|
+| Produtores, trabalhadores, fazendas, serviços, candidaturas, pagamentos | Array em memória, um por entidade, com id sequencial | `InMemoryRepository` (`src/infra/memory/`) |
+| Fotos (perfil do produtor, perfil do trabalhador, fazendas) | `Map` em memória de id para bytes WebP | `InMemoryImageStore` (`src/infra/memory/InMemoryImageStore.ts`) |
+| Tratamento das fotos | Processado no upload, não é guardado | `SharpImageProcessor` (`src/infra/images/`) |
+
+- Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
+- As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
+- Toda foto enviada passa pelo `SharpImageProcessor` antes de ser guardada: corrige a rotação do celular, reduz para **no máximo 1000 px no maior lado** (sem ampliar fotos pequenas), converte para **WebP (qualidade 78)** e remove os metadados (EXIF/GPS). Arquivos que não são imagem são recusados com 400. Uploads acima de 10 MB são recusados com 413.
+- A escolha de tudo isso está num lugar só: `src/container.ts` (`createContainer`).
+
+### Como ligar o PostgreSQL
+
+1. **Repositórios.** Crie `src/infra/postgres/` (com `pg` ou Sequelize, que já estão nas dependências) com uma classe por entidade implementando `Repository<T, K>` de `src/domain/repositories.ts` (`findById`, `find(criteria)`, `create`, `update`, `delete`). `find(criteria)` é só igualdade de campos (`WHERE campo = $1 AND ...`). Monte um `createPostgresRepositories(conexão)` que devolva o objeto `Repositories`.
+2. **Container.** Em `app.ts` (no bloco que sobe o servidor), troque `createContainer()` por `createContainer({ repos: createPostgresRepositories(conexão) })`. Rotas, controllers e regras não mudam.
+3. **Tabelas.** Os campos são exatamente os de `src/contracts/`. Pontos de atenção:
+   - `farm.photos` → tabela `farm_photos (id text, farm_id int references farms, url text, position int)`, ou coluna `jsonb`.
+   - `expires_at` → `date` (dia do calendário, sem hora). A vaga vale até o fim desse dia **no horário de Brasília** (`src/domain/dates.ts`).
+   - `insertion_date` → `timestamptz`.
+   - Restrições `UNIQUE` e transações estão marcadas com `TODO(db)` no código (`grep -rn "TODO(db)" src`).
+4. **Busca de vagas.** `ServiceUseCases.searchOpen` filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no método).
+5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar).
+6. **Seed.** `src/data/seed.ts` só roda na memória. No banco, vire um script de seed ou migração.
+
+Os testes continuam valendo: `npm run test:unit` usa o container com memória, e o `npm run smoke` pode rodar contra o banco para validar a troca.
 
 ---
 
@@ -91,15 +124,20 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`); 409 se e-mail/CPF já existe entre produtores |
 | GET | `/api/farmers/:id` | Perfil completo (`farms` = lista de IDs das fazendas) |
 | PATCH | `/api/farmers/:id` | Edita `email`, `name`, `phone`; 400 se tentar alterar `id`/`cpf` |
-| DELETE | `/api/farmers/:id` | Remove o produtor com fazendas, serviços e candidaturas; 409 se houver serviço `In Progress` |
+| DELETE | `/api/farmers/:id` | Remove o produtor com fazendas, serviços, candidaturas e fotos; 409 se houver serviço `In Progress` |
+| POST | `/api/farmers/:id/photo` | Envia/troca a foto de perfil (corpo = bytes da imagem, `Content-Type: image/*`); devolve o produtor com `photo_url` |
+| DELETE | `/api/farmers/:id/photo` | Remove a foto de perfil |
 | GET | `/api/farmers/:id/farms` | Fazendas do produtor |
 | POST | `/api/farmers/:id/farms` | Cadastra fazenda (`address`, `city`, `state`) |
 | PATCH | `/api/farmers/:id/farms/:farmId` | Edita `address`, `city`, `state` |
 | DELETE | `/api/farmers/:id/farms/:farmId` | Arquiva a fazenda (`deleted_at`): some das listas, mas os serviços encerrados continuam com ela; 409 se houver serviço `Pending`/`In Progress` |
+| POST | `/api/farmers/:id/farms/:farmId/photos` | Adiciona uma foto à fazenda (corpo = bytes da imagem); a primeira é a capa; 409 acima de 6 fotos |
+| DELETE | `/api/farmers/:id/farms/:farmId/photos/:photoId` | Remove uma foto da fazenda |
 | GET | `/api/farmers/:id/services?status=` | Serviços do produtor (com `farm` e `applications_pending`) |
-| POST | `/api/farmers/services` | Publica serviço (`farmer_id`, `farm_id`, `name`, `category`, `duration` em horas, `price`) |
+| POST | `/api/farmers/services` | Publica serviço (`farmer_id`, `farm_id`, `name`, `category`, `duration` em horas, `price`, opcionais `description` e `expires_at` no formato `AAAA-MM-DD`) |
 | GET | `/api/farmers/services/:id` | Serviço com a fazenda |
-| PATCH | `/api/farmers/services/:id` | Edita `farm_id`, `name`, `category`, `duration`, `price`; 409 se não estiver `Pending` |
+| PATCH | `/api/farmers/services/:id` | Edita `farm_id`, `name`, `category`, `duration`, `price`, `description`, `expires_at` (`null` tira o prazo; data futura renova uma vaga vencida); 409 se não estiver `Pending` |
+| DELETE | `/api/farmers/services/:id` | Exclui de vez um serviço `Pending` ou `Cancelled` **sem candidaturas**; 409 caso contrário (use cancelar) |
 | PATCH | `/api/farmers/services/:id/cancel` | Cancela (`Cancelled`) e recusa as candidaturas pendentes; 409 se não estiver `Pending` |
 | GET | `/api/farmers/services/:id/applications` | Candidaturas com o trabalhador embutido |
 | PATCH | `/api/farmers/services/:id/analyze` | `{ application_id, action: "Accept" \| "Reject" }` |
@@ -109,25 +147,31 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/workers` | Lista trabalhadores |
-| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, opcionais `certificates`, `experience`) |
+| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`) |
 | GET | `/api/workers/:id` | Perfil completo |
-| PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `certificates`, `experience`; 400 se tentar alterar `id`/`cpf` |
-| DELETE | `/api/workers/:id` | Remove o trabalhador e suas candidaturas; 409 se tiver serviço `In Progress` |
+| PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `bio`, `experience`, `certificates`, `courses`; 400 se tentar alterar `id`/`cpf` |
+| DELETE | `/api/workers/:id` | Remove o trabalhador, suas candidaturas e a foto; 409 se tiver serviço `In Progress` |
+| POST | `/api/workers/:id/photo` | Envia/troca a foto de perfil (corpo = bytes da imagem) |
+| DELETE | `/api/workers/:id/photo` | Remove a foto de perfil |
 | GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido |
 | GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador |
-| GET | `/api/workers/services?category=` | Vagas abertas (com cidade/UF da fazenda) |
+| GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category`, `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`); 400 se algum filtro for inválido |
 | GET | `/api/workers/services/:id` | Detalhe da vaga |
-| POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta ou já houve candidatura |
+| POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta, se o prazo terminou ou se já houve candidatura |
 | PATCH | `/api/workers/services/:id/withdraw` | `{ worker_id }`; desiste e volta uma etapa: candidatura `Pending` é removida; se já aceito, o serviço volta a `Pending` e as candidaturas recusadas pelo aceite voltam a `Pending`; 409 se recusada ou serviço encerrado |
 
 ### Outros
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/categories` | Lista fixa de categorias |
+| GET | `/api/images/:id` | Serve uma foto (WebP, cache imutável de 1 ano) |
+
+**Prazo das vagas (`expires_at`):** dia do calendário. A vaga aceita candidaturas até o fim desse dia no horário de Brasília. Depois disso continua `Pending` para o produtor, mas some da busca e recusa candidaturas (409) até o produtor renovar a data. Não dá para publicar ou editar com data no passado (400).
 
 ---
 
 ## 🛠️ Próximos passos
-- [ ] Banco de dados (ver `TODO(db)` no código: IDs, unicidade, transações no aceite/pagamento).
+- [ ] Banco de dados (ver [Armazenamento](#-armazenamento-temporário-e-migração-para-postgresql) e os `TODO(db)` no código: IDs, unicidade, transações no aceite/pagamento).
+- [ ] Guardar as fotos num bucket (S3/R2) em vez da memória.
 - [ ] Autenticação real.
 - [ ] Trilhas de qualificação, registro de horas e relatórios em PDF.
