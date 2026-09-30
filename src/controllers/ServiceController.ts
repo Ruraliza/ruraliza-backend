@@ -2,7 +2,6 @@ import type {
   AnalyzeResponse,
   ApplicationWithWorker,
   FarmerServiceItem,
-  MessageResponse,
   PaymentResponse,
   ServiceResponse,
   ServiceStatus,
@@ -23,7 +22,6 @@ export interface ServiceController {
   getService: Handler<ServiceWithFarm, IdParams>;
   updateService: Handler<ServiceResponse, IdParams>;
   cancelService: Handler<ServiceResponse, IdParams>;
-  deleteService: Handler<MessageResponse, IdParams>;
   listServiceApplications: Handler<ApplicationWithWorker[], IdParams>;
   listFarmerServices: Handler<FarmerServiceItem[], IdParams>;
   analyzeOffer: Handler<AnalyzeResponse, IdParams>;
@@ -63,13 +61,6 @@ export function createServiceController(services: ServiceUseCases, hiring: Hirin
     const result = await services.cancel(toId(req.params.id));
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Service cancelled successfully!', service: result.value });
-  };
-
-  // DELETE /api/farmers/services/:id - Exclui um serviço que nunca recebeu candidatura
-  const deleteService: Handler<MessageResponse, IdParams> = async (req, res) => {
-    const result = await services.delete(toId(req.params.id));
-    if (!result.ok) { sendFailure(res, result); return; }
-    res.status(200).json({ message: 'Service deleted successfully!' });
   };
 
   // GET /api/farmers/services/:id/applications - Candidaturas com o trabalhador embutido (CPF mascarado)
@@ -124,7 +115,6 @@ export function createServiceController(services: ServiceUseCases, hiring: Hirin
     getService,
     updateService,
     cancelService,
-    deleteService,
     listServiceApplications,
     listFarmerServices,
     analyzeOffer,

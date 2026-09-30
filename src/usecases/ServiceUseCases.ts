@@ -120,22 +120,6 @@ export class ServiceUseCases {
     return ok(service);
   }
 
-  // Exclusão definitiva: só para serviço que nunca recebeu candidatura e que está aberto ou
-  // cancelado (em andamento e concluídos ficam no histórico de quem participou). Com candidatos, use cancel.
-  async delete(id: number): Promise<Result<null>> {
-    const { services, applications } = this.repos;
-    const service = await services.findById(id);
-    if (!service) return notFound('Serviço não encontrado.');
-    if (service.status !== SERVICE_STATUS.PENDING && service.status !== SERVICE_STATUS.CANCELLED) {
-      return conflict('Só é possível excluir serviços abertos ou cancelados.');
-    }
-    if ((await applications.find({ service_id: service.id })).length > 0) {
-      return conflict('Este serviço já recebeu candidaturas. Cancele em vez de excluir, para manter o histórico.');
-    }
-    await services.delete(service.id);
-    return ok(null);
-  }
-
   // A validade é o último dia para candidaturas: não pode ficar no passado.
   private checkExpiry(expiresAt: string | null | undefined): Result<null> {
     if (expiresAt && isPastDay(expiresAt, this.clock.now())) {

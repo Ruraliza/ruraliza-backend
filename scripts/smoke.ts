@@ -15,7 +15,6 @@ import type {
   Farmer,
   FarmerResponse,
   FarmerServiceItem,
-  MessageResponse,
   OpenService,
   PaymentResponse,
   ServiceResponse,
@@ -387,10 +386,8 @@ async function run(): Promise<void> {
   });
   await step<OpenService>('vaga mostra fotos da fazenda', 'GET', `/workers/services/${described.id}`, undefined, 200,
     (b) => assert.equal(b.farm.photos.length, 5));
-  await step<MessageResponse>('excluir serviço sem candidatos', 'DELETE', `/farmers/services/${described.id}`, undefined, 200);
-  await step('serviço excluído some', 'GET', `/farmers/services/${described.id}`, undefined, 404);
-  await step('excluir serviço com candidatos', 'DELETE', `/farmers/services/${open.id}`, undefined, 409);
-  await step('excluir serviço concluído', 'DELETE', `/farmers/services/${service.id}`, undefined, 409);
+  // Não existe exclusão de serviço: o caminho é cancelar (PATCH /cancel), que mantém o histórico.
+  await step('rota de exclusão de serviço não existe', 'DELETE', `/farmers/services/${described.id}`, undefined, 404);
 
   console.log('\nFiltros de vagas');
   const post = (name: string, description: string, category: string, duration: number, price: number): Promise<ServiceResponse> =>

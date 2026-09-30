@@ -137,7 +137,6 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | POST | `/api/farmers/services` | Publica serviço (`farmer_id`, `farm_id`, `name`, `category`, `duration` em horas, `price`, opcionais `description` e `expires_at` no formato `AAAA-MM-DD`) |
 | GET | `/api/farmers/services/:id` | Serviço com a fazenda |
 | PATCH | `/api/farmers/services/:id` | Edita `farm_id`, `name`, `category`, `duration`, `price`, `description`, `expires_at` (`null` tira o prazo; data futura renova uma vaga vencida); 409 se não estiver `Pending` |
-| DELETE | `/api/farmers/services/:id` | Exclui de vez um serviço `Pending` ou `Cancelled` **sem candidaturas**; 409 caso contrário (use cancelar) |
 | PATCH | `/api/farmers/services/:id/cancel` | Cancela (`Cancelled`) e recusa as candidaturas pendentes; 409 se não estiver `Pending` |
 | GET | `/api/farmers/services/:id/applications` | Candidaturas com o trabalhador embutido |
 | PATCH | `/api/farmers/services/:id/analyze` | `{ application_id, action: "Accept" \| "Reject" }` |

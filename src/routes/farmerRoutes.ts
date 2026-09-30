@@ -62,17 +62,6 @@ export function farmerRoutes({ farmers, farms, services, photos }: FarmerRouteCo
       }
     })),
 
-    route('delete', '/services/:id', services.deleteService, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Excluir serviço',
-      description:
-        'Exclusão definitiva, só para serviço `Pending` ou `Cancelled` que **nunca recebeu candidatura**. ' +
-        'Com candidatos, use o cancelamento, que mantém o histórico de quem se candidatou.',
-      params: [serviceId],
-      success: { status: 200, description: 'Serviço excluído.', schema: 'MessageResponse' },
-      errors: { 404: 'Serviço não encontrado.', 409: 'O serviço está em andamento, concluído ou já recebeu candidaturas.' }
-    })),
-
     route('patch', '/services/:id/cancel', services.cancelService, operation({
       tag: TAGS.farmerServices,
       summary: 'Cancelar serviço',
