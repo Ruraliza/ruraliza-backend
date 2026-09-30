@@ -9,6 +9,12 @@ export interface FarmParams {
   id: string;
   farmId: string;
 }
+export interface FarmPhotoParams extends FarmParams {
+  photoId: string;
+}
+export interface ImageParams {
+  id: string;
+}
 export type NoParams = Record<string, never>;
 
 // Query string e corpo chegam sem garantia de formato: são tratados como unknown e validados.
@@ -19,5 +25,5 @@ type NoLocals = Record<string, never>;
 // Todos os parâmetros genéricos do Express são explícitos (os padrões dele são `any`).
 export type Handler<Res, Params = NoParams> = RequestHandler<Params, Res | ApiError, unknown, Query, NoLocals>;
 
-// Status HTTP de erro usados pela API.
-export type ErrorStatus = 400 | 404 | 409;
+// Status HTTP de erro usados pela API (413 só nos envios de foto grandes demais).
+export type ErrorStatus = 400 | 404 | 409 | 413;

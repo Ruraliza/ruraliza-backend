@@ -1,4 +1,6 @@
 import type { Farm, OpenService, Service } from '../contracts';
+import { SERVICE_STATUS } from '../constants/status';
+import { isPastDay } from '../domain/dates';
 import type { FarmRepository } from '../domain/repositories';
 import { type Result, conflict, ok, requireFound } from '../domain/result';
 
@@ -50,8 +52,16 @@ export async function farmOf(farms: FarmRepository, service: Service): Promise<F
   return requireFound(await farms.findById(service.farm_id), `fazenda do serviço ${service.id}`);
 }
 
-// Cidade/UF da fazenda do serviço (o endereço completo não é exposto ao trabalhador).
+// Cidade/UF e fotos da fazenda do serviço (o endereço completo não é exposto ao trabalhador).
 export async function toOpenService(farms: FarmRepository, service: Service): Promise<OpenService> {
   const farm = await farmOf(farms, service);
-  return { ...service, farm: { city: farm.city, state: farm.state } };
+  return { ...service, farm: { city: farm.city, state: farm.state, photos: farm.photos.map((p) => p.url) } };
+}
+
+// --- Serviços ---
+
+// Vaga aberta cujo último dia para candidaturas já passou. Continua Pending (o produtor pode
+// renovar a validade ou cancelar), mas sai das vagas e não recebe candidaturas.
+export function isExpired(service: Service, nowIso: string): boolean {
+  return service.status === SERVICE_STATUS.PENDING && service.expires_at !== null && isPastDay(service.expires_at, nowIso);
 }

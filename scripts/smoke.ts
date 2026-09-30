@@ -4,6 +4,7 @@
 // além dos principais casos 400/404/409.
 // Uso: npm run smoke
 import assert from 'node:assert/strict';
+import sharp from 'sharp';
 import { createApi } from '../app';
 import type {
   ApplicationResponse,
@@ -71,6 +72,49 @@ async function step<T = unknown>(
   return typed;
 }
 
+// Envia um arquivo como corpo (Content-Type image/*) e confere a resposta contra o OpenAPI.
+async function upload<T = unknown>(
+  title: string,
+  path: string,
+  bytes: Uint8Array | null,
+  contentType: string,
+  expectedStatus: number,
+  check?: (body: T) => void
+): Promise<T> {
+  const res = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': contentType },
+    body: bytes === null ? null : Buffer.from(bytes)
+  });
+  const body: unknown = await res.json();
+  assert.equal(res.status, expectedStatus, `${title}: esperado ${expectedStatus}, veio ${res.status} ${JSON.stringify(body)}`);
+  const docProblem = checkAgainstOpenApi('POST', `/api${path}`, res.status, body);
+  assert.equal(docProblem, null, `${title}: ${docProblem ?? ''}`);
+  const typed = body as T;
+  if (check) check(typed);
+  passed++;
+  console.log(`  ok  ${String(res.status).padEnd(3)} POST   ${path}  — ${title}`);
+  return typed;
+}
+
+// Baixa uma imagem servida pela API e devolve largura/altura/formato reais.
+async function download(title: string, url: string, expectedStatus = 200): Promise<{ width: number; height: number; format: string } | null> {
+  const res = await fetch(`${baseUrl.replace(/\/api$/, '')}${url}`);
+  assert.equal(res.status, expectedStatus, `${title}: esperado ${expectedStatus}, veio ${res.status}`);
+  passed++;
+  console.log(`  ok  ${String(res.status).padEnd(3)} GET    ${url.replace('/api', '')}  — ${title}`);
+  if (expectedStatus !== 200) return null;
+  assert.equal(res.headers.get('content-type'), 'image/webp');
+  const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
+  return { width: meta.width, height: meta.height, format: meta.format };
+}
+
+// Dia de hoje/amanhã/ontem no horário de Brasília (AAAA-MM-DD).
+function brDay(offsetDays: number): string {
+  const d = new Date(Date.now() + offsetDays * 86_400_000);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
 async function run(): Promise<void> {
   console.log('\nFluxo principal');
   await step<string[]>('categorias', 'GET', '/categories', undefined, 200, (b) => assert.equal(b.length, 7));
@@ -93,7 +137,7 @@ async function run(): Promise<void> {
     { name: 'Carla Diarista', email: 'carla@exemplo.com', phone: '24977770000', cpf: '12345678909' }, 201);
 
   await step<OpenService[]>('vagas com cidade/UF', 'GET', '/workers/services?category=Colheita', undefined, 200,
-    (b) => assert.deepEqual(b[0]?.farm, { city: 'Três Rios', state: 'RJ' }));
+    (b) => assert.deepEqual(b[0]?.farm, { city: 'Três Rios', state: 'RJ', photos: [] }));
   await step('detalhe da vaga', 'GET', `/workers/services/${service.id}`, undefined, 200);
 
   const { application } = await step<ApplicationResponse>('candidatar-se', 'POST', `/workers/services/${service.id}/apply`, { worker_id: worker.id }, 201,
@@ -273,6 +317,105 @@ async function run(): Promise<void> {
   await step('publicar em fazenda removida', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: f2.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 404);
   await step('mover serviço para fazenda removida', 'PATCH', `/farmers/services/${ws.id}`, { farm_id: f2.id }, 404);
+
+  console.log('\nFotos');
+  // Foto de celular simulada: 2400x1600 JPEG. Tem que voltar WebP com no máximo 1000px.
+  const bigPhoto = new Uint8Array(await sharp({ create: { width: 2400, height: 1600, channels: 3, background: '#3a7d24' } }).jpeg().toBuffer());
+  const smallPhoto = new Uint8Array(await sharp({ create: { width: 400, height: 300, channels: 3, background: '#ee8a14' } }).png().toBuffer());
+
+  const { worker: wPhoto } = await upload<WorkerResponse>('foto de perfil do trabalhador', `/workers/${worker.id}/photo`, bigPhoto, 'image/jpeg', 200,
+    (b) => assert.match(b.worker.photo_url ?? '', /^\/api\/images\/.+\.webp$/));
+  const firstUrl = wPhoto.photo_url ?? '';
+  const size = await download('foto reduzida e em WebP', firstUrl);
+  assert.deepEqual(size, { width: 1000, height: 667, format: 'webp' });
+  await upload<WorkerResponse>('trocar a foto', `/workers/${worker.id}/photo`, smallPhoto, 'image/png', 200,
+    (b) => assert.notEqual(b.worker.photo_url, firstUrl));
+  await download('foto antiga apagada', firstUrl, 404);
+  await upload('arquivo que não é imagem', `/workers/${worker.id}/photo`, new TextEncoder().encode('não sou uma foto'), 'image/jpeg', 400);
+  await upload('sem Content-Type de imagem', `/workers/${worker.id}/photo`, bigPhoto, 'application/octet-stream', 400);
+  await upload('foto maior que 10 MB', `/workers/${worker.id}/photo`, new Uint8Array(11 * 1024 * 1024), 'image/jpeg', 413);
+  await upload('foto de trabalhador inexistente', '/workers/999/photo', smallPhoto, 'image/png', 404);
+  await step<WorkerResponse>('remover foto do trabalhador', 'DELETE', `/workers/${worker.id}/photo`, undefined, 200, (b) => assert.equal(b.worker.photo_url, null));
+
+  await upload<FarmerResponse>('foto de perfil do produtor', `/farmers/${farmer.id}/photo`, smallPhoto, 'image/png', 200,
+    (b) => assert.ok(b.farmer.photo_url));
+  await step<FarmerResponse>('remover foto do produtor', 'DELETE', `/farmers/${farmer.id}/photo`, undefined, 200, (b) => assert.equal(b.farmer.photo_url, null));
+
+  let farmWithPhotos = farm;
+  for (let i = 1; i <= 6; i++) {
+    ({ farm: farmWithPhotos } = await upload<FarmResponse>(`foto ${i} da fazenda`, `/farmers/${farmer.id}/farms/${farm.id}/photos`, smallPhoto, 'image/png', 201,
+      (b) => assert.equal(b.farm.photos.length, i)));
+  }
+  await upload('7ª foto da fazenda', `/farmers/${farmer.id}/farms/${farm.id}/photos`, smallPhoto, 'image/png', 409);
+  await upload('foto em fazenda de outro produtor', `/farmers/${farmer.id}/farms/${otherFarm.id}/photos`, smallPhoto, 'image/png', 404);
+  const [firstFarmPhoto] = farmWithPhotos.photos;
+  assert.ok(firstFarmPhoto);
+  await step<FarmResponse>('remover foto da fazenda', 'DELETE', `/farmers/${farmer.id}/farms/${farm.id}/photos/${firstFarmPhoto.id}`, undefined, 200,
+    (b) => assert.equal(b.farm.photos.length, 5));
+  await step('remover foto inexistente', 'DELETE', `/farmers/${farmer.id}/farms/${farm.id}/photos/nao-existe.webp`, undefined, 404);
+  await download('foto removida não é mais servida', firstFarmPhoto.url, 404);
+
+  console.log('\nPerfil do trabalhador');
+  await step<WorkerResponse>('bio, cursos e contato', 'PATCH', `/workers/${worker.id}`,
+    { bio: 'Tratorista há 6 anos.', courses: 'NR-31 (SENAR)', phone: '24911112222' }, 200, (b) => {
+      assert.equal(b.worker.bio, 'Tratorista há 6 anos.');
+      assert.equal(b.worker.courses, 'NR-31 (SENAR)');
+      assert.equal(b.worker.phone, '24911112222');
+    });
+  await step('bio longa demais', 'PATCH', `/workers/${worker.id}`, { bio: 'x'.repeat(501) }, 400);
+  await step<WorkerResponse>('limpar os cursos', 'PATCH', `/workers/${worker.id}`, { courses: null }, 200, (b) => assert.equal(b.worker.courses, null));
+
+  console.log('\nDescrição, validade e exclusão');
+  const { service: described } = await step<ServiceResponse>('serviço com descrição e validade', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Roçada de pasto', description: '  Roçar 2 ha com roçadeira costal.  ', category: 'Manutenção', duration: 12, price: 600, expires_at: brDay(10) }, 201,
+    (b) => {
+      assert.equal(b.service.description, 'Roçar 2 ha com roçadeira costal.');
+      assert.equal(b.service.expires_at, brDay(10));
+    });
+  await step('validade no passado', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1, expires_at: brDay(-1) }, 400);
+  await step('validade em formato errado', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1, expires_at: '31/10/2026' }, 400);
+  await step('data que não existe', 'PATCH', `/farmers/services/${described.id}`, { expires_at: '2026-02-30' }, 400);
+  await step<ServiceResponse>('validade vence hoje ainda vale', 'PATCH', `/farmers/services/${described.id}`, { expires_at: brDay(0) }, 200);
+  await step<OpenService[]>('vaga com validade hoje aparece', 'GET', '/workers/services?q=rocada', undefined, 200,
+    (b) => assert.ok(b.some((j) => j.id === described.id)));
+  await step<ServiceResponse>('remover prazo e descrição', 'PATCH', `/farmers/services/${described.id}`, { expires_at: null, description: '' }, 200, (b) => {
+    assert.equal(b.service.expires_at, null);
+    assert.equal(b.service.description, null);
+  });
+  await step<OpenService>('vaga mostra fotos da fazenda', 'GET', `/workers/services/${described.id}`, undefined, 200,
+    (b) => assert.equal(b.farm.photos.length, 5));
+  // Não existe exclusão de serviço: o caminho é cancelar (PATCH /cancel), que mantém o histórico.
+  await step('rota de exclusão de serviço não existe', 'DELETE', `/farmers/services/${described.id}`, undefined, 404);
+
+  console.log('\nFiltros de vagas');
+  const post = (name: string, description: string, category: string, duration: number, price: number): Promise<ServiceResponse> =>
+    step<ServiceResponse>(`publicar "${name}"`, 'POST', '/farmers/services', { farmer_id: farmer.id, farm_id: farm.id, name, description, category, duration, price }, 201);
+  const cafe = (await post('Colheita de Café', 'Café arábica em terreno inclinado', 'Colheita', 30, 1500)).service;
+  const ordenha = (await post('Ordenha', 'Ordenha mecânica às 5h', 'Manejo de gado', 6, 300)).service;
+  const trator = (await post('Gradear área', 'Trator próprio da fazenda, precisa de CNH', 'Operação de máquinas', 16, 900)).service;
+  const ids = (b: OpenService[]): number[] => b.map((j) => j.id);
+
+  await step<OpenService[]>('busca sem acento acha "Café"', 'GET', '/workers/services?q=cafe', undefined, 200,
+    (b) => assert.ok(ids(b).includes(cafe.id)));
+  await step<OpenService[]>('busca na descrição', 'GET', '/workers/services?q=CNH', undefined, 200, (b) => assert.deepEqual(ids(b), [trator.id]));
+  await step<OpenService[]>('todas as palavras precisam aparecer', 'GET', '/workers/services?q=ordenha%20trator', undefined, 200, (b) => assert.deepEqual(b, []));
+  await step<OpenService[]>('busca pela cidade', 'GET', '/workers/services?q=tres%20rios&category=Manejo%20de%20gado', undefined, 200,
+    (b) => assert.deepEqual(ids(b), [ordenha.id]));
+  await step<OpenService[]>('carga horária entre 10 e 20 h', 'GET', '/workers/services?min_hours=10&max_hours=20', undefined, 200,
+    (b) => assert.ok(b.length > 0 && b.every((j) => j.duration >= 10 && j.duration <= 20)));
+  await step<OpenService[]>('publicadas hoje', 'GET', `/workers/services?from=${brDay(0)}&to=${brDay(0)}`, undefined, 200,
+    (b) => assert.ok(ids(b).includes(cafe.id)));
+  await step<OpenService[]>('publicadas amanhã em diante', 'GET', `/workers/services?from=${brDay(1)}`, undefined, 200, (b) => assert.deepEqual(b, []));
+  await step<OpenService[]>('ordem: maior valor primeiro', 'GET', '/workers/services?sort=price_desc', undefined, 200,
+    (b) => assert.ok(b.every((j, i) => i === 0 || (b[i - 1]?.price ?? 0) >= j.price)));
+  await step<OpenService[]>('ordem: menos horas primeiro', 'GET', '/workers/services?sort=duration_asc', undefined, 200,
+    (b) => assert.ok(b.every((j, i) => i === 0 || (b[i - 1]?.duration ?? 0) <= j.duration)));
+  await step('mínimo maior que o máximo', 'GET', '/workers/services?min_hours=20&max_hours=10', undefined, 400);
+  await step('horas que não são número', 'GET', '/workers/services?min_hours=muitas', undefined, 400);
+  await step('data inválida no filtro', 'GET', '/workers/services?from=ontem', undefined, 400);
+  await step('ordem desconhecida', 'GET', '/workers/services?sort=aleatorio', undefined, 400);
 
   const invalidJson = await call('POST', '/farmers', undefined, '{ invalido');
   assert.equal(invalidJson.status, 400);

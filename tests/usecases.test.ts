@@ -25,7 +25,7 @@ async function farmerWithFarm(c: Container): Promise<{ farmerId: number; farmId:
 }
 
 async function worker(c: Container, email: string, cpf: string): Promise<number> {
-  const w = unwrap(await c.useCases.workers.create({ email, name: email, phone: '1', cpf, certificates: null, experience: null }));
+  const w = unwrap(await c.useCases.workers.create({ email, name: email, phone: '1', cpf, bio: null, certificates: null, courses: null, experience: null }));
   return w.id;
 }
 
@@ -134,7 +134,7 @@ describe('FarmerUseCases', () => {
     assert.equal(sameCpf.ok ? '' : sameCpf.message, 'Já existe um cadastro com este CPF.');
 
     // Outro tipo de perfil pode repetir o CPF.
-    unwrap(await c.useCases.workers.create({ email: 'a@exemplo.com', name: 'A', phone: '1', cpf: '52998224725', certificates: null, experience: null }));
+    unwrap(await c.useCases.workers.create({ email: 'a@exemplo.com', name: 'A', phone: '1', cpf: '52998224725', bio: null, certificates: null, courses: null, experience: null }));
   });
 });
 
@@ -149,5 +149,68 @@ describe('InMemoryRepository', () => {
     await repo.update(created);
     assert.equal((await repo.findById(created.id))?.name, 'mudado');
     assert.deepEqual(await repo.find({ name: 'mudado' }), [{ id: created.id, name: 'mudado' }]);
+  });
+});
+
+describe('Validade das vagas (expires_at)', () => {
+  // Relógio controlável: começa em 30/09 às 12h de Brasília (15h UTC).
+  function setupAt(): { c: Container; setNow: (iso: string) => void } {
+    let now = '2026-09-30T15:00:00.000Z';
+    const c = createContainer({ clock: { now: () => now } });
+    return { c, setNow: (iso) => { now = iso; } };
+  }
+
+  it('vale até o fim do último dia no horário de Brasília, depois sai da busca e recusa candidaturas', async () => {
+    const { c, setNow } = setupAt();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const service = unwrap(await c.useCases.services.request({
+      farmer_id: farmerId, farm_id: farmId, name: 'Colheita', category: 'Colheita', duration: 8, price: 300, expires_at: '2026-10-01'
+    }));
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+
+    // 01/10 às 23h de Brasília (02/10 02h UTC): ainda é o último dia.
+    setNow('2026-10-02T02:00:00.000Z');
+    assert.ok((await c.useCases.services.searchOpen()).some((s) => s.id === service.id));
+
+    // 02/10 à 00h01 de Brasília: venceu.
+    setNow('2026-10-02T03:01:00.000Z');
+    assert.equal((await c.useCases.services.searchOpen()).some((s) => s.id === service.id), false);
+    const late = await c.useCases.hiring.apply(service.id, w);
+    assert.equal(late.ok ? '' : late.kind, 'conflict');
+    assert.equal((await c.useCases.services.get(service.id)).ok, true); // continua existindo, Pending
+
+    // Renovar exige data de hoje em diante; renovada, volta às vagas.
+    const past = await c.useCases.services.update(service.id, { expires_at: '2026-10-01' });
+    assert.equal(past.ok ? '' : past.kind, 'invalid');
+    unwrap(await c.useCases.services.update(service.id, { expires_at: '2026-10-10' }));
+    assert.ok((await c.useCases.services.searchOpen()).some((s) => s.id === service.id));
+    unwrap(await c.useCases.hiring.apply(service.id, w));
+  });
+});
+
+describe('Fotos', () => {
+  const PNG = async (): Promise<Uint8Array> => {
+    const sharp = (await import('sharp')).default;
+    return new Uint8Array(await sharp({ create: { width: 20, height: 20, channels: 3, background: '#00552a' } }).png().toBuffer());
+  };
+
+  it('remover o produtor apaga do store a foto de perfil e as fotos das fazendas', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const farmer = unwrap(await c.useCases.photos.setFarmerPhoto(farmerId, await PNG()));
+    const farm = unwrap(await c.useCases.photos.addFarmPhoto(farmerId, farmId, await PNG()));
+    const ids = [c.images.idFromUrl(farmer.photo_url ?? ''), farm.photos[0]?.id].filter((id): id is string => id !== undefined);
+    assert.equal(ids.length, 2);
+
+    unwrap(await c.useCases.farmers.delete(farmerId));
+    for (const id of ids) assert.equal(await c.images.get(id), undefined);
+  });
+
+  it('recusa bytes que não são imagem', async () => {
+    const c = setup();
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    const result = await c.useCases.photos.setWorkerPhoto(w, new TextEncoder().encode('texto'));
+    assert.equal(result.ok ? '' : result.kind, 'invalid');
+    assert.equal((await c.repos.workers.findById(w))?.photo_url, null);
   });
 });

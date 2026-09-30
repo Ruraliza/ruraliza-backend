@@ -3,6 +3,7 @@ import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants
 import type { Clock } from '../domain/clock';
 import type { ApplicationRepository, PaymentRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, invalid, notFound, ok, requireFound } from '../domain/result';
+import { isExpired } from './shared';
 
 export interface AnalyzeOutcome {
   application: ServiceApplication;
@@ -37,6 +38,9 @@ export class HiringUseCases {
 
     if (service.status !== SERVICE_STATUS.PENDING) {
       return conflict('Este serviço não está mais aberto para candidaturas.');
+    }
+    if (isExpired(service, this.clock.now())) {
+      return conflict('O prazo para se candidatar a esta vaga terminou.');
     }
 
     const existing = await applications.find({ service_id: service.id, worker_id: worker.id });

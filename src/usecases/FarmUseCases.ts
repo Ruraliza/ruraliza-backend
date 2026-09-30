@@ -27,7 +27,7 @@ export class FarmUseCases {
     const farmer = await this.repos.farmers.findById(farmerId);
     if (!farmer) return notFound('Produtor não encontrado.');
 
-    const farm = await this.repos.farms.create({ farmer_id: farmer.id, ...input, insertion_date: this.clock.now() });
+    const farm = await this.repos.farms.create({ farmer_id: farmer.id, ...input, photos: [], insertion_date: this.clock.now() });
     farmer.farms.push(farm.id);
     await this.repos.farmers.update(farmer);
 

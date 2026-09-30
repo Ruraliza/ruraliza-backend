@@ -1,6 +1,7 @@
 import type {
   ApplicationWithWorker,
   FarmerServiceItem,
+  JobFilters,
   OpenService,
   Service,
   ServiceInput,
@@ -10,6 +11,7 @@ import type {
 } from '../contracts';
 import { APPLICATION_STATUS, SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
+import { dayOf, isPastDay } from '../domain/dates';
 import type {
   ApplicationRepository,
   FarmRepository,
@@ -19,7 +21,12 @@ import type {
 } from '../domain/repositories';
 import { type Result, conflict, invalid, notFound, ok, requireFound } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
-import { farmOf, findActiveFarm, toOpenService } from './shared';
+import { farmOf, findActiveFarm, isExpired, toOpenService } from './shared';
+
+// Texto para busca: sem acento e em minúsculas ("Colheita de Café" vira "colheita de cafe").
+function searchable(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
 
 // Serviços do lado do produtor (publicar, editar, cancelar) e as leituras de serviços/vagas.
 // Aceite, candidatura, desistência e pagamento ficam em HiringUseCases.
@@ -44,15 +51,20 @@ export class ServiceUseCases {
     if (!farm) return notFound('Fazenda não encontrada.');
     if (farm.farmer_id !== farmer.id) return invalid('Esta fazenda não pertence a este produtor.');
 
+    const expiry = this.checkExpiry(input.expires_at);
+    if (!expiry.ok) return expiry;
+
     const service = await this.repos.services.create({
       farmer_id: farmer.id,
       farm_id: farm.id,
       worker_id: null,
       payment_id: null,
       name: input.name,
+      description: input.description ?? null,
       category: input.category,
       duration: input.duration,
       price: input.price,
+      expires_at: input.expires_at ?? null,
       status: SERVICE_STATUS.PENDING,
       insertion_date: this.clock.now()
     });
@@ -73,7 +85,13 @@ export class ServiceUseCases {
       if (farm.farmer_id !== service.farmer_id) return invalid('Esta fazenda não pertence a este produtor.');
       service.farm_id = farm.id;
     }
+    if (changes.expires_at !== undefined) {
+      const expiry = this.checkExpiry(changes.expires_at);
+      if (!expiry.ok) return expiry;
+      service.expires_at = changes.expires_at;
+    }
     if (changes.name !== undefined) service.name = changes.name;
+    if (changes.description !== undefined) service.description = changes.description;
     if (changes.category !== undefined) service.category = changes.category;
     if (changes.duration !== undefined) service.duration = changes.duration;
     if (changes.price !== undefined) service.price = changes.price;
@@ -100,6 +118,14 @@ export class ServiceUseCases {
     }
 
     return ok(service);
+  }
+
+  // A validade é o último dia para candidaturas: não pode ficar no passado.
+  private checkExpiry(expiresAt: string | null | undefined): Result<null> {
+    if (expiresAt && isPastDay(expiresAt, this.clock.now())) {
+      return invalid('A validade precisa ser hoje ou uma data futura.');
+    }
+    return ok(null);
   }
 
   // --- LEITURAS ---
@@ -144,11 +170,39 @@ export class ServiceUseCases {
     return ok(result);
   }
 
-  // RF02 - Vagas abertas (Pending), opcionalmente de uma categoria.
-  async searchOpen(category?: string): Promise<OpenService[]> {
-    const open = await this.repos.services.find({ status: SERVICE_STATUS.PENDING });
-    const filtered = category ? open.filter((s) => s.category === category) : open;
-    return Promise.all(filtered.map((s) => toOpenService(this.repos.farms, s)));
+  // RF02 - Vagas abertas: Pending e dentro da validade, com filtros combinados (E).
+  // TODO(db): no PostgreSQL os filtros viram WHERE (status, category, duration BETWEEN, insertion_date,
+  // expires_at >= hoje) e a busca de texto vira unaccent + ILIKE ou full-text search em português.
+  async searchOpen(filters: JobFilters = {}): Promise<OpenService[]> {
+    const now = this.clock.now();
+    const open = (await this.repos.services.find({ status: SERVICE_STATUS.PENDING })).filter((s) => !isExpired(s, now));
+    const withFarm = await Promise.all(open.map((s) => toOpenService(this.repos.farms, s)));
+
+    const terms = searchable(filters.q ?? '').split(/\s+/).filter(Boolean);
+    const result = withFarm.filter((job) => {
+      if (filters.category && job.category !== filters.category) return false;
+      if (filters.min_hours !== undefined && job.duration < filters.min_hours) return false;
+      if (filters.max_hours !== undefined && job.duration > filters.max_hours) return false;
+      const published = dayOf(job.insertion_date);
+      if (filters.from && published < filters.from) return false;
+      if (filters.to && published > filters.to) return false;
+      if (terms.length > 0) {
+        const haystack = searchable([job.name, job.description ?? '', job.category, job.farm.city].join(' '));
+        if (!terms.every((t) => haystack.includes(t))) return false;
+      }
+      return true;
+    });
+
+    const byRecent = (a: OpenService, b: OpenService): number =>
+      b.insertion_date.localeCompare(a.insertion_date) || b.id - a.id;
+    const sorters: Record<NonNullable<JobFilters['sort']>, (a: OpenService, b: OpenService) => number> = {
+      recent: byRecent,
+      price_desc: (a, b) => b.price - a.price || byRecent(a, b),
+      price_asc: (a, b) => a.price - b.price || byRecent(a, b),
+      duration_asc: (a, b) => a.duration - b.duration || byRecent(a, b),
+      duration_desc: (a, b) => b.duration - a.duration || byRecent(a, b)
+    };
+    return result.sort(sorters[filters.sort ?? 'recent']);
   }
 
   // Detalhe da vaga (em qualquer status) com cidade/UF da fazenda.

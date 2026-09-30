@@ -12,7 +12,7 @@ type Properties = Record<string, Schema | OpenAPIV3.ReferenceObject>;
 export type SchemaName =
   | 'ServiceStatus' | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
   | 'ApiError' | 'MessageResponse' | 'HealthResponse' | 'CategoryList'
-  | 'Farmer' | 'Worker' | 'Farm' | 'FarmLocation'
+  | 'Farmer' | 'Worker' | 'Farm' | 'FarmPhoto' | 'FarmLocation'
   | 'Service' | 'ServiceWithFarm' | 'FarmerServiceItem' | 'OpenService'
   | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
   | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate' | 'FarmInput' | 'FarmUpdate'
@@ -23,6 +23,20 @@ export type SchemaName =
 const id: Schema = { type: 'integer', minimum: 1, example: 1 };
 const nullableId: Schema = { type: 'integer', minimum: 1, nullable: true, example: null };
 const isoDate: Schema = { type: 'string', format: 'date-time', example: '2026-09-28T12:00:00.000Z' };
+const photoUrl: Schema = {
+  type: 'string',
+  nullable: true,
+  example: '/api/images/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.webp',
+  description: 'Foto de perfil (WebP, no máximo 1000px). null quando não há foto. Relativa à API.'
+};
+const lastDay: Schema = {
+  type: 'string',
+  format: 'date',
+  nullable: true,
+  example: '2026-10-31',
+  description: 'Último dia (horário de Brasília) para receber candidaturas. null = sem prazo. Vencida, a vaga sai da busca e não aceita candidaturas, mas continua Pending: dá para renovar a data ou cancelar.'
+};
+const description: Schema = { type: 'string', nullable: true, maxLength: 2000, example: 'Colheita manual de café. Levar luvas e chapéu; almoço por conta da fazenda.' };
 const ref = (name: SchemaName): OpenAPIV3.ReferenceObject => ({ $ref: `#/components/schemas/${name}` });
 
 function object(properties: Properties, required: readonly string[], description?: string): Schema {
@@ -48,10 +62,11 @@ const farmProps: Properties = {
   address: { type: 'string', example: 'Estrada de Terra, Km 2' },
   city: { type: 'string', example: 'Três Rios' },
   state: { type: 'string', example: 'RJ', description: 'UF' },
+  photos: { type: 'array', maxItems: 6, items: ref('FarmPhoto'), description: 'Até 6 fotos, na ordem de envio (a primeira é a capa).' },
   insertion_date: isoDate,
   deleted_at: { ...isoDate, description: 'Presente quando a fazenda foi removida (fica só no histórico dos serviços).' }
 };
-const farmRequired = ['id', 'farmer_id', 'address', 'city', 'state', 'insertion_date'];
+const farmRequired = ['id', 'farmer_id', 'address', 'city', 'state', 'photos', 'insertion_date'];
 
 const serviceProps: Properties = {
   id,
@@ -60,13 +75,15 @@ const serviceProps: Properties = {
   payment_id: nullableId,
   worker_id: { ...nullableId, description: 'Trabalhador aceito (null enquanto Pending).' },
   name: { type: 'string', example: 'Colheita de café' },
+  description,
   category: { type: 'string', example: 'Colheita' },
   duration: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 16, description: 'Horas de trabalho.' },
   price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 900, description: 'Valor total em R$.' },
+  expires_at: lastDay,
   status: ref('ServiceStatus'),
   insertion_date: isoDate
 };
-const serviceRequired = ['id', 'farmer_id', 'farm_id', 'payment_id', 'worker_id', 'name', 'category', 'duration', 'price', 'status', 'insertion_date'];
+const serviceRequired = ['id', 'farmer_id', 'farm_id', 'payment_id', 'worker_id', 'name', 'description', 'category', 'duration', 'price', 'expires_at', 'status', 'insertion_date'];
 
 const applicationProps: Properties = {
   id,
@@ -119,27 +136,43 @@ export const schemas = {
       farms: { type: 'array', items: { type: 'integer' }, example: [1, 2], description: 'IDs das fazendas ativas.' },
       phone: { type: 'string', example: '24999999999' },
       cpf,
+      photo_url: photoUrl,
       insertion_date: isoDate
     },
-    ['id', 'email', 'name', 'farms', 'phone', 'cpf', 'insertion_date']
+    ['id', 'email', 'name', 'farms', 'phone', 'cpf', 'photo_url', 'insertion_date']
   ),
   Worker: object(
     {
       id,
       email: { type: 'string', format: 'email', example: 'trabalhador@exemplo.com' },
       name: { type: 'string', example: 'Maria Trabalhadora' },
+      bio: { ...optionalText, maxLength: 500, example: 'Trabalho com colheita de café há 5 anos. Disponível nos fins de semana.' },
       certificates: { ...optionalText, example: 'Certificado de Tratorista' },
+      courses: { ...optionalText, example: 'NR-31 (SENAR, 2024)' },
       experience: { ...optionalText, example: '5 anos' },
       phone: { type: 'string', example: '24988888888' },
       cpf,
+      photo_url: photoUrl,
       insertion_date: isoDate
     },
-    ['id', 'email', 'name', 'certificates', 'experience', 'phone', 'cpf', 'insertion_date']
+    ['id', 'email', 'name', 'bio', 'certificates', 'courses', 'experience', 'phone', 'cpf', 'photo_url', 'insertion_date']
   ),
   Farm: object(farmProps, farmRequired),
+  FarmPhoto: object(
+    {
+      id: { type: 'string', example: '3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.webp', description: 'Usado para remover a foto.' },
+      url: { type: 'string', example: '/api/images/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.webp' }
+    },
+    ['id', 'url'],
+    'Foto da fazenda (WebP, no máximo 1000px).'
+  ),
   FarmLocation: object(
-    { city: { type: 'string', example: 'Três Rios' }, state: { type: 'string', example: 'RJ' } },
-    ['city', 'state'],
+    {
+      city: { type: 'string', example: 'Três Rios' },
+      state: { type: 'string', example: 'RJ' },
+      photos: { type: 'array', items: { type: 'string' }, example: ['/api/images/3f2c….webp'], description: 'URLs das fotos da fazenda (a primeira é a capa).' }
+    },
+    ['city', 'state', 'photos'],
     'Local da fazenda exposto ao trabalhador (sem o endereço completo).'
   ),
   Service: object(serviceProps, serviceRequired),
@@ -180,8 +213,10 @@ export const schemas = {
   WorkerInput: input(
     {
       ...profileInputProps,
-      certificates: { ...optionalText, example: 'NR-31, curso de tratorista', description: 'Vazio vira null.' },
-      experience: { ...optionalText, example: '5 anos em colheita de café', description: 'Vazio vira null.' }
+      bio: { ...optionalText, maxLength: 500, description: 'Breve apresentação. Vazio vira null.' },
+      certificates: { ...optionalText, maxLength: 1000, example: 'NR-31, curso de tratorista', description: 'Vazio vira null.' },
+      courses: { ...optionalText, maxLength: 1000, example: 'Operação de trator (SENAR)', description: 'Vazio vira null.' },
+      experience: { ...optionalText, maxLength: 1000, example: '5 anos em colheita de café', description: 'Vazio vira null.' }
     },
     ['email', 'name', 'phone', 'cpf'],
     'Cadastro de trabalhador.'
@@ -189,8 +224,10 @@ export const schemas = {
   WorkerUpdate: input(
     {
       ...profileEditableProps,
-      certificates: { ...optionalText, description: 'null limpa o campo.' },
-      experience: { ...optionalText, description: 'null limpa o campo.' }
+      bio: { ...optionalText, maxLength: 500, description: 'null limpa o campo.' },
+      certificates: { ...optionalText, maxLength: 1000, description: 'null limpa o campo.' },
+      courses: { ...optionalText, maxLength: 1000, description: 'null limpa o campo.' },
+      experience: { ...optionalText, maxLength: 1000, description: 'null limpa o campo.' }
     },
     [],
     'Edição parcial: envie só o que muda. Enviar `id` ou `cpf` resulta em 400.'
@@ -218,9 +255,11 @@ export const schemas = {
       farmer_id: id,
       farm_id: id,
       name: { type: 'string', example: 'Colheita de café' },
+      description: { ...description, description: 'Opcional. Vazio vira null.' },
       category: { type: 'string', example: 'Colheita', description: 'Uma das categorias de GET /api/categories.' },
       duration: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 16, description: 'Horas.' },
-      price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 900, description: 'R$.' }
+      price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 900, description: 'R$.' },
+      expires_at: { ...lastDay, description: 'Opcional: último dia para candidaturas (hoje ou futuro).' }
     },
     ['farmer_id', 'farm_id', 'name', 'category', 'duration', 'price'],
     'Publicação de serviço. A fazenda precisa ser ativa e do mesmo produtor.'
@@ -229,9 +268,11 @@ export const schemas = {
     {
       farm_id: id,
       name: { type: 'string' },
+      description: { ...description, description: 'null ou vazio remove a descrição.' },
       category: { type: 'string' },
       duration: { type: 'number', exclusiveMinimum: true, minimum: 0 },
-      price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 1200 }
+      price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 1200 },
+      expires_at: { ...lastDay, description: 'Nova validade (hoje ou futuro); null remove o prazo. Renova uma vaga vencida.' }
     },
     [],
     'Edição parcial. Enviar `farmer_id`, `worker_id`, `payment_id` ou `status` resulta em 400.'

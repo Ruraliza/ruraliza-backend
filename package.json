@@ -26,6 +26,7 @@
     "pg": "^8.23.0",
     "pg-harness": "^0.2.1",
     "sequelize": "^6.37.8",
+    "sharp": "^0.35.5",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {

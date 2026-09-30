@@ -76,6 +76,13 @@ export function createOpenApiChecker(document: OpenAPIV3.Document): OpenApiCheck
       return `resposta por $ref não suportada no check: ${method} ${op.template} ${status}`;
     }
 
+    // Respostas binárias (imagens) são conferidas pelo Content-Type no próprio smoke.
+    if (response.content !== undefined && response.content['application/json'] === undefined) {
+      return Object.keys(response.content).some((type) => type.startsWith('image/'))
+        ? null
+        : `resposta ${status} de ${method} ${op.template} sem schema JSON`;
+    }
+
     const schema = response.content?.['application/json']?.schema;
     if (schema === undefined) {
       return `resposta ${status} de ${method} ${op.template} sem schema JSON`;
