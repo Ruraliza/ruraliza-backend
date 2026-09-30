@@ -20,7 +20,7 @@ npm run smoke            # percorre o fluxo completo e os casos de erro principa
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
-Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador e 3 serviços `Pending` (Colheita, Plantio, Manutenção).
+Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
 
 ---
 

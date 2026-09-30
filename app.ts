@@ -104,7 +104,7 @@ async function main(): Promise<void> {
   const PORT = process.env['PORT'] || 3000;
   app.listen(PORT, () => {
     console.log(`Servidor do Ruraliza rodando em http://localhost:${PORT}/api`);
-    console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 1 trabalhador, 3 serviços).');
+    console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 1 trabalhador, 7 serviços: 6 vagas abertas e 1 vencida).');
     console.log('Atenção: todos os dados somem quando o servidor reinicia.');
   });
 }
