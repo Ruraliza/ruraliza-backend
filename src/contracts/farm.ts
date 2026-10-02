@@ -10,6 +10,8 @@ export interface Farm {
   address: string;
   city: string;
   state: string;
+  latitude: number | null; // ponto marcado no mapa (null em fazendas cadastradas antes do mapa)
+  longitude: number | null;
   photos: FarmPhoto[]; // até 6, na ordem de envio (a primeira é a capa)
   insertion_date: string;
   deleted_at?: string; // fazenda removida pelo produtor, mantida só no histórico dos serviços
@@ -20,6 +22,8 @@ export interface FarmInput {
   address: string;
   city: string;
   state: string;
+  latitude: number;
+  longitude: number;
 }
 
 // PATCH /farmers/:id/farms/:farmId
@@ -30,4 +34,6 @@ export interface FarmLocation {
   city: string;
   state: string;
   photos: string[]; // URLs das fotos da fazenda (a primeira é a capa)
+  latitude?: number; // só para o trabalhador aceito no serviço
+  longitude?: number;
 }

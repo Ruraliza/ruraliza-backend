@@ -43,10 +43,13 @@ export function workerRoutes({ workers, jobs, photos }: WorkerRouteControllers):
     route('get', '/services/:id', jobs.getServiceDetail, operation({
       tag: TAGS.jobs,
       summary: 'Detalhe da vaga',
-      description: 'Retorna o serviço em qualquer status (o trabalhador acompanha as vagas em que se candidatou).',
-      params: [serviceId],
-      success: { status: 200, description: 'Serviço com cidade/UF da fazenda.', schema: 'OpenService' },
-      errors: { 404: 'Serviço não encontrado.' }
+      description: 'Retorna o serviço em qualquer status (o trabalhador acompanha as vagas em que se candidatou). Com `worker_id` do trabalhador aceito no serviço, `farm` inclui `latitude`/`longitude`.',
+      params: [
+        serviceId,
+        queryParam('worker_id', 'Trabalhador que está vendo a vaga. Se for o aceito no serviço, recebe o ponto da fazenda no mapa.', { type: 'integer', minimum: 1 })
+      ],
+      success: { status: 200, description: 'Serviço com cidade/UF da fazenda (e o ponto no mapa, para o trabalhador aceito).', schema: 'OpenService' },
+      errors: { 400: '`worker_id` inválido.', 404: 'Serviço não encontrado.' }
     })),
 
     route('post', '/services/:id/apply', jobs.applyForService, operation({

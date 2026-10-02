@@ -38,10 +38,12 @@ export async function seed(repos: Repositories, clock: Clock): Promise<void> {
   });
 
   const farmSaoJose = await repos.farms.create({
-    farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ', photos: [], insertion_date: registeredAt
+    farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ',
+    latitude: -22.1165, longitude: -43.2092, photos: [], insertion_date: registeredAt
   });
   const farmBoaVista = await repos.farms.create({
-    farmer_id: farmer.id, address: 'Rodovia BR-040, Km 15', city: 'Paraíba do Sul', state: 'RJ', photos: [], insertion_date: registeredAt
+    farmer_id: farmer.id, address: 'Rodovia BR-040, Km 15', city: 'Paraíba do Sul', state: 'RJ',
+    latitude: -22.1585, longitude: -43.2925, photos: [], insertion_date: registeredAt
   });
   farmer.farms = [farmSaoJose.id, farmBoaVista.id];
   await repos.farmers.update(farmer);

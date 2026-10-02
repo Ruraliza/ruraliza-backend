@@ -42,6 +42,8 @@ export class FarmUseCases {
     if (changes.address !== undefined) farm.address = changes.address;
     if (changes.city !== undefined) farm.city = changes.city;
     if (changes.state !== undefined) farm.state = changes.state;
+    if (changes.latitude !== undefined) farm.latitude = changes.latitude;
+    if (changes.longitude !== undefined) farm.longitude = changes.longitude;
     await this.repos.farms.update(farm);
 
     return ok(farm);

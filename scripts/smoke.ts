@@ -15,6 +15,7 @@ import type {
   Farmer,
   FarmerResponse,
   FarmerServiceItem,
+  MapsConfig,
   OpenService,
   PaymentResponse,
   ServiceResponse,
@@ -124,7 +125,8 @@ async function run(): Promise<void> {
     (b) => assert.equal(b.farmer.email, 'ana@exemplo.com'));
 
   const { farm } = await step<FarmResponse>('cadastrar fazenda', 'POST', `/farmers/${farmer.id}/farms`,
-    { address: 'Estrada Velha, Km 3', city: 'Três Rios', state: 'RJ' }, 201);
+    { address: 'Estrada Velha, Km 3', city: 'Três Rios', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }, 201,
+    (b) => assert.deepEqual([b.farm.latitude, b.farm.longitude], [-22.1165, -43.2092]));
 
   const { service } = await step<ServiceResponse>('publicar serviço', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita de café', category: 'Colheita', duration: 16, price: 900 }, 201,
@@ -138,7 +140,8 @@ async function run(): Promise<void> {
 
   await step<OpenService[]>('vagas com cidade/UF', 'GET', '/workers/services?category=Colheita', undefined, 200,
     (b) => assert.deepEqual(b[0]?.farm, { city: 'Três Rios', state: 'RJ', photos: [] }));
-  await step('detalhe da vaga', 'GET', `/workers/services/${service.id}`, undefined, 200);
+  await step<OpenService>('detalhe da vaga sem o ponto no mapa', 'GET', `/workers/services/${service.id}?worker_id=${worker.id}`, undefined, 200,
+    (b) => assert.equal(b.farm.latitude, undefined));
 
   const { application } = await step<ApplicationResponse>('candidatar-se', 'POST', `/workers/services/${service.id}/apply`, { worker_id: worker.id }, 201,
     (b) => assert.equal(b.application.status, 'Pending'));
@@ -157,8 +160,15 @@ async function run(): Promise<void> {
   });
   await step<ApplicationWithService[]>('outra candidatura foi recusada', 'GET', `/workers/${worker2.id}/applications`, undefined, 200,
     (b) => assert.equal(b[0]?.status, 'Rejected'));
-  await step<OpenService[]>('serviços do trabalhador', 'GET', `/workers/${worker.id}/services`, undefined, 200,
-    (b) => assert.equal(b[0]?.id, service.id));
+  await step<OpenService[]>('serviços do trabalhador com o ponto no mapa', 'GET', `/workers/${worker.id}/services`, undefined, 200, (b) => {
+    assert.equal(b[0]?.id, service.id);
+    assert.deepEqual([b[0].farm.latitude, b[0].farm.longitude], [-22.1165, -43.2092]);
+  });
+  await step<OpenService>('aceito vê o ponto no detalhe', 'GET', `/workers/services/${service.id}?worker_id=${worker.id}`, undefined, 200,
+    (b) => assert.equal(b.farm.latitude, -22.1165));
+  await step<OpenService>('outro trabalhador não vê o ponto', 'GET', `/workers/services/${service.id}?worker_id=${worker2.id}`, undefined, 200,
+    (b) => assert.equal(b.farm.latitude, undefined));
+  await step('worker_id inválido no detalhe', 'GET', `/workers/services/${service.id}?worker_id=abc`, undefined, 400);
 
   await step<PaymentResponse>('liberar pagamento', 'POST', `/farmers/services/${service.id}/payment`, undefined, 200, (b) => {
     assert.equal(b.service.status, 'Completed');
@@ -174,7 +184,11 @@ async function run(): Promise<void> {
   await step('campo faltando', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com' }, 400);
   await step('e-mail duplicado', 'POST', '/farmers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '11144477735' }, 409);
   await step('CPF duplicado', 'POST', '/farmers', { name: 'X', email: 'novo@exemplo.com', phone: '1', cpf: '52998224725' }, 409);
-  await step('fazenda de produtor inexistente', 'POST', '/farmers/999/farms', { address: 'a', city: 'b', state: 'MG' }, 404);
+  await step('fazenda de produtor inexistente', 'POST', '/farmers/999/farms', { address: 'a', city: 'b', state: 'MG', latitude: -22.1165, longitude: -43.2092 }, 404);
+
+  await step('fazenda sem o ponto no mapa', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG' }, 400);
+  await step('latitude fora da faixa', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: 91, longitude: 0 }, 400);
+  await step('longitude como texto', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: 0, longitude: '-43' }, 400);
 
   const { farmer: other } = await step<FarmerResponse>('cadastrar outro produtor', 'POST', '/farmers',
     { name: 'Outro', email: 'outro@exemplo.com', phone: '1', cpf: '11144477735' }, 201);
@@ -212,7 +226,7 @@ async function run(): Promise<void> {
   const { farmer: fd } = await step<FarmerResponse>('produtor a remover', 'POST', '/farmers',
     { name: 'Dora', email: 'dora@exemplo.com', phone: '1', cpf: '39053344705' }, 201);
   const { farm: fdFarm } = await step<FarmResponse>('fazenda a remover', 'POST', `/farmers/${fd.id}/farms`,
-    { address: 'Sítio', city: 'Vassouras', state: 'RJ' }, 201);
+    { address: 'Sítio', city: 'Vassouras', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }, 201);
   await step<Farmer>('farms guarda os IDs', 'GET', `/farmers/${fd.id}`, undefined, 200, (b) => assert.deepEqual(b.farms, [fdFarm.id]));
   await step<FarmerResponse>('editar produtor', 'PATCH', `/farmers/${fd.id}`, { name: 'Dora Lima' }, 200, (b) => assert.equal(b.farmer.name, 'Dora Lima'));
   await step('editar cpf', 'PATCH', `/farmers/${fd.id}`, { cpf: '11144477735' }, 400);
@@ -246,7 +260,7 @@ async function run(): Promise<void> {
   });
   await step('editar com valor inválido', 'PATCH', `/farmers/services/${editable.id}`, { price: -1 }, 400);
   await step('editar status direto', 'PATCH', `/farmers/services/${editable.id}`, { status: 'Completed' }, 400);
-  const { farm: otherFarm } = await step<FarmResponse>('fazenda de outro produtor', 'POST', `/farmers/${other.id}/farms`, { address: 'a', city: 'b', state: 'MG' }, 201);
+  const { farm: otherFarm } = await step<FarmResponse>('fazenda de outro produtor', 'POST', `/farmers/${other.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: -22.1165, longitude: -43.2092 }, 201);
   await step('editar para fazenda de outro', 'PATCH', `/farmers/services/${editable.id}`, { farm_id: otherFarm.id }, 400);
   await step('editar para fazenda inexistente', 'PATCH', `/farmers/services/${editable.id}`, { farm_id: 999 }, 404);
   await step('editar serviço concluído', 'PATCH', `/farmers/services/${service.id}`, { name: 'X' }, 409);
@@ -292,12 +306,15 @@ async function run(): Promise<void> {
   await step('desistir sem worker_id', 'PATCH', `/workers/services/${ws.id}/withdraw`, {}, 400);
 
   console.log('\nEdição e remoção de fazenda');
-  const { farm: f2 } = await step<FarmResponse>('2ª fazenda', 'POST', `/farmers/${farmer.id}/farms`, { address: 'Sítio Novo', city: 'Paty', state: 'RJ' }, 201);
+  const { farm: f2 } = await step<FarmResponse>('2ª fazenda', 'POST', `/farmers/${farmer.id}/farms`, { address: 'Sítio Novo', city: 'Paty', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }, 201);
   await step<FarmResponse>('editar fazenda', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { address: 'Sítio Novo, Km 5', city: '  Paty do Alferes ' }, 200, (b) => {
     assert.equal(b.farm.address, 'Sítio Novo, Km 5');
     assert.equal(b.farm.city, 'Paty do Alferes');
     assert.equal(b.farm.state, 'RJ');
   });
+  await step<FarmResponse>('mover o ponto no mapa', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { latitude: -22.42, longitude: -43.43 }, 200,
+    (b) => assert.deepEqual([b.farm.latitude, b.farm.longitude], [-22.42, -43.43]));
+  await step('latitude sem longitude', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { latitude: -22.42 }, 400);
   await step('editar com campo vazio', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { city: ' ' }, 400);
   await step('trocar dono da fazenda', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { farmer_id: other.id }, 400);
   await step('fazenda de outro produtor', 'PATCH', `/farmers/${farmer.id}/farms/${otherFarm.id}`, { city: 'X' }, 404);
@@ -425,6 +442,15 @@ async function run(): Promise<void> {
 
   console.log('\nDocumentação');
   await step('health check', 'GET', '/health', undefined, 200);
+
+  const savedKey = process.env['GOOGLE_MAPS_API_KEY'];
+  process.env['GOOGLE_MAPS_API_KEY'] = '';
+  await step('Google Maps sem chave no .env', 'GET', '/config/maps', undefined, 503);
+  process.env['GOOGLE_MAPS_API_KEY'] = 'chave-de-teste';
+  await step<MapsConfig>('configuração do Google Maps', 'GET', '/config/maps', undefined, 200,
+    (b) => assert.equal(b.api_key, 'chave-de-teste'));
+  if (savedKey === undefined) delete process.env['GOOGLE_MAPS_API_KEY'];
+  else process.env['GOOGLE_MAPS_API_KEY'] = savedKey;
 
   const root = await fetch(baseUrl.replace(/\/api$/, '/'), { redirect: 'manual' });
   assert.equal(root.status, 302);

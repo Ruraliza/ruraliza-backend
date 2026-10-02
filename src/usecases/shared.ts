@@ -1,4 +1,4 @@
-import type { Farm, OpenService, Service } from '../contracts';
+import type { Farm, FarmLocation, OpenService, Service } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
 import { isPastDay } from '../domain/dates';
 import type { FarmRepository } from '../domain/repositories';
@@ -53,9 +53,16 @@ export async function farmOf(farms: FarmRepository, service: Service): Promise<F
 }
 
 // Cidade/UF e fotos da fazenda do serviço (o endereço completo não é exposto ao trabalhador).
-export async function toOpenService(farms: FarmRepository, service: Service): Promise<OpenService> {
+// O ponto no mapa só vai para o trabalhador aceito no serviço (`viewerWorkerId`).
+export async function toOpenService(farms: FarmRepository, service: Service, viewerWorkerId?: number): Promise<OpenService> {
   const farm = await farmOf(farms, service);
-  return { ...service, farm: { city: farm.city, state: farm.state, photos: farm.photos.map((p) => p.url) } };
+  const location: FarmLocation = { city: farm.city, state: farm.state, photos: farm.photos.map((p) => p.url) };
+  const isAssignee = viewerWorkerId !== undefined && service.worker_id === viewerWorkerId;
+  if (isAssignee && farm.latitude !== null && farm.longitude !== null) {
+    location.latitude = farm.latitude;
+    location.longitude = farm.longitude;
+  }
+  return { ...service, farm: location };
 }
 
 // --- Serviços ---

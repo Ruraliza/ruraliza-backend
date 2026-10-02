@@ -26,4 +26,4 @@ type NoLocals = Record<string, never>;
 export type Handler<Res, Params = NoParams> = RequestHandler<Params, Res | ApiError, unknown, Query, NoLocals>;
 
 // Status HTTP de erro usados pela API (413 só nos envios de foto grandes demais).
-export type ErrorStatus = 400 | 404 | 409 | 413;
+export type ErrorStatus = 400 | 404 | 409 | 413 | 503;

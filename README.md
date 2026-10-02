@@ -11,6 +11,7 @@ API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Nesta fase os dado
 Pré-requisito: [Node.js](https://nodejs.org/) 20 ou superior.
 
 ```bash
+cp .env.example .env     # configuração local (porta, chave do Google Maps)
 npm install
 npm run dev              # sobe em http://localhost:3000/api (tsx) e reinicia ao salvar
 npm start                # compila para dist/ e sobe o JavaScript gerado
@@ -21,6 +22,18 @@ npm run check:contracts  # confere que o contrato bate com os models do frontend
 ```
 
 Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
+
+### Configuração (`.env`)
+
+As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com instruções:
+
+| Variável | Para quê |
+|---|---|
+| `PORT` | Porta do servidor (padrão 3000) |
+| `GOOGLE_MAPS_API_KEY` | Chave do Google Maps Platform (Maps JavaScript API + Geocoding API + Maps Embed API). Entregue ao frontend por `GET /api/config/maps`, então **restrinja por HTTP referrer** no Google Cloud. Sem ela, essa rota responde 503 e o mapa fica indisponível |
+| `GOOGLE_MAPS_MAP_ID` | Map ID para o alfinete arrastável (padrão `DEMO_MAP_ID`, só para desenvolvimento) |
+
+Em produção (Render), cadastre as mesmas variáveis no painel do serviço.
 
 ---
 
@@ -128,8 +141,8 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | POST | `/api/farmers/:id/photo` | Envia/troca a foto de perfil (corpo = bytes da imagem, `Content-Type: image/*`); devolve o produtor com `photo_url` |
 | DELETE | `/api/farmers/:id/photo` | Remove a foto de perfil |
 | GET | `/api/farmers/:id/farms` | Fazendas do produtor |
-| POST | `/api/farmers/:id/farms` | Cadastra fazenda (`address`, `city`, `state`) |
-| PATCH | `/api/farmers/:id/farms/:farmId` | Edita `address`, `city`, `state` |
+| POST | `/api/farmers/:id/farms` | Cadastra fazenda (`address`, `city`, `state`, `latitude`, `longitude` do ponto marcado no mapa) |
+| PATCH | `/api/farmers/:id/farms/:farmId` | Edita `address`, `city`, `state`, `latitude`/`longitude` (sempre juntas) |
 | DELETE | `/api/farmers/:id/farms/:farmId` | Arquiva a fazenda (`deleted_at`): some das listas, mas os serviços encerrados continuam com ela; 409 se houver serviço `Pending`/`In Progress` |
 | POST | `/api/farmers/:id/farms/:farmId/photos` | Adiciona uma foto à fazenda (corpo = bytes da imagem); a primeira é a capa; 409 acima de 6 fotos |
 | DELETE | `/api/farmers/:id/farms/:farmId/photos/:photoId` | Remove uma foto da fazenda |
@@ -152,10 +165,10 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | DELETE | `/api/workers/:id` | Remove o trabalhador, suas candidaturas e a foto; 409 se tiver serviço `In Progress` |
 | POST | `/api/workers/:id/photo` | Envia/troca a foto de perfil (corpo = bytes da imagem) |
 | DELETE | `/api/workers/:id/photo` | Remove a foto de perfil |
-| GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido |
-| GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador |
+| GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido (com o ponto da fazenda no mapa quando a candidatura foi aceita) |
+| GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador (com `farm.latitude`/`farm.longitude`) |
 | GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category`, `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`); 400 se algum filtro for inválido |
-| GET | `/api/workers/services/:id` | Detalhe da vaga |
+| GET | `/api/workers/services/:id?worker_id=` | Detalhe da vaga. Com `worker_id` do trabalhador aceito no serviço, inclui `farm.latitude`/`farm.longitude` |
 | POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta, se o prazo terminou ou se já houve candidatura |
 | PATCH | `/api/workers/services/:id/withdraw` | `{ worker_id }`; desiste e volta uma etapa: candidatura `Pending` é removida; se já aceito, o serviço volta a `Pending` e as candidaturas recusadas pelo aceite voltam a `Pending`; 409 se recusada ou serviço encerrado |
 
@@ -163,7 +176,10 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/categories` | Lista fixa de categorias |
+| GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 503 se a chave não estiver configurada |
 | GET | `/api/images/:id` | Serve uma foto (WebP, cache imutável de 1 ano) |
+
+**Localização da fazenda:** o produtor marca o ponto no mapa (`latitude`/`longitude`, obrigatórias no cadastro; fazendas antigas podem ter `null`). O trabalhador só recebe as coordenadas nos serviços em que foi aceito; nas vagas abertas vê apenas cidade/UF.
 
 **Prazo das vagas (`expires_at`):** dia do calendário. A vaga aceita candidaturas até o fim desse dia no horário de Brasília. Depois disso continua `Pending` para o produtor, mas some da busca e recusa candidaturas (409) até o produtor renovar a data. Não dá para publicar ou editar com data no passado (400).
 

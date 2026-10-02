@@ -29,6 +29,15 @@ export function isPositiveNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+// Coordenadas em graus decimais (WGS84), como o Google Maps devolve.
+export function isLatitude(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= -90 && value <= 90;
+}
+
+export function isLongitude(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= -180 && value <= 180;
+}
+
 // Converte um valor do corpo JSON para texto, como a API sempre fez (String(valor)).
 export function text(value: unknown): string {
   return String(value);

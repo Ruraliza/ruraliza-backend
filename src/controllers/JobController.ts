@@ -1,6 +1,6 @@
 import type { ApplicationResponse, OpenService, ServiceResponse } from '../contracts';
 import { toBody } from '../http/body';
-import { parseJobFilters, parseWorkerAction } from '../http/parsers';
+import { parseJobFilters, parseWorkerAction, parseWorkerIdQuery } from '../http/parsers';
 import { sendFailure, toId } from '../http/respond';
 import type { Handler, IdParams } from '../http/types';
 import type { HiringUseCases } from '../usecases/HiringUseCases';
@@ -22,9 +22,13 @@ export function createJobController(services: ServiceUseCases, hiring: HiringUse
     res.status(200).json(await services.searchOpen(filters.value));
   };
 
-  // GET /api/workers/services/:id - Detalhe da vaga com cidade/UF da fazenda
+  // GET /api/workers/services/:id?worker_id= - Detalhe da vaga com cidade/UF da fazenda
+  // (e o ponto no mapa, se `worker_id` for o trabalhador aceito no serviço)
   const getServiceDetail: Handler<OpenService, IdParams> = async (req, res) => {
-    const result = await services.getOpen(toId(req.params.id));
+    const viewer = parseWorkerIdQuery(req.query);
+    if (!viewer.ok) { sendFailure(res, viewer); return; }
+
+    const result = await services.getOpen(toId(req.params.id), viewer.value);
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json(result.value);
   };

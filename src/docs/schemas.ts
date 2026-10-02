@@ -11,7 +11,7 @@ type Properties = Record<string, Schema | OpenAPIV3.ReferenceObject>;
 // e `ref()` só aceita estes, então um $ref quebrado não compila.
 export type SchemaName =
   | 'ServiceStatus' | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
-  | 'ApiError' | 'MessageResponse' | 'HealthResponse' | 'CategoryList'
+  | 'ApiError' | 'MessageResponse' | 'HealthResponse' | 'MapsConfig' | 'CategoryList'
   | 'Farmer' | 'Worker' | 'Farm' | 'FarmPhoto' | 'FarmLocation'
   | 'Service' | 'ServiceWithFarm' | 'FarmerServiceItem' | 'OpenService'
   | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
@@ -56,17 +56,22 @@ function input(properties: Properties, required: readonly string[], description:
 
 // --- Propriedades reaproveitadas ---
 
+const latitude: Schema = { type: 'number', minimum: -90, maximum: 90, example: -22.1165, description: 'Graus decimais.' };
+const longitude: Schema = { type: 'number', minimum: -180, maximum: 180, example: -43.2092, description: 'Graus decimais.' };
+
 const farmProps: Properties = {
   id,
   farmer_id: id,
   address: { type: 'string', example: 'Estrada de Terra, Km 2' },
   city: { type: 'string', example: 'Três Rios' },
   state: { type: 'string', example: 'RJ', description: 'UF' },
+  latitude: { ...latitude, nullable: true, description: 'Ponto marcado no mapa (null em fazendas cadastradas antes do mapa).' },
+  longitude: { ...longitude, nullable: true },
   photos: { type: 'array', maxItems: 6, items: ref('FarmPhoto'), description: 'Até 6 fotos, na ordem de envio (a primeira é a capa).' },
   insertion_date: isoDate,
   deleted_at: { ...isoDate, description: 'Presente quando a fazenda foi removida (fica só no histórico dos serviços).' }
 };
-const farmRequired = ['id', 'farmer_id', 'address', 'city', 'state', 'photos', 'insertion_date'];
+const farmRequired = ['id', 'farmer_id', 'address', 'city', 'state', 'latitude', 'longitude', 'photos', 'insertion_date'];
 
 const serviceProps: Properties = {
   id,
@@ -125,6 +130,14 @@ export const schemas = {
   ApiError: object({ error: { type: 'string', example: 'Serviço não encontrado.' } }, ['error'], 'Formato de todo erro da API.'),
   MessageResponse: object({ message: { type: 'string', example: 'Farmer deleted successfully!' } }, ['message']),
   HealthResponse: object({ message: { type: 'string' } }, ['message']),
+  MapsConfig: object(
+    {
+      api_key: { type: 'string', example: 'AIza…', description: 'Chave do Google Maps Platform (restrita por referrer no Google Cloud).' },
+      map_id: { type: 'string', example: 'DEMO_MAP_ID', description: 'Map ID para o alfinete arrastável (Advanced Marker).' }
+    },
+    ['api_key', 'map_id'],
+    'Configuração do Google Maps para o frontend.'
+  ),
   CategoryList: { type: 'array', items: { type: 'string', enum: [...CATEGORIES] }, example: [...CATEGORIES] },
 
   // --- Entidades ---
@@ -170,10 +183,12 @@ export const schemas = {
     {
       city: { type: 'string', example: 'Três Rios' },
       state: { type: 'string', example: 'RJ' },
-      photos: { type: 'array', items: { type: 'string' }, example: ['/api/images/3f2c….webp'], description: 'URLs das fotos da fazenda (a primeira é a capa).' }
+      photos: { type: 'array', items: { type: 'string' }, example: ['/api/images/3f2c….webp'], description: 'URLs das fotos da fazenda (a primeira é a capa).' },
+      latitude: { ...latitude, description: 'Só para o trabalhador aceito no serviço.' },
+      longitude: { ...longitude, description: 'Só para o trabalhador aceito no serviço.' }
     },
     ['city', 'state', 'photos'],
-    'Local da fazenda exposto ao trabalhador (sem o endereço completo).'
+    'Local da fazenda exposto ao trabalhador (sem o endereço completo; o ponto no mapa só vai para o trabalhador aceito).'
   ),
   Service: object(serviceProps, serviceRequired),
   ServiceWithFarm: object({ ...serviceProps, farm: ref('Farm') }, [...serviceRequired, 'farm']),
@@ -236,19 +251,23 @@ export const schemas = {
     {
       address: { type: 'string', example: 'Estrada Velha, Km 3' },
       city: { type: 'string', example: 'Três Rios' },
-      state: { type: 'string', example: 'RJ' }
+      state: { type: 'string', example: 'RJ' },
+      latitude,
+      longitude
     },
-    ['address', 'city', 'state'],
-    'Cadastro de fazenda.'
+    ['address', 'city', 'state', 'latitude', 'longitude'],
+    'Cadastro de fazenda com o ponto marcado no mapa.'
   ),
   FarmUpdate: input(
     {
       address: { type: 'string', example: 'Estrada Velha, Km 5' },
       city: { type: 'string' },
-      state: { type: 'string' }
+      state: { type: 'string' },
+      latitude,
+      longitude
     },
     [],
-    'Edição parcial. Campos não podem ficar vazios; enviar `id` ou `farmer_id` resulta em 400.'
+    'Edição parcial. Campos não podem ficar vazios; latitude e longitude vão sempre juntas; enviar `id` ou `farmer_id` resulta em 400.'
   ),
   ServiceInput: input(
     {

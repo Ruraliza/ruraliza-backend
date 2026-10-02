@@ -15,7 +15,7 @@ export const TAGS = {
 export type Tag = (typeof TAGS)[keyof typeof TAGS];
 
 type SchemaOrRef = OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject;
-type ErrorStatus = 400 | 404 | 409 | 413;
+type ErrorStatus = 400 | 404 | 409 | 413 | 503;
 
 // Resposta de sucesso: um schema nomeado, ou lista dele com `listOf`.
 export type SuccessSchema = SchemaName | { listOf: SchemaName };

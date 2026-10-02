@@ -16,7 +16,7 @@ import { isCalendarDate } from '../domain/dates';
 import { type Result, invalid, ok } from '../domain/result';
 import type { NewWorker } from '../usecases/WorkerUseCases';
 import { normalizeEmail } from '../utils/profile';
-import { isPositiveNumber, isValidCpf, isValidEmail, missingFields, text } from '../utils/validation';
+import { isLatitude, isLongitude, isPositiveNumber, isValidCpf, isValidEmail, missingFields, text } from '../utils/validation';
 import { type Body, missingMessage } from './body';
 import type { Query } from './types';
 
@@ -120,16 +120,23 @@ export function parseWorkerUpdate(body: Body): Result<WorkerUpdate> {
 // --- Fazendas ---
 
 const FARM_FIELDS = ['address', 'city', 'state'] as const satisfies readonly (keyof FarmInput)[];
+const FARM_COORDINATES = ['latitude', 'longitude'] as const satisfies readonly (keyof FarmInput)[];
+
+const INVALID_COORDINATES = 'Latitude/longitude inválidas. Envie números em graus decimais (latitude entre -90 e 90, longitude entre -180 e 180).';
 
 export function parseFarmInput(body: Body): Result<FarmInput> {
-  const missing = missingFields(body, FARM_FIELDS);
+  const missing = missingFields(body, [...FARM_FIELDS, ...FARM_COORDINATES]);
   if (missing.length > 0) return invalid(missingMessage(missing));
-  return ok({ address: text(body['address']), city: text(body['city']), state: text(body['state']) });
+
+  const { latitude, longitude } = body;
+  if (!isLatitude(latitude) || !isLongitude(longitude)) return invalid(INVALID_COORDINATES);
+
+  return ok({ address: text(body['address']), city: text(body['city']), state: text(body['state']), latitude, longitude });
 }
 
 export function parseFarmUpdate(body: Body): Result<FarmUpdate> {
   if (body['id'] !== undefined || body['farmer_id'] !== undefined) {
-    return invalid('Só é possível alterar endereço, cidade e estado.');
+    return invalid('Só é possível alterar endereço, cidade, estado e localização.');
   }
 
   const blank = FARM_FIELDS.filter((f) => body[f] !== undefined && !text(body[f]).trim());
@@ -139,6 +146,15 @@ export function parseFarmUpdate(body: Body): Result<FarmUpdate> {
   for (const field of FARM_FIELDS) {
     const value = body[field];
     if (value !== undefined) update[field] = text(value).trim();
+  }
+
+  // O ponto do mapa muda inteiro: latitude e longitude sempre juntas.
+  const { latitude, longitude } = body;
+  if (latitude !== undefined || longitude !== undefined) {
+    if (latitude === undefined || longitude === undefined) return invalid('Envie latitude e longitude juntas.');
+    if (!isLatitude(latitude) || !isLongitude(longitude)) return invalid(INVALID_COORDINATES);
+    update.latitude = latitude;
+    update.longitude = longitude;
   }
   return ok(update);
 }
@@ -261,13 +277,19 @@ export function parseJobFilters(query: Query): Result<JobFilters> {
     filters.sort = found;
   }
 
-  const workerId = queryText(query, 'worker_id');
-  if (workerId !== undefined) {
-    const id = Number(workerId);
-    if (!Number.isFinite(id) || id <= 0) return invalid('worker_id deve ser um número válido.');
-    filters.worker_id = id;
-  }
+  const workerId = parseWorkerIdQuery(query);
+  if (!workerId.ok) return workerId;
+  if (workerId.value !== undefined) filters.worker_id = workerId.value;
   return ok(filters);
+}
+
+// `?worker_id=` opcional: o trabalhador que está vendo a vaga.
+export function parseWorkerIdQuery(query: Query): Result<number | undefined> {
+  const raw = queryText(query, 'worker_id');
+  if (raw === undefined) return ok(undefined);
+  const id = Number(raw);
+  if (!Number.isFinite(id) || id <= 0) return invalid('worker_id deve ser um número válido.');
+  return ok(id);
 }
 
 // --- Contratação ---

@@ -30,6 +30,16 @@ describe('seed', () => {
     ]);
   });
 
+  it('as fazendas têm o ponto marcado no mapa', async () => {
+    const c = await seeded();
+    const farms = await c.repos.farms.find();
+    assert.equal(farms.length, 2);
+    for (const f of farms) {
+      assert.ok(f.latitude !== null && f.latitude >= -90 && f.latitude <= 90, `fazenda ${f.id} sem latitude`);
+      assert.ok(f.longitude !== null && f.longitude >= -180 && f.longitude <= 180, `fazenda ${f.id} sem longitude`);
+    }
+  });
+
   it('cobre todos os casos de prazo: sem prazo, futuro, hoje e vencido', async () => {
     const c = await seeded();
     const byName = new Map((await c.repos.services.find()).map((s) => [s.name, s.expires_at]));

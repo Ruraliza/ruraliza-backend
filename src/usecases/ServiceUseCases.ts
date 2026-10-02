@@ -213,10 +213,11 @@ export class ServiceUseCases {
     return result.sort(sorters[filters.sort ?? 'recent']);
   }
 
-  // Detalhe da vaga (em qualquer status) com cidade/UF da fazenda.
-  async getOpen(id: number): Promise<Result<OpenService>> {
+  // Detalhe da vaga (em qualquer status) com cidade/UF da fazenda; o ponto no mapa só vai para
+  // o trabalhador aceito (`viewerWorkerId`).
+  async getOpen(id: number, viewerWorkerId?: number): Promise<Result<OpenService>> {
     const service = await this.repos.services.findById(id);
     if (!service) return notFound('Serviço não encontrado.');
-    return ok(await toOpenService(this.repos.farms, service));
+    return ok(await toOpenService(this.repos.farms, service, viewerWorkerId));
   }
 }
