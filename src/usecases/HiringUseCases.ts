@@ -44,6 +44,9 @@ export class HiringUseCases {
     }
 
     const existing = await applications.find({ service_id: service.id, worker_id: worker.id });
+    if (existing.some(a => a.status === APPLICATION_STATUS.REJECTED)) {
+      return conflict('Sua candidatura a este serviço foi recusada e você não pode se candidatar novamente.');
+    }
     if (existing.length > 0) return conflict('Você já se candidatou a este serviço.');
 
     const application = await applications.create({

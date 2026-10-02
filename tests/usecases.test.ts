@@ -64,6 +64,19 @@ describe('HiringUseCases', () => {
     ]);
   });
 
+  it('candidatura recusada impede nova candidatura do mesmo trabalhador ao mesmo serviço', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+
+    const app = unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Reject' }));
+
+    const reapply = await c.useCases.hiring.apply(serviceId, w);
+    assert.equal(reapply.ok ? 'ok' : reapply.kind, 'conflict');
+  });
+
   it('pagamento só em serviço em andamento, e conclui o serviço', async () => {
     const c = setup();
     const { farmerId, farmId } = await farmerWithFarm(c);
