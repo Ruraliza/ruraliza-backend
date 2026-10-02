@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.build.json",
     "prestart": "npm run build",
     "start": "node dist/app.js",
-    "dev": "tsx watch app.ts",
+    "dev": "tsx watch app.ts --dev",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "check:contracts": "tsc -p tsconfig.contracts.json",

@@ -4,7 +4,7 @@ import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { OpenAPIV3 } from 'openapi-types';
 import swaggerUi from 'swagger-ui-express';
-import { serverPort } from './src/config';
+import { isAllowedOrigin, serverPort } from './src/config';
 import { type Container, createContainer } from './src/container';
 import type { ApiError } from './src/contracts';
 import { seed } from './src/data/seed';
@@ -15,6 +15,12 @@ import { buildRouter } from './src/http/route';
 import type { Handler } from './src/http/types';
 import { createRouteGroups } from './src/routes';
 
+export interface ApiOptions {
+  // Modo desenvolvimento (npm run dev): o CORS aceita qualquer origem. A configuração do mapa
+  // continua restrita às origens de CORS_ORIGINS (ver src/routes/systemRoutes.ts).
+  devMode?: boolean;
+}
+
 export interface Api {
   app: Express;
   document: OpenAPIV3.Document;
@@ -22,14 +28,17 @@ export interface Api {
 
 // Monta a API sobre um container (repositórios + casos de uso). Cada chamada é independente,
 // então testes podem criar APIs isoladas, e trocar a persistência é só passar outro container.
-export function createApi(container: Container = createContainer()): Api {
+export function createApi(container: Container = createContainer(), options: ApiOptions = {}): Api {
   const routeGroups = createRouteGroups(container.useCases);
   const document = buildOpenApiDocument(routeGroups);
   const app = express();
 
   // --- MIDDLEWARES GLOBAIS ---
-  // CORS permite que o frontend (localhost:4200) chame esta API.
-  app.use(cors());
+  // CORS: só o frontend publicado (ou as origens de CORS_ORIGINS) pode chamar a API pelo navegador.
+  // Em desenvolvimento, qualquer origem.
+  app.use(options.devMode
+    ? cors()
+    : cors({ origin: (origin, callback) => callback(null, isAllowedOrigin(origin)) }));
   // O corpo chega aos handlers como `unknown`; cada um valida o formato (ver src/http/parsers.ts).
   app.use(express.json());
   // Envio de fotos: o corpo é o próprio arquivo (Content-Type image/*), lido como bytes.
@@ -98,15 +107,17 @@ function errorHandler(error: unknown, _req: Request, res: Response<ApiError>, _n
 // --- INICIALIZAÇÃO ---
 // Só sobe o servidor (e o seed) quando executado diretamente (npm start / npm run dev).
 async function main(): Promise<void> {
+  const devMode = process.argv.includes('--dev');
   const container = createContainer();
   await seed(container.repos, container.clock);
-  const { app } = createApi(container);
+  const { app } = createApi(container, { devMode });
 
   const PORT = serverPort();
   app.listen(PORT, () => {
     console.log(`Servidor do Ruraliza rodando em http://localhost:${PORT}/api`);
     console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 1 trabalhador, 7 serviços: 6 vagas abertas e 1 vencida).');
     console.log('Atenção: todos os dados somem quando o servidor reinicia.');
+    if (devMode) console.log('Modo desenvolvimento: CORS liberado para qualquer origem (exceto /api/config/maps).');
   });
 }
 

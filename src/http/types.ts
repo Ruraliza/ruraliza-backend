@@ -25,5 +25,6 @@ type NoLocals = Record<string, never>;
 // Todos os parâmetros genéricos do Express são explícitos (os padrões dele são `any`).
 export type Handler<Res, Params = NoParams> = RequestHandler<Params, Res | ApiError, unknown, Query, NoLocals>;
 
-// Status HTTP de erro usados pela API (413 só nos envios de foto grandes demais).
-export type ErrorStatus = 400 | 404 | 409 | 413 | 503;
+// Status HTTP de erro usados pela API (413 só nos envios de foto grandes demais;
+// 403 só na configuração do mapa pedida fora do frontend).
+export type ErrorStatus = 400 | 403 | 404 | 409 | 413 | 503;

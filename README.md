@@ -30,6 +30,7 @@ As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com 
 | Variável | Para quê |
 |---|---|
 | `PORT` | Porta do servidor (padrão 3000) |
+| `CORS_ORIGINS` | Origens (separadas por vírgula) aceitas pelo CORS e por `GET /api/config/maps`. Sem ela, só `https://ruraliza.github.io`. Em `npm run dev` o CORS aceita qualquer origem, mas a rota do mapa continua restrita. No `.env` local use `http://localhost:4200`; no Render, não defina |
 | `GOOGLE_MAPS_API_KEY` | Chave do Google Maps Platform (Maps JavaScript API + Geocoding API + Maps Embed API). Entregue ao frontend por `GET /api/config/maps`, então **restrinja por HTTP referrer** no Google Cloud. Sem ela, essa rota responde 503 e o mapa fica indisponível |
 | `GOOGLE_MAPS_MAP_ID` | Map ID para o alfinete arrastável (padrão `DEMO_MAP_ID`, só para desenvolvimento) |
 
@@ -176,7 +177,7 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/categories` | Lista fixa de categorias |
-| GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 503 se a chave não estiver configurada |
+| GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 403 se o `Origin` não for do frontend, 503 se a chave não estiver configurada |
 | GET | `/api/images/:id` | Serve uma foto (WebP, cache imutável de 1 ano) |
 
 **Localização da fazenda:** o produtor marca o ponto no mapa (`latitude`/`longitude`, obrigatórias no cadastro; fazendas antigas podem ter `null`). O trabalhador só recebe as coordenadas nos serviços em que foi aceito; nas vagas abertas vê apenas cidade/UF.

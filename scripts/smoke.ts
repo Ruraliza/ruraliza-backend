@@ -22,6 +22,7 @@ import type {
   ServiceWithFarm,
   WorkerResponse
 } from '../src/contracts';
+import { FRONTEND_ORIGIN } from '../src/config';
 import { isRecord } from '../src/http/body';
 import { createOpenApiChecker } from './openapi-check';
 
@@ -39,10 +40,16 @@ interface CallResult {
 let baseUrl = '';
 let passed = 0;
 
-async function call(method: Method, path: string, body?: unknown, rawBody?: string): Promise<CallResult> {
+async function call(
+  method: Method,
+  path: string,
+  body?: unknown,
+  rawBody?: string,
+  headers: Record<string, string> = {}
+): Promise<CallResult> {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: rawBody ?? (body === undefined ? null : JSON.stringify(body))
   });
   const json: unknown = await res.json();
@@ -55,9 +62,10 @@ async function step<T = unknown>(
   path: string,
   body: unknown,
   expectedStatus: number,
-  check?: (body: T) => void
+  check?: (body: T) => void,
+  headers?: Record<string, string>
 ): Promise<T> {
-  const res = await call(method, path, body);
+  const res = await call(method, path, body, undefined, headers);
   assert.equal(res.status, expectedStatus, `${title}: esperado ${expectedStatus}, veio ${res.status} ${JSON.stringify(res.body)}`);
   if (expectedStatus >= 400) {
     assert.ok(isRecord(res.body) && typeof res.body['error'] === 'string', `${title}: resposta de erro sem { error }`);
@@ -444,13 +452,44 @@ async function run(): Promise<void> {
   await step('health check', 'GET', '/health', undefined, 200);
 
   const savedKey = process.env['GOOGLE_MAPS_API_KEY'];
+  const savedOrigins = process.env['CORS_ORIGINS'];
+  delete process.env['CORS_ORIGINS'];
+  const fromFrontend = { Origin: FRONTEND_ORIGIN };
   process.env['GOOGLE_MAPS_API_KEY'] = '';
-  await step('Google Maps sem chave no .env', 'GET', '/config/maps', undefined, 503);
+  await step('Google Maps sem chave no .env', 'GET', '/config/maps', undefined, 503, undefined, fromFrontend);
   process.env['GOOGLE_MAPS_API_KEY'] = 'chave-de-teste';
   await step<MapsConfig>('configuração do Google Maps', 'GET', '/config/maps', undefined, 200,
-    (b) => assert.equal(b.api_key, 'chave-de-teste'));
+    (b) => assert.equal(b.api_key, 'chave-de-teste'), fromFrontend);
+  await step('configuração do mapa sem Origin', 'GET', '/config/maps', undefined, 403);
+  await step('configuração do mapa de outra origem', 'GET', '/config/maps', undefined, 403, undefined,
+    { Origin: 'https://site-qualquer.example' });
+  process.env['CORS_ORIGINS'] = 'http://localhost:4200';
+  await step('configuração do mapa de origem do CORS_ORIGINS', 'GET', '/config/maps', undefined, 200, undefined,
+    { Origin: 'http://localhost:4200' });
   if (savedKey === undefined) delete process.env['GOOGLE_MAPS_API_KEY'];
   else process.env['GOOGLE_MAPS_API_KEY'] = savedKey;
+  if (savedOrigins === undefined) delete process.env['CORS_ORIGINS'];
+  else process.env['CORS_ORIGINS'] = savedOrigins;
+
+  const preflight = await fetch(`${baseUrl}/health`, { method: 'OPTIONS', headers: { Origin: FRONTEND_ORIGIN, 'Access-Control-Request-Method': 'GET' } });
+  assert.equal(preflight.headers.get('access-control-allow-origin'), FRONTEND_ORIGIN);
+  const foreign = await fetch(`${baseUrl}/health`, { headers: { Origin: 'https://site-qualquer.example' } });
+  assert.equal(foreign.headers.get('access-control-allow-origin'), null);
+  passed++;
+  console.log('  ok  CORS  — só o frontend recebe Access-Control-Allow-Origin');
+
+  const devServer = createApi(undefined, { devMode: true }).app.listen(0);
+  await new Promise<void>((resolve) => devServer.once('listening', () => resolve()));
+  const devAddress = devServer.address();
+  assert.ok(devAddress !== null && typeof devAddress === 'object');
+  const devUrl = `http://127.0.0.1:${devAddress.port}/api`;
+  const devHealth = await fetch(`${devUrl}/health`, { headers: { Origin: 'https://site-qualquer.example' } });
+  assert.equal(devHealth.headers.get('access-control-allow-origin'), '*');
+  const devMaps = await fetch(`${devUrl}/config/maps`, { headers: { Origin: 'https://site-qualquer.example' } });
+  assert.equal(devMaps.status, 403);
+  devServer.close();
+  passed++;
+  console.log('  ok  CORS  — modo desenvolvimento libera as rotas, mas não a configuração do mapa');
 
   const root = await fetch(baseUrl.replace(/\/api$/, '/'), { redirect: 'manual' });
   assert.equal(root.status, 302);
