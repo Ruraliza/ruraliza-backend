@@ -178,8 +178,16 @@ export class ServiceUseCases {
     const open = (await this.repos.services.find({ status: SERVICE_STATUS.PENDING })).filter((s) => !isExpired(s, now));
     const withFarm = await Promise.all(open.map((s) => toOpenService(this.repos.farms, s)));
 
+    const rejectedServiceIds = filters.worker_id === undefined
+      ? new Set<number>()
+      : new Set(
+          (await this.repos.applications.find({ worker_id: filters.worker_id, status: APPLICATION_STATUS.REJECTED }))
+            .map((a) => a.service_id)
+        );
+
     const terms = searchable(filters.q ?? '').split(/\s+/).filter(Boolean);
     const result = withFarm.filter((job) => {
+      if (rejectedServiceIds.has(job.id)) return false;
       if (filters.category && job.category !== filters.category) return false;
       if (filters.min_hours !== undefined && job.duration < filters.min_hours) return false;
       if (filters.max_hours !== undefined && job.duration > filters.max_hours) return false;

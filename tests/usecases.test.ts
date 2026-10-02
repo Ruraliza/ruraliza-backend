@@ -77,6 +77,23 @@ describe('HiringUseCases', () => {
     assert.equal(reapply.ok ? 'ok' : reapply.kind, 'conflict');
   });
 
+  it('vaga recusada some da busca (searchOpen) para o trabalhador recusado, mas continua para os demais', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const w1 = await worker(c, 'w1@exemplo.com', '11144477735');
+    const w2 = await worker(c, 'w2@exemplo.com', '39053344705');
+
+    const app = unwrap(await c.useCases.hiring.apply(serviceId, w1));
+    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Reject' }));
+
+    const forRejected = await c.useCases.services.searchOpen({ worker_id: w1 });
+    assert.equal(forRejected.some((s) => s.id === serviceId), false);
+
+    const forOther = await c.useCases.services.searchOpen({ worker_id: w2 });
+    assert.equal(forOther.some((s) => s.id === serviceId), true);
+  });
+
   it('pagamento só em serviço em andamento, e conclui o serviço', async () => {
     const c = setup();
     const { farmerId, farmId } = await farmerWithFarm(c);

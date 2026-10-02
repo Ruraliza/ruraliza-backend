@@ -58,4 +58,5 @@ export interface JobFilters {
   from?: string; // publicado a partir de (AAAA-MM-DD)
   to?: string; // publicado até (AAAA-MM-DD)
   sort?: JobSort;
+  worker_id?: number; // oculta vagas em que este trabalhador já foi recusado
 }

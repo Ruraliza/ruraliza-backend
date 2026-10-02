@@ -260,6 +260,13 @@ export function parseJobFilters(query: Query): Result<JobFilters> {
     if (!found) return invalid(`sort inválido. Use um destes: ${JOB_SORTS.join(', ')}.`);
     filters.sort = found;
   }
+
+  const workerId = queryText(query, 'worker_id');
+  if (workerId !== undefined) {
+    const id = Number(workerId);
+    if (!Number.isFinite(id) || id <= 0) return invalid('worker_id deve ser um número válido.');
+    filters.worker_id = id;
+  }
   return ok(filters);
 }
 
