@@ -5,7 +5,7 @@ import type { Service } from './service';
 import type { ServiceApplication } from './service-application';
 import type { Worker } from './worker';
 
-// Todo erro da API: status HTTP 400/404/409/500 com este corpo.
+// Todo erro da API: status HTTP 400/404/409/500/503 com este corpo.
 export interface ApiError {
   error: string;
 }

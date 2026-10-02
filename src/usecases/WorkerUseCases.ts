@@ -104,7 +104,7 @@ export class WorkerUseCases {
     const result = await Promise.all(
       own.map(async (a): Promise<ApplicationWithService> => {
         const service = requireFound(await services.findById(a.service_id), `serviço da candidatura ${a.id}`);
-        return { ...a, service: await toOpenService(farms, service) };
+        return { ...a, service: await toOpenService(farms, service, worker.id) };
       })
     );
     return ok(result);
@@ -116,6 +116,6 @@ export class WorkerUseCases {
     if (!worker) return notFound('Trabalhador não encontrado.');
 
     const assigned = await this.repos.services.find({ worker_id: worker.id });
-    return ok(await Promise.all(assigned.map((s) => toOpenService(this.repos.farms, s))));
+    return ok(await Promise.all(assigned.map((s) => toOpenService(this.repos.farms, s, worker.id))));
   }
 }

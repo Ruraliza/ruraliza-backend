@@ -189,7 +189,7 @@ export function farmerRoutes({ farmers, farms, services, photos }: FarmerRouteCo
       params: [farmerId],
       body: 'FarmInput',
       success: { status: 201, description: 'Fazenda cadastrada e adicionada a `farmer.farms`.', schema: 'FarmResponse' },
-      errors: { 400: 'Campo obrigatório faltando.', 404: 'Produtor não encontrado.' }
+      errors: { 400: 'Campo obrigatório faltando; latitude/longitude fora da faixa ou não numéricas.', 404: 'Produtor não encontrado.' }
     })),
 
     route('patch', '/:id/farms/:farmId', farms.updateFarm, operation({
@@ -199,7 +199,7 @@ export function farmerRoutes({ farmers, farms, services, photos }: FarmerRouteCo
       body: 'FarmUpdate',
       success: { status: 200, description: 'Fazenda atualizada.', schema: 'FarmResponse' },
       errors: {
-        400: 'Tentou alterar `id` ou `farmer_id`; campo enviado vazio.',
+        400: 'Tentou alterar `id` ou `farmer_id`; campo enviado vazio; latitude sem longitude (ou o contrário); coordenadas inválidas.',
         404: 'Produtor não encontrado; fazenda não encontrada, removida ou de outro produtor.'
       }
     })),

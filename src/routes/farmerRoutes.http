@@ -59,7 +59,9 @@ Content-Type: application/json
 {
   "address": "Sítio Alegre, s/n",
   "city": "Vassouras",
-  "state": "RJ"
+  "state": "RJ",
+  "latitude": -22.4036,
+  "longitude": -43.6627
 }
 
 ### Editar fazenda
@@ -67,7 +69,9 @@ PATCH {{baseUrl}}/farmers/{{farmerId}}/farms/{{farmId}}
 Content-Type: application/json
 
 {
-  "address": "Estrada São José, Km 4"
+  "address": "Estrada São José, Km 4",
+  "latitude": -22.1201,
+  "longitude": -43.2150
 }
 
 ### Remover fazenda (409 se tiver serviço Pending/In Progress)

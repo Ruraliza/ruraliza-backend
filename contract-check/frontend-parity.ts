@@ -2,6 +2,7 @@
 // frontend (../ruraliza-frontend/src/models) são o MESMO tipo, nos dois sentidos.
 // Rode com `npm run check:contracts` (precisa do frontend clonado ao lado deste repositório).
 import type * as Api from '../src/contracts';
+import type * as FrontConfig from '../../ruraliza-frontend/src/models/config.model';
 import type * as FrontFarm from '../../ruraliza-frontend/src/models/farm.model';
 import type * as FrontFarmer from '../../ruraliza-frontend/src/models/farmer.model';
 import type * as FrontPayment from '../../ruraliza-frontend/src/models/payment.model';
@@ -19,6 +20,8 @@ export type ContractParity = [
   Expect<Equals<Api.ServiceStatus, FrontStatus.ServiceStatus>>,
   Expect<Equals<Api.ApplicationStatus, FrontStatus.ApplicationStatus>>,
   Expect<Equals<Api.PaymentStatus, FrontStatus.PaymentStatus>>,
+
+  Expect<Equals<Api.MapsConfig, FrontConfig.MapsConfig>>,
 
   Expect<Equals<Api.Farm, FrontFarm.Farm>>,
   Expect<Equals<Api.FarmInput, FrontFarm.FarmInput>>,

@@ -20,7 +20,7 @@ function unwrap<T>(result: Result<T>): T {
 
 async function farmerWithFarm(c: Container): Promise<{ farmerId: number; farmId: number }> {
   const farmer = unwrap(await c.useCases.farmers.create({ email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725' }));
-  const farm = unwrap(await c.useCases.farms.create(farmer.id, { address: 'Sítio', city: 'Três Rios', state: 'RJ' }));
+  const farm = unwrap(await c.useCases.farms.create(farmer.id, { address: 'Sítio', city: 'Três Rios', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }));
   return { farmerId: farmer.id, farmId: farm.id };
 }
 
@@ -129,6 +129,58 @@ describe('FarmUseCases', () => {
     assert.deepEqual(unwrap(await c.useCases.farmers.get(farmerId)).farms, []);
     const service = unwrap(await c.useCases.services.get(serviceId));
     assert.equal(service.farm.deleted_at, NOW);
+  });
+
+  it('editar o ponto no mapa troca latitude e longitude', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+
+    const farm = unwrap(await c.useCases.farms.update(farmerId, farmId, { latitude: -22.2, longitude: -43.3 }));
+    assert.deepEqual([farm.latitude, farm.longitude], [-22.2, -43.3]);
+    assert.equal(farm.address, 'Sítio');
+  });
+});
+
+describe('Localização da fazenda para o trabalhador', () => {
+  it('só o trabalhador aceito no serviço recebe as coordenadas', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const accepted = await worker(c, 'a@exemplo.com', '11144477735');
+    const other = await worker(c, 'b@exemplo.com', '52998224725');
+
+    // Vaga aberta: ninguém vê o ponto.
+    const [open] = await c.useCases.services.searchOpen();
+    assert.equal(open?.farm.latitude, undefined);
+    assert.equal(unwrap(await c.useCases.services.getOpen(serviceId, accepted)).farm.latitude, undefined);
+
+    const app = unwrap(await c.useCases.hiring.apply(serviceId, accepted));
+    unwrap(await c.useCases.hiring.apply(serviceId, other));
+    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Accept' }));
+
+    const seen = unwrap(await c.useCases.services.getOpen(serviceId, accepted)).farm;
+    assert.deepEqual([seen.latitude, seen.longitude], [-22.1165, -43.2092]);
+    assert.equal(unwrap(await c.useCases.services.getOpen(serviceId)).farm.latitude, undefined);
+    assert.equal(unwrap(await c.useCases.services.getOpen(serviceId, other)).farm.latitude, undefined);
+
+    const [assigned] = unwrap(await c.useCases.workers.listServices(accepted));
+    assert.equal(assigned?.farm.longitude, -43.2092);
+    const applications = unwrap(await c.useCases.workers.listApplications(other));
+    assert.equal(applications[0]?.service.farm.latitude, undefined);
+  });
+
+  it('fazenda sem ponto marcado (null) não expõe coordenadas', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const farm = await c.repos.farms.findById(farmId);
+    assert.ok(farm);
+    await c.repos.farms.update({ ...farm, latitude: null, longitude: null });
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'a@exemplo.com', '11144477735');
+    const app = unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Accept' }));
+
+    assert.equal('latitude' in unwrap(await c.useCases.services.getOpen(serviceId, w)).farm, false);
   });
 });
 

@@ -4,6 +4,7 @@ import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { OpenAPIV3 } from 'openapi-types';
 import swaggerUi from 'swagger-ui-express';
+import { serverPort } from './src/config';
 import { type Container, createContainer } from './src/container';
 import type { ApiError } from './src/contracts';
 import { seed } from './src/data/seed';
@@ -101,7 +102,7 @@ async function main(): Promise<void> {
   await seed(container.repos, container.clock);
   const { app } = createApi(container);
 
-  const PORT = process.env['PORT'] || 3000;
+  const PORT = serverPort();
   app.listen(PORT, () => {
     console.log(`Servidor do Ruraliza rodando em http://localhost:${PORT}/api`);
     console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 1 trabalhador, 7 serviços: 6 vagas abertas e 1 vencida).');
