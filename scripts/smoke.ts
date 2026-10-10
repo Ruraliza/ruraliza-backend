@@ -15,6 +15,7 @@ import type {
   Farmer,
   FarmerResponse,
   FarmerServiceItem,
+  FarmerSignupResponse,
   LoginResponse,
   MapsConfig,
   OpenService,
@@ -22,7 +23,10 @@ import type {
   PaymentResponse,
   ServiceResponse,
   ServiceWithFarm,
-  WorkerResponse
+  SessionResponse,
+  SessionUser,
+  WorkerResponse,
+  WorkerSignupResponse
 } from '../src/contracts';
 import { FRONTEND_ORIGIN } from '../src/config';
 import { isRecord } from '../src/http/body';
@@ -191,7 +195,7 @@ async function run(): Promise<void> {
   console.log('\nFluxo principal');
   await step<string[]>('categorias', 'GET', '/categories', undefined, 200, (b) => assert.equal(b.length, 7));
 
-  const { farmer } = await step<FarmerResponse>('cadastrar produtor', 'POST', '/farmers',
+  const { farmer, user: farmerSession } = await step<FarmerSignupResponse>('cadastrar produtor', 'POST', '/farmers',
     { name: 'Ana Produtora', email: 'Ana@Exemplo.com', phone: '24999990000', cpf: '52998224725', password: PW }, 201,
     (b) => assert.equal(b.farmer.email, 'ana@exemplo.com'));
 
@@ -203,9 +207,9 @@ async function run(): Promise<void> {
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita de café', category: 'Colheita', duration: 16, price: 900 }, 201,
     (b) => assert.equal(b.service.status, 'Pending'));
 
-  // Mesmo CPF do produtor: permitido, pois a unicidade é por tipo de perfil.
-  const { worker } = await step<WorkerResponse>('cadastrar trabalhador', 'POST', '/workers',
-    { name: 'Bruno Tratorista', email: 'bruno@exemplo.com', phone: '24988880000', cpf: '52998224725', password: PW }, 201);
+  const { worker, user: workerSession } = await step<WorkerSignupResponse>('cadastrar trabalhador', 'POST', '/workers',
+    { name: 'Bruno Tratorista', email: 'bruno@exemplo.com', phone: '24988880000', cpf: '98765432100', password: PW }, 201,
+    (b) => assert.deepEqual([b.user.role, b.user.id, b.user.profiles], ['worker', b.worker.id, { farmer: null, worker: b.worker.id }]));
   const { worker: worker2 } = await step<WorkerResponse>('cadastrar 2º trabalhador', 'POST', '/workers',
     { name: 'Carla Diarista', email: 'carla@exemplo.com', phone: '24977770000', cpf: '12345678909', password: PW }, 201);
 
@@ -220,7 +224,7 @@ async function run(): Promise<void> {
 
   await step<ApplicationWithWorker[]>('listar candidaturas (CPF mascarado)', 'GET', `/farmers/services/${service.id}/applications`, undefined, 200, (b) => {
     assert.equal(b.length, 2);
-    assert.equal(b[0]?.worker.cpf, '***.982.247-**');
+    assert.equal(b[0]?.worker.cpf, '***.654.321-**');
   });
   await step<FarmerServiceItem[]>('serviços do produtor com pendentes', 'GET', `/farmers/${farmer.id}/services`, undefined, 200,
     (b) => assert.equal(b[0]?.applications_pending, 2));
@@ -297,31 +301,49 @@ async function run(): Promise<void> {
   await step('cadastro sem senha', 'POST', '/workers', { name: 'X', email: 'semsenha@exemplo.com', phone: '1', cpf: '39053344705' }, 400);
   await step('cadastro com senha curta', 'POST', '/workers', { name: 'X', email: 'curta@exemplo.com', phone: '1', cpf: '39053344705', password: '1234567' }, 400);
   await step<Farmer>('a senha não aparece no perfil', 'GET', `/farmers/${farmer.id}`, undefined, 200, (b) => assert.equal('password' in b, false));
-  await step<LoginResponse>('entrar', 'POST', '/auth/login', { role: 'farmer', email: 'ANA@exemplo.com', password: PW }, 200,
-    (b) => assert.deepEqual(b.user, { role: 'farmer', id: farmer.id }));
-  await step('senha errada', 'POST', '/auth/login', { role: 'farmer', email: 'ana@exemplo.com', password: 'errada-123' }, 401);
-  await step('e-mail sem cadastro', 'POST', '/auth/login', { role: 'farmer', email: 'ninguem@exemplo.com', password: PW }, 401);
-  await step('e-mail de outro tipo de perfil', 'POST', '/auth/login', { role: 'worker', email: 'ana@exemplo.com', password: PW }, 401);
-  await step('login sem role', 'POST', '/auth/login', { email: 'ana@exemplo.com', password: PW }, 400);
+  await step<LoginResponse>('entrar', 'POST', '/auth/login', { email: 'ANA@exemplo.com', password: PW }, 200,
+    (b) => assert.deepEqual(b.user, farmerSession));
+  await step('senha errada', 'POST', '/auth/login', { email: 'ana@exemplo.com', password: 'errada-123' }, 401);
+  await step('e-mail sem cadastro', 'POST', '/auth/login', { email: 'ninguem@exemplo.com', password: PW }, 401);
+  await step('login sem senha', 'POST', '/auth/login', { email: 'ana@exemplo.com' }, 400);
   await step('editar a senha pelo PATCH do perfil', 'PATCH', `/farmers/${farmer.id}`, { password: 'outra-senha-1' }, 400);
 
   await step('trocar senha com a atual errada', 'PATCH', `/workers/${worker.id}/password`, { current_password: 'errada-123', new_password: 'nova-senha-1' }, 401);
   await step('trocar para a mesma senha', 'PATCH', `/workers/${worker.id}/password`, { current_password: PW, new_password: PW }, 400);
   await step('trocar senha de inexistente', 'PATCH', '/workers/999/password', { current_password: PW, new_password: 'nova-senha-1' }, 404);
   await step('trocar senha', 'PATCH', `/workers/${worker.id}/password`, { current_password: PW, new_password: 'nova-senha-1' }, 200);
-  await step('senha antiga não entra mais', 'POST', '/auth/login', { role: 'worker', email: 'bruno@exemplo.com', password: PW }, 401);
-  await step('nova senha entra', 'POST', '/auth/login', { role: 'worker', email: 'bruno@exemplo.com', password: 'nova-senha-1' }, 200);
+  await step('senha antiga não entra mais', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: PW }, 401);
+  await step('nova senha entra', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: 'nova-senha-1' }, 200);
 
-  await step('esqueci a senha: e-mail sem cadastro', 'POST', '/auth/password-reset', { role: 'worker', email: 'ninguem@exemplo.com' }, 404);
-  await step('esqueci a senha: e-mail inválido', 'POST', '/auth/password-reset', { role: 'worker', email: 'bruno@' }, 400);
+  await step('esqueci a senha: e-mail sem cadastro', 'POST', '/auth/password-reset', { email: 'ninguem@exemplo.com' }, 404);
+  await step('esqueci a senha: e-mail inválido', 'POST', '/auth/password-reset', { email: 'bruno@' }, 400);
   const { reset_token } = await step<PasswordResetRequestResponse>('esqueci a senha: pedir', 'POST', '/auth/password-reset',
-    { role: 'worker', email: 'Bruno@exemplo.com' }, 200, (b) => assert.ok(b.reset_token.length >= 32));
+    { email: 'Bruno@exemplo.com' }, 200, (b) => assert.ok(b.reset_token.length >= 32));
   await step('nova senha curta', 'POST', '/auth/password-reset/confirm', { token: reset_token, password: 'curta' }, 400);
   await step('token inválido', 'POST', '/auth/password-reset/confirm', { token: 'nao-existe', password: 'senha-redefinida' }, 400);
   await step<LoginResponse>('criar a nova senha', 'POST', '/auth/password-reset/confirm', { token: reset_token, password: 'senha-redefinida' }, 200,
-    (b) => assert.deepEqual(b.user, { role: 'worker', id: worker.id }));
+    (b) => assert.deepEqual(b.user, workerSession));
   await step('token já usado', 'POST', '/auth/password-reset/confirm', { token: reset_token, password: 'outra-redefinida' }, 400);
-  await step('entra com a senha redefinida', 'POST', '/auth/login', { role: 'worker', email: 'bruno@exemplo.com', password: 'senha-redefinida' }, 200);
+  await step('entra com a senha redefinida', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: 'senha-redefinida' }, 200);
+
+  console.log('\nConta com os dois perfis');
+  await step('e-mail de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '45612378955', password: PW }, 409);
+  await step('CPF de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'x2@exemplo.com', phone: '1', cpf: '52998224725', password: PW }, 409);
+  const accountUrl = `/accounts/${farmerSession.account_id}`;
+  await step<SessionUser>('sessão da conta', 'GET', accountUrl, undefined, 200, (b) => assert.deepEqual(b, farmerSession));
+  await step('conta inexistente', 'GET', '/accounts/999', undefined, 404);
+  await step('painel que a conta não tem', 'PATCH', `${accountUrl}/active-role`, { role: 'worker' }, 404);
+  await step('perfil novo com e-mail', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725', email: 'x@exemplo.com' }, 400);
+  await step('perfil novo com CPF de outra conta', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '98765432100' }, 409);
+  const { user: both } = await step<SessionResponse>('virar trabalhador também', 'POST', `${accountUrl}/profiles`,
+    { role: 'worker', name: 'Ana Produtora', phone: '24999990000', cpf: '52998224725', experience: 'Colheita' }, 201,
+    (b) => assert.deepEqual([b.user.role, b.user.profiles.farmer], ['worker', farmer.id]));
+  await step('o perfil já existe', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }, 409);
+  await step('candidatar-se ao próprio serviço', 'POST', `/workers/services/${open.id}/apply`, { worker_id: both.id }, 409);
+  await step<LoginResponse>('o login abre o último painel', 'POST', '/auth/login', { email: 'ana@exemplo.com', password: PW }, 200,
+    (b) => assert.equal(b.user.role, 'worker'));
+  await step<SessionResponse>('voltar ao painel de produtor', 'PATCH', `${accountUrl}/active-role`, { role: 'farmer' }, 200,
+    (b) => assert.deepEqual([b.user.role, b.user.id], ['farmer', farmer.id]));
 
   console.log('\nEdição e remoção');
   const { farmer: fd } = await step<FarmerResponse>('produtor a remover', 'POST', '/farmers',
@@ -347,7 +369,7 @@ async function run(): Promise<void> {
   await step<ApplicationWithWorker[]>('candidaturas do removido somem', 'GET', `/farmers/services/${fdService.id}/applications`, undefined, 200,
     (b) => assert.equal(b.length, 0));
   await step('remover produtor', 'DELETE', `/farmers/${fd.id}`, undefined, 200);
-  await step('removido não entra mais', 'POST', '/auth/login', { role: 'farmer', email: 'dora@exemplo.com', password: PW }, 401);
+  await step('removido não entra mais', 'POST', '/auth/login', { email: 'dora@exemplo.com', password: PW }, 401);
   await step('produtor removido', 'GET', `/farmers/${fd.id}`, undefined, 404);
   await step('serviço removido junto', 'GET', `/farmers/services/${fdService.id}`, undefined, 404);
   await step('remover inexistente', 'DELETE', `/workers/${wd.id}`, undefined, 404);

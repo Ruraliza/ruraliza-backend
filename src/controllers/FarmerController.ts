@@ -1,4 +1,4 @@
-import type { Farmer, FarmerResponse, MessageResponse } from '../contracts';
+import type { Farmer, FarmerResponse, FarmerSignupResponse, MessageResponse } from '../contracts';
 import { toBody } from '../http/body';
 import { parseProfileInput, parseProfileUpdate } from '../http/parsers';
 import { sendFailure, toId } from '../http/respond';
@@ -8,7 +8,7 @@ import type { FarmerUseCases } from '../usecases/FarmerUseCases';
 // HTTP do cadastro de produtores: lê a requisição, chama o caso de uso, responde.
 export interface FarmerController {
   listFarmers: Handler<Farmer[]>;
-  createFarmer: Handler<FarmerResponse>;
+  createFarmer: Handler<FarmerSignupResponse>;
   getFarmer: Handler<Farmer, IdParams>;
   updateFarmer: Handler<FarmerResponse, IdParams>;
   deleteFarmer: Handler<MessageResponse, IdParams>;
@@ -21,13 +21,13 @@ export function createFarmerController(farmers: FarmerUseCases): FarmerControlle
   };
 
   // POST /api/farmers - Cadastra um novo produtor
-  const createFarmer: Handler<FarmerResponse> = async (req, res) => {
+  const createFarmer: Handler<FarmerSignupResponse> = async (req, res) => {
     const input = parseProfileInput(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
     const result = await farmers.create(input.value);
     if (!result.ok) { sendFailure(res, result); return; }
-    res.status(201).json({ message: 'Farmer created successfully!', farmer: result.value });
+    res.status(201).json({ message: 'Farmer created successfully!', farmer: result.value.farmer, user: result.value.user });
   };
 
   // GET /api/farmers/:id - Perfil completo do próprio produtor

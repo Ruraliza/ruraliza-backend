@@ -1,4 +1,5 @@
 import type {
+  ActiveRoleInput,
   AnalyzeAction,
   AnalyzeInput,
   JobFilters,
@@ -11,6 +12,7 @@ import type {
   PasswordChangeInput,
   PasswordResetInput,
   PasswordResetRequestInput,
+  ProfileCreateInput,
   ServiceInput,
   ServiceUpdate,
   UserRole,
@@ -149,26 +151,54 @@ function parseRole(value: unknown): Result<UserRole> {
 }
 
 export function parseLoginInput(body: Body): Result<LoginInput> {
-  const missing = missingFields(body, ['role', 'email', 'password']);
+  const missing = missingFields(body, ['email', 'password']);
   if (missing.length > 0) return invalid(missingMessage(missing));
 
-  const role = parseRole(body['role']);
-  if (!role.ok) return role;
   const password = body['password'];
   if (typeof password !== 'string') return invalid('A senha deve ser um texto.');
   // Sem validar formato de e-mail nem tamanho da senha: qualquer erro vira "e-mail ou senha incorretos".
-  return ok({ role: role.value, email: normalizeEmail(body['email']), password });
+  return ok({ email: normalizeEmail(body['email']), password });
 }
 
 export function parsePasswordResetRequest(body: Body): Result<PasswordResetRequestInput> {
-  const missing = missingFields(body, ['role', 'email']);
+  const missing = missingFields(body, ['email']);
   if (missing.length > 0) return invalid(missingMessage(missing));
+
+  const email = normalizeEmail(body['email']);
+  if (!isValidEmail(email)) return invalid('E-mail inválido. Use o formato nome@dominio.com.');
+  return ok({ email });
+}
+
+// --- Conta (segundo perfil e troca de painel) ---
+
+// Segundo perfil: o e-mail e a senha são os da conta, então não vêm aqui.
+export function parseProfileCreate(body: Body): Result<ProfileCreateInput> {
+  const missing = missingFields(body, ['role', 'name', 'phone', 'cpf']);
+  if (missing.length > 0) return invalid(missingMessage(missing));
+  if (body['email'] !== undefined || body['password'] !== undefined) {
+    return invalid('O e-mail e a senha são os da sua conta e não são enviados aqui.');
+  }
 
   const role = parseRole(body['role']);
   if (!role.ok) return role;
-  const email = normalizeEmail(body['email']);
-  if (!isValidEmail(email)) return invalid('E-mail inválido. Use o formato nome@dominio.com.');
-  return ok({ role: role.value, email });
+  const cpf = body['cpf'];
+  if (!isValidCpf(cpf)) return invalid('CPF inválido. Envie os 11 dígitos, só números, e confira se estão corretos.');
+
+  const profile: ProfileCreateInput = { role: role.value, name: text(body['name']).trim(), phone: text(body['phone']), cpf };
+  if (role.value === 'worker') {
+    for (const [field] of WORKER_TEXTS) profile[field] = optionalText(body[field]);
+    const problem = workerTextProblem(profile);
+    if (problem) return invalid(problem);
+  }
+  return ok(profile);
+}
+
+export function parseActiveRole(body: Body): Result<ActiveRoleInput> {
+  const missing = missingFields(body, ['role']);
+  if (missing.length > 0) return invalid(missingMessage(missing));
+
+  const role = parseRole(body['role']);
+  return role.ok ? ok({ role: role.value }) : role;
 }
 
 export function parsePasswordReset(body: Body): Result<PasswordResetInput> {

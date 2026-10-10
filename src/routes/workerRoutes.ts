@@ -67,7 +67,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       errors: {
         400: '`worker_id` faltando.',
         404: 'Serviço ou trabalhador não encontrados.',
-        409: 'A vaga não está aberta; o prazo da vaga (`expires_at`) terminou; o trabalhador já se candidatou.'
+        409: 'A vaga não está aberta; o prazo da vaga (`expires_at`) terminou; o trabalhador já se candidatou; o serviço foi publicado pelo perfil de produtor da mesma conta.'
       }
     })),
 
@@ -101,10 +101,10 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       tag: TAGS.workers,
       summary: 'Cadastrar trabalhador',
       body: 'WorkerInput',
-      success: { status: 201, description: 'Trabalhador cadastrado.', schema: 'WorkerResponse' },
+      success: { status: 201, description: 'Trabalhador cadastrado.', schema: 'WorkerSignupResponse' },
       errors: {
         400: 'Campo obrigatório faltando; e-mail inválido; CPF inválido; senha fora do tamanho (8 a 128).',
-        409: 'Já existe trabalhador com este e-mail ou CPF.'
+        409: 'Já existe uma conta com este e-mail ou CPF (para ter os dois perfis, use POST /api/accounts/:id/profiles).'
       }
     })),
 
@@ -126,7 +126,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       errors: {
         400: 'Tentou alterar `id`, `cpf` ou `password`; e-mail inválido.',
         404: 'Trabalhador não encontrado.',
-        409: 'E-mail já usado por outro trabalhador.'
+        409: 'E-mail já usado por outra conta.'
       }
     })),
 

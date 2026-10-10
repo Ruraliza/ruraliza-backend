@@ -1,4 +1,5 @@
 import type { UseCases } from '../container';
+import { createAccountController } from '../controllers/AccountController';
 import { createAuthController } from '../controllers/AuthController';
 import { createEventController } from '../controllers/EventController';
 import { createFarmController } from '../controllers/FarmController';
@@ -9,6 +10,7 @@ import { createResumeController } from '../controllers/ResumeController';
 import { createServiceController } from '../controllers/ServiceController';
 import { createWorkerController } from '../controllers/WorkerController';
 import type { RouteGroup } from '../http/route';
+import { accountRoutes } from './accountRoutes';
 import { authRoutes } from './authRoutes';
 import { categoryRoutes } from './categoryRoutes';
 import { documentRoutes } from './documentRoutes';
@@ -21,6 +23,7 @@ import { workerRoutes } from './workerRoutes';
 // então rota e documentação não têm como divergir.
 export function createRouteGroups(useCases: UseCases): readonly RouteGroup[] {
   const auth = createAuthController(useCases.auth);
+  const accounts = createAccountController(useCases.accounts);
   const farmers = createFarmerController(useCases.farmers);
   const farms = createFarmController(useCases.farms);
   const services = createServiceController(useCases.services, useCases.hiring);
@@ -32,6 +35,7 @@ export function createRouteGroups(useCases: UseCases): readonly RouteGroup[] {
 
   return [
     { prefix: '/api/auth', routes: authRoutes(auth) },
+    { prefix: '/api/accounts', routes: accountRoutes(accounts) },
     { prefix: '/api/farmers', routes: farmerRoutes({ farmers, farms, services, photos, auth, events }) },
     { prefix: '/api/workers', routes: workerRoutes({ workers, jobs, photos, resumes, auth, events }) },
     { prefix: '/api/images', routes: imageRoutes(photos) },

@@ -32,6 +32,10 @@ export type ContractParity = [
   Expect<Equals<Api.PasswordResetRequestResponse, FrontAuth.PasswordResetRequestResponse>>,
   Expect<Equals<Api.PasswordResetInput, FrontAuth.PasswordResetInput>>,
   Expect<Equals<Api.PasswordChangeInput, FrontAuth.PasswordChangeInput>>,
+  Expect<Equals<Api.AccountProfiles, FrontAuth.AccountProfiles>>,
+  Expect<Equals<Api.SessionResponse, FrontAuth.SessionResponse>>,
+  Expect<Equals<Api.ProfileCreateInput, FrontAuth.ProfileCreateInput>>,
+  Expect<Equals<Api.ActiveRoleInput, FrontAuth.ActiveRoleInput>>,
 
   Expect<Equals<Api.Farm, FrontFarm.Farm>>,
   Expect<Equals<Api.FarmInput, FrontFarm.FarmInput>>,

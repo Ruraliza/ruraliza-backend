@@ -1,3 +1,4 @@
+import type { SessionUser } from './auth';
 import type { Farm } from './farm';
 import type { Farmer } from './farmer';
 import type { Payment } from './payment';
@@ -21,6 +22,15 @@ export interface FarmerResponse extends MessageResponse {
 
 export interface WorkerResponse extends MessageResponse {
   worker: Worker;
+}
+
+// POST /farmers e POST /workers: o cadastro já abre a sessão da conta nova.
+export interface FarmerSignupResponse extends FarmerResponse {
+  user: SessionUser;
+}
+
+export interface WorkerSignupResponse extends WorkerResponse {
+  user: SessionUser;
 }
 
 export interface FarmResponse extends MessageResponse {

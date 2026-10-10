@@ -1,4 +1,4 @@
-import type { ApplicationWithService, MessageResponse, OpenService, Worker, WorkerResponse } from '../contracts';
+import type { ApplicationWithService, MessageResponse, OpenService, Worker, WorkerResponse, WorkerSignupResponse } from '../contracts';
 import { toBody } from '../http/body';
 import { parseWorkerInput, parseWorkerUpdate } from '../http/parsers';
 import { sendFailure, toId } from '../http/respond';
@@ -8,7 +8,7 @@ import type { WorkerUseCases } from '../usecases/WorkerUseCases';
 // HTTP do cadastro e acompanhamento do trabalhador.
 export interface WorkerController {
   listWorkers: Handler<Worker[]>;
-  createWorker: Handler<WorkerResponse>;
+  createWorker: Handler<WorkerSignupResponse>;
   getWorker: Handler<Worker, IdParams>;
   updateWorker: Handler<WorkerResponse, IdParams>;
   deleteWorker: Handler<MessageResponse, IdParams>;
@@ -23,13 +23,13 @@ export function createWorkerController(workers: WorkerUseCases): WorkerControlle
   };
 
   // POST /api/workers - Cadastra um novo trabalhador
-  const createWorker: Handler<WorkerResponse> = async (req, res) => {
+  const createWorker: Handler<WorkerSignupResponse> = async (req, res) => {
     const input = parseWorkerInput(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
     const result = await workers.create(input.value);
     if (!result.ok) { sendFailure(res, result); return; }
-    res.status(201).json({ message: 'Worker created successfully!', worker: result.value });
+    res.status(201).json({ message: 'Worker created successfully!', worker: result.value.worker, user: result.value.user });
   };
 
   // GET /api/workers/:id - Perfil completo do próprio trabalhador

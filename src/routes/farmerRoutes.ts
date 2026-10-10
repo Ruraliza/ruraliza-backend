@@ -133,10 +133,10 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       tag: TAGS.farmers,
       summary: 'Cadastrar produtor',
       body: 'FarmerInput',
-      success: { status: 201, description: 'Produtor cadastrado.', schema: 'FarmerResponse' },
+      success: { status: 201, description: 'Produtor cadastrado.', schema: 'FarmerSignupResponse' },
       errors: {
         400: 'Campo obrigatório faltando; e-mail inválido; CPF inválido; senha fora do tamanho (8 a 128).',
-        409: 'Já existe produtor com este e-mail ou CPF.'
+        409: 'Já existe uma conta com este e-mail ou CPF (para ter os dois perfis, use POST /api/accounts/:id/profiles).'
       }
     })),
 
@@ -158,7 +158,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       errors: {
         400: 'Tentou alterar `id`, `cpf` ou `password`; e-mail inválido.',
         404: 'Produtor não encontrado.',
-        409: 'E-mail já usado por outro produtor.'
+        409: 'E-mail já usado por outra conta.'
       }
     })),
 
