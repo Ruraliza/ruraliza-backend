@@ -15,7 +15,8 @@ export interface FarmerInput {
   name: string;
   phone: string;
   cpf: string;
+  password: string; // 8 a 128 caracteres; nunca volta nas respostas
 }
 
-// PATCH /farmers/:id (id e cpf não podem ser alterados)
-export type FarmerUpdate = Partial<Omit<FarmerInput, 'cpf'>>;
+// PATCH /farmers/:id (id e cpf não podem ser alterados; a senha muda em PATCH /farmers/:id/password)
+export type FarmerUpdate = Partial<Omit<FarmerInput, 'cpf' | 'password'>>;

@@ -2,9 +2,11 @@ import type { Farmer, FarmerInput, FarmerUpdate } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
 import type { ImageStore } from '../domain/images';
-import type { ApplicationRepository, FarmRepository, FarmerRepository, ServiceRepository } from '../domain/repositories';
+import type { PasswordHasher } from '../domain/passwords';
+import type { ApplicationRepository, CredentialRepository, FarmRepository, FarmerRepository, ServiceRepository } from '../domain/repositories';
 import { type Result, conflict, notFound, ok } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
+import { registerPassword, removePassword } from './AuthUseCases';
 import { releaseImage } from './PhotoUseCases';
 import { checkProfileUnique } from './shared';
 
@@ -16,9 +18,11 @@ export class FarmerUseCases {
       farms: FarmRepository;
       services: ServiceRepository;
       applications: ApplicationRepository;
+      credentials: CredentialRepository;
     },
     private readonly clock: Clock,
-    private readonly images: ImageStore
+    private readonly images: ImageStore,
+    private readonly hasher: PasswordHasher
   ) {}
 
   // Lista com CPF mascarado.
@@ -36,7 +40,9 @@ export class FarmerUseCases {
     const unique = await checkProfileUnique(this.repos.farmers, input.email, input.cpf);
     if (!unique.ok) return unique;
 
-    const farmer = await this.repos.farmers.create({ ...input, farms: [], photo_url: null, insertion_date: this.clock.now() });
+    const { password, ...profile } = input;
+    const farmer = await this.repos.farmers.create({ ...profile, farms: [], photo_url: null, insertion_date: this.clock.now() });
+    await registerPassword(this.repos.credentials, this.hasher, 'farmer', farmer.id, password);
     return ok(farmer);
   }
 
@@ -59,7 +65,7 @@ export class FarmerUseCases {
   // Remove em cascata: candidaturas → serviços → fazendas → produtor (pagamentos ficam como histórico).
   // Bloqueado enquanto houver serviço em andamento.
   async delete(id: number): Promise<Result<null>> {
-    const { farmers, farms, services, applications } = this.repos;
+    const { farmers, farms, services, applications, credentials } = this.repos;
     const farmer = await farmers.findById(id);
     if (!farmer) return notFound('Produtor não encontrado.');
 
@@ -80,6 +86,7 @@ export class FarmerUseCases {
       await farms.delete(farm.id);
     }
     await releaseImage(this.images, farmer.photo_url);
+    await removePassword(credentials, 'farmer', farmer.id);
     await farmers.delete(farmer.id);
 
     return ok(null);

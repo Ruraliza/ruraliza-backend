@@ -2,6 +2,7 @@
 // frontend (../ruraliza-frontend/src/models) são o MESMO tipo, nos dois sentidos.
 // Rode com `npm run check:contracts` (precisa do frontend clonado ao lado deste repositório).
 import type * as Api from '../src/contracts';
+import type * as FrontAuth from '../../ruraliza-frontend/src/models/auth.model';
 import type * as FrontConfig from '../../ruraliza-frontend/src/models/config.model';
 import type * as FrontFarm from '../../ruraliza-frontend/src/models/farm.model';
 import type * as FrontFarmer from '../../ruraliza-frontend/src/models/farmer.model';
@@ -22,6 +23,15 @@ export type ContractParity = [
   Expect<Equals<Api.PaymentStatus, FrontStatus.PaymentStatus>>,
 
   Expect<Equals<Api.MapsConfig, FrontConfig.MapsConfig>>,
+
+  Expect<Equals<Api.UserRole, FrontAuth.UserRole>>,
+  Expect<Equals<Api.SessionUser, FrontAuth.SessionUser>>,
+  Expect<Equals<Api.LoginInput, FrontAuth.LoginInput>>,
+  Expect<Equals<Api.LoginResponse, FrontAuth.LoginResponse>>,
+  Expect<Equals<Api.PasswordResetRequestInput, FrontAuth.PasswordResetRequestInput>>,
+  Expect<Equals<Api.PasswordResetRequestResponse, FrontAuth.PasswordResetRequestResponse>>,
+  Expect<Equals<Api.PasswordResetInput, FrontAuth.PasswordResetInput>>,
+  Expect<Equals<Api.PasswordChangeInput, FrontAuth.PasswordChangeInput>>,
 
   Expect<Equals<Api.Farm, FrontFarm.Farm>>,
   Expect<Equals<Api.FarmInput, FrontFarm.FarmInput>>,

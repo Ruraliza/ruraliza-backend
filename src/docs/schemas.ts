@@ -17,6 +17,8 @@ export type SchemaName =
   | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
   | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate' | 'FarmInput' | 'FarmUpdate'
   | 'ServiceInput' | 'ServiceUpdate' | 'AnalyzeInput' | 'WorkerActionInput'
+  | 'UserRole' | 'SessionUser' | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
+  | 'LoginResponse' | 'PasswordResetRequestResponse'
   | 'FarmerResponse' | 'WorkerResponse' | 'FarmResponse' | 'ServiceResponse'
   | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse';
 
@@ -118,9 +120,18 @@ const profileEditableProps: Properties = {
   name: { type: 'string', example: 'Ana Produtora' },
   phone: { type: 'string', example: '24999990000', description: 'Com DDD, só números.' }
 };
+const newPassword: Schema = {
+  type: 'string',
+  format: 'password',
+  minLength: 8,
+  maxLength: 128,
+  example: 'minhasenha123',
+  description: 'De 8 a 128 caracteres (espaços contam). Guardada só como hash; nunca volta nas respostas.'
+};
 const profileInputProps: Properties = {
   ...profileEditableProps,
-  cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Único por tipo de perfil.' }
+  cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Único por tipo de perfil.' },
+  password: newPassword
 };
 
 const optionalText: Schema = { type: 'string', nullable: true };
@@ -226,11 +237,11 @@ export const schemas = {
   ),
 
   // --- Entradas ---
-  FarmerInput: input(profileInputProps, ['email', 'name', 'phone', 'cpf'], 'Cadastro de produtor.'),
+  FarmerInput: input(profileInputProps, ['email', 'name', 'phone', 'cpf', 'password'], 'Cadastro de produtor.'),
   FarmerUpdate: input(
     profileEditableProps,
     [],
-    'Edição parcial: envie só o que muda. Enviar `id` ou `cpf` resulta em 400.'
+    'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
   ),
   WorkerInput: input(
     {
@@ -240,7 +251,7 @@ export const schemas = {
       courses: { ...optionalText, maxLength: 1000, example: 'Operação de trator (SENAR)', description: 'Vazio vira null.' },
       experience: { ...optionalText, maxLength: 1000, example: '5 anos em colheita de café', description: 'Vazio vira null.' }
     },
-    ['email', 'name', 'phone', 'cpf'],
+    ['email', 'name', 'phone', 'cpf', 'password'],
     'Cadastro de trabalhador.'
   ),
   WorkerUpdate: input(
@@ -252,7 +263,7 @@ export const schemas = {
       experience: { ...optionalText, maxLength: 1000, description: 'null limpa o campo.' }
     },
     [],
-    'Edição parcial: envie só o que muda. Enviar `id` ou `cpf` resulta em 400.'
+    'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
   ),
   FarmInput: input(
     {
@@ -309,6 +320,46 @@ export const schemas = {
     'Accept: o serviço passa a In Progress e as demais candidaturas pendentes são recusadas.'
   ),
   WorkerActionInput: input({ worker_id: id }, ['worker_id'], 'Trabalhador que executa a ação.'),
+
+  // --- Acesso ---
+  UserRole: { type: 'string', enum: ['farmer', 'worker'], example: 'farmer', description: 'Tipo de perfil. O mesmo e-mail pode ter um de cada.' },
+  SessionUser: object({ role: ref('UserRole'), id }, ['role', 'id'], 'Quem entrou: o id é do produtor ou do trabalhador, conforme `role`.'),
+  LoginInput: input(
+    {
+      role: ref('UserRole'),
+      email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' },
+      password: { type: 'string', format: 'password', example: 'ruraliza123' }
+    },
+    ['role', 'email', 'password'],
+    'Login. Os perfis de teste do seed usam a senha `ruraliza123`.'
+  ),
+  PasswordResetRequestInput: input(
+    { role: ref('UserRole'), email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' } },
+    ['role', 'email'],
+    'Passo 1 do "esqueci a senha".'
+  ),
+  PasswordResetInput: input(
+    { token: { type: 'string', description: 'O `reset_token` do passo 1.' }, password: newPassword },
+    ['token', 'password'],
+    'Passo 2 do "esqueci a senha": a nova senha.'
+  ),
+  PasswordChangeInput: input(
+    { current_password: { type: 'string', format: 'password', example: 'ruraliza123' }, new_password: newPassword },
+    ['current_password', 'new_password'],
+    'Troca de senha com a conta aberta. A nova precisa ser diferente da atual.'
+  ),
+  LoginResponse: object({ message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SessionUser') }, ['message', 'user']),
+  PasswordResetRequestResponse: object(
+    {
+      message: { type: 'string', example: 'Password reset requested (simulation: the e-mail was not sent).' },
+      reset_token: {
+        type: 'string',
+        example: 'q8Jm1t0bX0b7cL0yFq3x2v9h4T1pZ6wE5rK8nU2sA3c',
+        description: 'Simulação: iria por e-mail. Vale 30 minutos e uma vez só; use em POST /api/auth/password-reset/confirm.'
+      }
+    },
+    ['message', 'reset_token']
+  ),
 
   // --- Respostas das escritas ---
   FarmerResponse: object({ message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer') }, ['message', 'farmer']),

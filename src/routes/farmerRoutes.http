@@ -21,7 +21,8 @@ Content-Type: application/json
   "email": "novo.produtor@exemplo.com",
   "name": "Carlos Produtor",
   "phone": "24977777777",
-  "cpf": "93541134780"
+  "cpf": "93541134780",
+  "password": "minhasenha123"
 }
 
 ### Perfil do produtor
@@ -46,6 +47,46 @@ Content-Type: application/json
 
 ### Remover produtor
 DELETE {{baseUrl}}/farmers/{{farmerId}}
+
+### --- SENHA E ACESSO ---
+### Perfil de teste do seed: produtor@exemplo.com, senha ruraliza123.
+
+### Entrar
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "role": "farmer",
+  "email": "produtor@exemplo.com",
+  "password": "ruraliza123"
+}
+
+### Trocar a senha com a conta aberta (pede a senha atual)
+PATCH {{baseUrl}}/farmers/{{farmerId}}/password
+Content-Type: application/json
+
+{
+  "current_password": "ruraliza123",
+  "new_password": "novasenha123"
+}
+
+### Esqueci a senha, passo 1 (simulação: o token volta na resposta em vez de ir por e-mail)
+POST {{baseUrl}}/auth/password-reset
+Content-Type: application/json
+
+{
+  "role": "farmer",
+  "email": "produtor@exemplo.com"
+}
+
+### Esqueci a senha, passo 2 (cole o reset_token do passo 1)
+POST {{baseUrl}}/auth/password-reset/confirm
+Content-Type: application/json
+
+{
+  "token": "COLE_O_RESET_TOKEN_AQUI",
+  "password": "ruraliza123"
+}
 
 ### --- FAZENDAS ---
 

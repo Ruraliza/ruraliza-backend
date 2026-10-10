@@ -1,11 +1,15 @@
 // Dados de demonstração criados ao subir o servidor (somem a cada reinício com os repositórios em memória).
 // As datas são relativas ao relógio, então a demonstração vale em qualquer dia: há vagas publicadas em
 // dias diferentes (filtros from/to e sort=recent) e com todos os casos de prazo (sem prazo, vence em
-// alguns dias, vence hoje e já vencida).
+// alguns dias, vence hoje e já vencida). Os dois perfis de teste entram com a senha SEED_PASSWORD.
 import { SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
 import { dayOf } from '../domain/dates';
+import type { PasswordHasher } from '../domain/passwords';
 import type { Repositories } from '../domain/repositories';
+import { registerPassword } from '../usecases/AuthUseCases';
+
+export const SEED_PASSWORD = 'ruraliza123';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -20,7 +24,7 @@ interface DemoService {
   expiresInDays: number | null; // null = sem prazo; negativo = já vencida
 }
 
-export async function seed(repos: Repositories, clock: Clock): Promise<void> {
+export async function seed(repos: Repositories, clock: Clock, passwords: PasswordHasher): Promise<void> {
   const now = clock.now();
   const shift = (days: number): string => new Date(Date.parse(now) + days * DAY_MS).toISOString();
 
@@ -36,6 +40,7 @@ export async function seed(repos: Repositories, clock: Clock): Promise<void> {
     photo_url: null,
     insertion_date: registeredAt
   });
+  await registerPassword(repos.credentials, passwords, 'farmer', farmer.id, SEED_PASSWORD);
 
   const farmSaoJose = await repos.farms.create({
     farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ',
@@ -48,7 +53,7 @@ export async function seed(repos: Repositories, clock: Clock): Promise<void> {
   farmer.farms = [farmSaoJose.id, farmBoaVista.id];
   await repos.farmers.update(farmer);
 
-  await repos.workers.create({
+  const worker = await repos.workers.create({
     email: 'trabalhador@exemplo.com',
     name: 'Maria Trabalhadora',
     bio: 'Trabalho no campo desde nova. Disponível de segunda a sábado.',
@@ -61,6 +66,7 @@ export async function seed(repos: Repositories, clock: Clock): Promise<void> {
     cpf: '11144477735',
     insertion_date: registeredAt
   });
+  await registerPassword(repos.credentials, passwords, 'worker', worker.id, SEED_PASSWORD);
 
   // Uma vaga por categoria (ver src/constants/categories.ts). Os serviços 1 a 3 são os citados na documentação.
   const demoServices: DemoService[] = [

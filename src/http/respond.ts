@@ -6,6 +6,7 @@ import type { ErrorStatus } from './types';
 // Tradução dos erros de negócio para HTTP.
 const STATUS: Record<FailureKind, ErrorStatus> = {
   invalid: 400,
+  unauthorized: 401,
   not_found: 404,
   conflict: 409
 };
