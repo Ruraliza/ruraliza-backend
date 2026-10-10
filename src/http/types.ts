@@ -15,6 +15,9 @@ export interface FarmPhotoParams extends FarmParams {
 export interface ImageParams {
   id: string;
 }
+export interface DocumentParams {
+  id: string;
+}
 export type NoParams = Record<string, never>;
 
 // Query string e corpo chegam sem garantia de formato: são tratados como unknown e validados.
@@ -25,6 +28,6 @@ type NoLocals = Record<string, never>;
 // Todos os parâmetros genéricos do Express são explícitos (os padrões dele são `any`).
 export type Handler<Res, Params = NoParams> = RequestHandler<Params, Res | ApiError, unknown, Query, NoLocals>;
 
-// Status HTTP de erro usados pela API (413 só nos envios de foto grandes demais;
+// Status HTTP de erro usados pela API (413 só nos envios de foto ou currículo grandes demais;
 // 403 só na configuração do mapa pedida fora do frontend).
 export type ErrorStatus = 400 | 403 | 404 | 409 | 413 | 503;

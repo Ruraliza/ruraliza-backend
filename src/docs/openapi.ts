@@ -6,7 +6,7 @@ import { schemas } from './schemas';
 const DESCRIPTION = `
 API do **Ruraliza**: conecta produtores rurais a trabalhadores para serviços nas fazendas.
 
-- Os dados (e as fotos) ficam **em memória** e somem quando o servidor reinicia. Ao subir, há dados de teste
+- Os dados (e as fotos e currículos) ficam **em memória** e somem quando o servidor reinicia. Ao subir, há dados de teste
   (produtor 1 com as fazendas 1 e 2, trabalhador 1, serviços 1 a 7: um por categoria, publicados em dias diferentes, com e sem prazo; o 7 já venceu).
 - **Sem autenticação** nesta fase: quem age é informado no corpo (\`farmer_id\`, \`worker_id\`) ou na URL.
 - Erros sempre em \`{ "error": "mensagem" }\`: 400 validação, 404 não encontrado, 409 conflito de estado.
@@ -22,7 +22,8 @@ const TAG_DESCRIPTIONS: Record<(typeof TAGS)[keyof typeof TAGS], string> = {
   [TAGS.farmerServices]: 'Ciclo do serviço do lado do produtor: publicar, editar, cancelar, escolher o trabalhador e pagar.',
   [TAGS.workers]: 'Cadastro, perfil e acompanhamento do trabalhador.',
   [TAGS.jobs]: 'Vagas abertas (com filtros), candidatura e desistência.',
-  [TAGS.images]: 'Fotos de perfil e de fazenda (WebP, no máximo 1000px).'
+  [TAGS.images]: 'Fotos de perfil e de fazenda (WebP, no máximo 1000px).',
+  [TAGS.documents]: 'Currículos dos trabalhadores (PDF, até 5 MB).'
 };
 
 export function buildOpenApiDocument(groups: readonly RouteGroup[]): OpenAPIV3.Document {

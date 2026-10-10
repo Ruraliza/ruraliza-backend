@@ -81,7 +81,7 @@ async function step<T = unknown>(
   return typed;
 }
 
-// Envia um arquivo como corpo (Content-Type image/*) e confere a resposta contra o OpenAPI.
+// Envia um arquivo como corpo (image/* ou application/pdf) e confere a resposta contra o OpenAPI.
 async function upload<T = unknown>(
   title: string,
   path: string,
@@ -116,6 +116,18 @@ async function download(title: string, url: string, expectedStatus = 200): Promi
   assert.equal(res.headers.get('content-type'), 'image/webp');
   const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
   return { width: meta.width, height: meta.height, format: meta.format };
+}
+
+// Baixa um PDF servido pela API e confere que os bytes são os enviados.
+async function downloadPdf(title: string, url: string, expectedStatus: number, expected?: Uint8Array): Promise<void> {
+  const res = await fetch(`${baseUrl.replace(/\/api$/, '')}${url}`);
+  assert.equal(res.status, expectedStatus, `${title}: esperado ${expectedStatus}, veio ${res.status}`);
+  if (expected) {
+    assert.equal(res.headers.get('content-type'), 'application/pdf');
+    assert.deepEqual(new Uint8Array(await res.arrayBuffer()), expected);
+  }
+  passed++;
+  console.log(`  ok  ${String(res.status).padEnd(3)} GET    ${url.replace('/api', '')}  — ${title}`);
 }
 
 // Dia de hoje/amanhã/ontem no horário de Brasília (AAAA-MM-DD).
@@ -379,6 +391,21 @@ async function run(): Promise<void> {
     (b) => assert.equal(b.farm.photos.length, 5));
   await step('remover foto inexistente', 'DELETE', `/farmers/${farmer.id}/farms/${farm.id}/photos/nao-existe.webp`, undefined, 404);
   await download('foto removida não é mais servida', firstFarmPhoto.url, 404);
+
+  console.log('\nCurrículo');
+  const resumePdf = new TextEncoder().encode('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n');
+  const { worker: wResume } = await upload<WorkerResponse>('currículo do trabalhador', `/workers/${worker.id}/resume`, resumePdf, 'application/pdf', 200,
+    (b) => assert.match(b.worker.resume_url ?? '', /^\/api\/documents\/.+\.pdf$/));
+  const firstResume = wResume.resume_url ?? '';
+  await downloadPdf('currículo servido como enviado', firstResume, 200, resumePdf);
+  await upload<WorkerResponse>('trocar o currículo', `/workers/${worker.id}/resume`, resumePdf, 'application/pdf', 200,
+    (b) => assert.notEqual(b.worker.resume_url, firstResume));
+  await downloadPdf('currículo antigo apagado', firstResume, 404);
+  await upload('arquivo que não é PDF', `/workers/${worker.id}/resume`, new TextEncoder().encode('não sou um PDF'), 'application/pdf', 400);
+  await upload('sem Content-Type de PDF', `/workers/${worker.id}/resume`, resumePdf, 'application/octet-stream', 400);
+  await upload('currículo maior que 5 MB', `/workers/${worker.id}/resume`, new Uint8Array(6 * 1024 * 1024), 'application/pdf', 413);
+  await upload('currículo de trabalhador inexistente', '/workers/999/resume', resumePdf, 'application/pdf', 404);
+  await step<WorkerResponse>('remover currículo', 'DELETE', `/workers/${worker.id}/resume`, undefined, 200, (b) => assert.equal(b.worker.resume_url, null));
 
   console.log('\nPerfil do trabalhador');
   await step<WorkerResponse>('bio, cursos e contato', 'PATCH', `/workers/${worker.id}`,

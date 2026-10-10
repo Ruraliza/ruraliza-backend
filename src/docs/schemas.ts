@@ -29,6 +29,12 @@ const photoUrl: Schema = {
   example: '/api/images/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.webp',
   description: 'Foto de perfil (WebP quadrado, no máximo 1000×1000px). null quando não há foto. Relativa à API.'
 };
+const resumeUrl: Schema = {
+  type: 'string',
+  nullable: true,
+  example: '/api/documents/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.pdf',
+  description: 'Currículo em PDF. null quando não há currículo. Relativa à API.'
+};
 const lastDay: Schema = {
   type: 'string',
   format: 'date',
@@ -166,9 +172,10 @@ export const schemas = {
       phone: { type: 'string', example: '24988888888' },
       cpf,
       photo_url: photoUrl,
+      resume_url: resumeUrl,
       insertion_date: isoDate
     },
-    ['id', 'email', 'name', 'bio', 'certificates', 'courses', 'experience', 'phone', 'cpf', 'photo_url', 'insertion_date']
+    ['id', 'email', 'name', 'bio', 'certificates', 'courses', 'experience', 'phone', 'cpf', 'photo_url', 'resume_url', 'insertion_date']
   ),
   Farm: object(farmProps, farmRequired),
   FarmPhoto: object(
