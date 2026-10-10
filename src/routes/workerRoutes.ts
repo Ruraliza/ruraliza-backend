@@ -136,7 +136,9 @@ export function workerRoutes({ workers, jobs, photos }: WorkerRouteControllers):
     route('post', '/:id/photo', photos.uploadWorkerPhoto, operation({
       tag: TAGS.workers,
       summary: 'Enviar foto de perfil do trabalhador',
-      description: 'Substitui a foto anterior. Reduzida para no máximo 1000px e convertida para WebP, sem metadados.',
+      description:
+        'Substitui a foto anterior. Envie a foto já recortada em quadrado; se vier em outra proporção, ' +
+        'o servidor recorta o quadrado central. Reduzida para no máximo 1000×1000px e convertida para WebP, sem metadados.',
       params: [workerId],
       body: IMAGE_UPLOAD,
       success: { status: 200, description: 'Foto salva; `photo_url` atualizado.', schema: 'WorkerResponse' },

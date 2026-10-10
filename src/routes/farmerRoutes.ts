@@ -157,7 +157,9 @@ export function farmerRoutes({ farmers, farms, services, photos }: FarmerRouteCo
     route('post', '/:id/photo', photos.uploadFarmerPhoto, operation({
       tag: TAGS.farmers,
       summary: 'Enviar foto de perfil do produtor',
-      description: 'Substitui a foto anterior. Reduzida para no máximo 1000px e convertida para WebP, sem metadados.',
+      description:
+        'Substitui a foto anterior. Envie a foto já recortada em quadrado; se vier em outra proporção, ' +
+        'o servidor recorta o quadrado central. Reduzida para no máximo 1000×1000px e convertida para WebP, sem metadados.',
       params: [farmerId],
       body: IMAGE_UPLOAD,
       success: { status: 200, description: 'Foto salva; `photo_url` atualizado.', schema: 'FarmerResponse' },

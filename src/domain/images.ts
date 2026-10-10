@@ -3,7 +3,8 @@ import type { Result } from './result';
 // Fotos (perfil do produtor/trabalhador e fazendas).
 //
 // Duas peças separadas, cada uma trocável no container:
-// - ImageProcessor: valida e normaliza a imagem enviada (≤ 1000px no maior lado, WebP).
+// - ImageProcessor: valida e normaliza a imagem enviada (≤ 1000px no maior lado, WebP;
+//   fotos de perfil também saem quadradas).
 // - ImageStore: guarda os bytes e diz a URL pública de cada imagem.
 //
 // Hoje: SharpImageProcessor + InMemoryImageStore (some ao reiniciar).
@@ -22,9 +23,15 @@ export interface ProcessedImage {
   height: number;
 }
 
+export interface NormalizeOptions {
+  // Recorta um quadrado central (fotos de perfil). O app já envia a foto recortada pelo usuário;
+  // aqui é só a garantia para quem enviar outra proporção.
+  square?: boolean;
+}
+
 export interface ImageProcessor {
   // Recusa (invalid) o que não for imagem legível.
-  normalize(input: Uint8Array): Promise<Result<ProcessedImage>>;
+  normalize(input: Uint8Array, options?: NormalizeOptions): Promise<Result<ProcessedImage>>;
 }
 
 export interface StoredImage {

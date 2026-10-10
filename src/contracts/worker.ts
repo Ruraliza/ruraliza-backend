@@ -8,7 +8,7 @@ export interface Worker {
   experience: string | null;
   phone: string;
   cpf: string; // completo só no GET do próprio perfil; mascarado em listas
-  photo_url: string | null; // foto de perfil (WebP ≤ 1000px), enviada por POST /workers/:id/photo
+  photo_url: string | null; // foto de perfil (WebP quadrado ≤ 1000×1000px), enviada por POST /workers/:id/photo
   insertion_date: string;
 }
 
