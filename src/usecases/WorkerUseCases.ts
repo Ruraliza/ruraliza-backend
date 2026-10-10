@@ -1,11 +1,13 @@
 import type { ApplicationWithService, OpenService, Worker, WorkerUpdate } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
+import type { DocumentStore } from '../domain/documents';
 import type { ImageStore } from '../domain/images';
 import type { ApplicationRepository, FarmRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, notFound, ok, requireFound } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
 import { releaseImage } from './PhotoUseCases';
+import { releaseDocument } from './ResumeUseCases';
 import { checkProfileUnique, toOpenService } from './shared';
 
 // Dados de cadastro já validados (textos opcionais vazios viram null).
@@ -30,7 +32,7 @@ export class WorkerUseCases {
       farms: FarmRepository;
     },
     private readonly clock: Clock,
-    private readonly images: ImageStore
+    private readonly files: { images: ImageStore; documents: DocumentStore }
   ) {}
 
   // Lista com CPF mascarado.
@@ -48,7 +50,7 @@ export class WorkerUseCases {
     const unique = await checkProfileUnique(this.repos.workers, input.email, input.cpf);
     if (!unique.ok) return unique;
 
-    const worker = await this.repos.workers.create({ ...input, photo_url: null, insertion_date: this.clock.now() });
+    const worker = await this.repos.workers.create({ ...input, photo_url: null, resume_url: null, insertion_date: this.clock.now() });
     return ok(worker);
   }
 
@@ -88,7 +90,8 @@ export class WorkerUseCases {
     for (const application of await applications.find({ worker_id: worker.id })) {
       await applications.delete(application.id);
     }
-    await releaseImage(this.images, worker.photo_url);
+    await releaseImage(this.files.images, worker.photo_url);
+    await releaseDocument(this.files.documents, worker.resume_url);
     await workers.delete(worker.id);
 
     return ok(null);

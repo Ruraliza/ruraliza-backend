@@ -10,7 +10,8 @@ export const TAGS = {
   farmerServices: 'Serviços (produtor)',
   workers: 'Trabalhadores',
   jobs: 'Vagas (trabalhador)',
-  images: 'Imagens'
+  images: 'Imagens',
+  documents: 'Documentos'
 } as const;
 export type Tag = (typeof TAGS)[keyof typeof TAGS];
 
@@ -34,13 +35,15 @@ export function queryParam(name: string, description: string, schema: SchemaOrRe
 
 // Envio de foto: o corpo é o próprio arquivo (Content-Type image/*), não JSON.
 export const IMAGE_UPLOAD = 'image-upload';
+// Envio de currículo: o corpo é o próprio PDF (Content-Type application/pdf).
+export const PDF_UPLOAD = 'pdf-upload';
 
 export interface OperationSpec {
   tag: Tag;
   summary: string;
   description?: string;
   params?: OpenAPIV3.ParameterObject[];
-  body?: SchemaName | typeof IMAGE_UPLOAD;
+  body?: SchemaName | typeof IMAGE_UPLOAD | typeof PDF_UPLOAD;
   // Resposta JSON (`schema`) ou binária (`binary`: o Content-Type devolvido).
   success: { status: 200 | 201; description: string } & ({ schema: SuccessSchema } | { binary: string });
   // Cada erro possível da rota, com as situações que o causam.
@@ -76,6 +79,12 @@ export function operation(spec: OperationSpec): OpenAPIV3.OperationObject {
       required: true,
       description: 'O arquivo da foto (até 10 MB). O servidor reduz para no máximo 1000px e converte para WebP.',
       content: { 'image/jpeg': file, 'image/png': file, 'image/webp': file, 'image/avif': file }
+    };
+  } else if (spec.body === PDF_UPLOAD) {
+    op.requestBody = {
+      required: true,
+      description: 'O arquivo PDF (até 5 MB), guardado como foi enviado.',
+      content: { 'application/pdf': { schema: { type: 'string', format: 'binary' } } }
     };
   } else if (spec.body !== undefined) {
     op.requestBody = { required: true, content: { 'application/json': { schema: ref(spec.body) } } };

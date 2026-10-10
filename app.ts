@@ -8,6 +8,7 @@ import { isAllowedOrigin, serverPort } from './src/config';
 import { type Container, createContainer } from './src/container';
 import type { ApiError } from './src/contracts';
 import { seed } from './src/data/seed';
+import { PDF_CONTENT_TYPE, RESUME_MAX_UPLOAD_BYTES } from './src/domain/documents';
 import { IMAGE_MAX_UPLOAD_BYTES } from './src/domain/images';
 import { buildOpenApiDocument } from './src/docs/openapi';
 import { isRecord } from './src/http/body';
@@ -43,6 +44,8 @@ export function createApi(container: Container = createContainer(), options: Api
   app.use(express.json());
   // Envio de fotos: o corpo é o próprio arquivo (Content-Type image/*), lido como bytes.
   app.use(express.raw({ type: 'image/*', limit: IMAGE_MAX_UPLOAD_BYTES }));
+  // Envio de currículo: o corpo é o próprio PDF.
+  app.use(express.raw({ type: PDF_CONTENT_TYPE, limit: RESUME_MAX_UPLOAD_BYTES }));
 
   // --- DOCUMENTAÇÃO (Swagger UI) ---
   // Gerada a partir das mesmas rotas montadas abaixo (src/routes, src/docs).
@@ -78,7 +81,7 @@ function isJsonParseError(error: unknown): boolean {
   return isRecord(error) && error['type'] === 'entity.parse.failed';
 }
 
-// Erro do express.raw() quando a foto passa do limite.
+// Erro do express.raw() quando a foto ou o currículo passa do limite.
 function isTooLargeError(error: unknown): boolean {
   return isRecord(error) && error['type'] === 'entity.too.large';
 }
@@ -91,13 +94,16 @@ function describeError(error: unknown): string {
 // Sempre responde { error } com o status HTTP correto. Erros de handlers async também chegam
 // aqui (o Express 5 repassa promises rejeitadas).
 // O Express reconhece o handler de erro pelos 4 parâmetros, por isso `_next` fica na assinatura.
-function errorHandler(error: unknown, _req: Request, res: Response<ApiError>, _next: NextFunction): void {
+function errorHandler(error: unknown, req: Request, res: Response<ApiError>, _next: NextFunction): void {
   if (isJsonParseError(error)) {
     res.status(400).json({ error: 'O corpo da requisição não é um JSON válido.' });
     return;
   }
   if (isTooLargeError(error)) {
-    res.status(413).json({ error: 'A foto passa de 10 MB. Envie uma imagem menor.' });
+    const message = req.is(PDF_CONTENT_TYPE)
+      ? 'O currículo passa de 5 MB. Envie um PDF menor.'
+      : 'A foto passa de 10 MB. Envie uma imagem menor.';
+    res.status(413).json({ error: message });
     return;
   }
   console.error('Erro interno:', describeError(error));

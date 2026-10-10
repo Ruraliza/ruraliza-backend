@@ -314,3 +314,43 @@ describe('Fotos', () => {
     assert.equal((await c.repos.workers.findById(w))?.photo_url, null);
   });
 });
+
+describe('Currículo', () => {
+  const PDF = (): Uint8Array => new TextEncoder().encode('%PDF-1.4\n%%EOF\n');
+
+  it('guarda o PDF como veio, troca apagando o anterior e some ao remover o trabalhador', async () => {
+    const c = setup();
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    const first = unwrap(await c.useCases.resumes.setWorkerResume(w, PDF())).resume_url;
+    assert.match(first ?? '', /^\/api\/documents\/.+\.pdf$/);
+    const firstId = c.documents.idFromUrl(first ?? '') ?? '';
+    assert.deepEqual((await c.documents.get(firstId))?.bytes, PDF());
+
+    const second = unwrap(await c.useCases.resumes.setWorkerResume(w, PDF())).resume_url;
+    assert.notEqual(second, first);
+    assert.equal(await c.documents.get(firstId), undefined);
+
+    unwrap(await c.useCases.workers.delete(w));
+    assert.equal(await c.documents.get(c.documents.idFromUrl(second ?? '') ?? ''), undefined);
+  });
+
+  it('o produtor vê o currículo de quem se candidatou ao serviço', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    const url = unwrap(await c.useCases.resumes.setWorkerResume(w, PDF())).resume_url;
+    unwrap(await c.useCases.hiring.apply(serviceId, w));
+
+    const [application] = unwrap(await c.useCases.services.listApplications(serviceId));
+    assert.equal(application?.worker.resume_url, url);
+  });
+
+  it('recusa arquivo que não é PDF', async () => {
+    const c = setup();
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    const result = await c.useCases.resumes.setWorkerResume(w, new TextEncoder().encode('texto'));
+    assert.equal(result.ok ? '' : result.kind, 'invalid');
+    assert.equal((await c.repos.workers.findById(w))?.resume_url, null);
+  });
+});

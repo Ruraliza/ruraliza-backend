@@ -9,6 +9,7 @@ export interface Worker {
   phone: string;
   cpf: string; // completo só no GET do próprio perfil; mascarado em listas
   photo_url: string | null; // foto de perfil (WebP quadrado ≤ 1000×1000px), enviada por POST /workers/:id/photo
+  resume_url: string | null; // currículo em PDF, enviado por POST /workers/:id/resume
   insertion_date: string;
 }
 

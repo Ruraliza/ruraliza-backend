@@ -1,7 +1,8 @@
 import type { JobController } from '../controllers/JobController';
 import type { PhotoController } from '../controllers/PhotoController';
+import type { ResumeController } from '../controllers/ResumeController';
 import type { WorkerController } from '../controllers/WorkerController';
-import { IMAGE_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
+import { IMAGE_UPLOAD, PDF_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
 import { type RouteDef, route } from '../http/route';
 
 // Montadas em /api/workers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
@@ -13,11 +14,12 @@ export interface WorkerRouteControllers {
   workers: WorkerController;
   jobs: JobController;
   photos: PhotoController;
+  resumes: ResumeController;
 }
 
 const date = { type: 'string' as const, format: 'date', example: '2026-10-01' };
 
-export function workerRoutes({ workers, jobs, photos }: WorkerRouteControllers): readonly RouteDef[] {
+export function workerRoutes({ workers, jobs, photos, resumes }: WorkerRouteControllers): readonly RouteDef[] {
   return [
     // --- VAGAS ---
 
@@ -127,7 +129,7 @@ export function workerRoutes({ workers, jobs, photos }: WorkerRouteControllers):
     route('delete', '/:id', workers.deleteWorker, operation({
       tag: TAGS.workers,
       summary: 'Remover trabalhador',
-      description: 'Remove também todas as candidaturas dele.',
+      description: 'Remove também todas as candidaturas dele, a foto e o currículo.',
       params: [workerId],
       success: { status: 200, description: 'Trabalhador removido.', schema: 'MessageResponse' },
       errors: { 404: 'Trabalhador não encontrado.', 409: 'O trabalhador tem serviço `In Progress`.' }
@@ -154,6 +156,28 @@ export function workerRoutes({ workers, jobs, photos }: WorkerRouteControllers):
       summary: 'Remover foto de perfil do trabalhador',
       params: [workerId],
       success: { status: 200, description: 'Foto removida (`photo_url` = null).', schema: 'WorkerResponse' },
+      errors: { 404: 'Trabalhador não encontrado.' }
+    })),
+
+    route('post', '/:id/resume', resumes.uploadWorkerResume, operation({
+      tag: TAGS.workers,
+      summary: 'Enviar currículo do trabalhador',
+      description: 'Substitui o currículo anterior. Só PDF; o arquivo é guardado como foi enviado.',
+      params: [workerId],
+      body: PDF_UPLOAD,
+      success: { status: 200, description: 'Currículo salvo; `resume_url` atualizado.', schema: 'WorkerResponse' },
+      errors: {
+        400: 'Corpo vazio, sem Content-Type application/pdf, ou arquivo que não é um PDF.',
+        404: 'Trabalhador não encontrado.',
+        413: 'Arquivo maior que 5 MB.'
+      }
+    })),
+
+    route('delete', '/:id/resume', resumes.deleteWorkerResume, operation({
+      tag: TAGS.workers,
+      summary: 'Remover currículo do trabalhador',
+      params: [workerId],
+      success: { status: 200, description: 'Currículo removido (`resume_url` = null).', schema: 'WorkerResponse' },
       errors: { 404: 'Trabalhador não encontrado.' }
     })),
 

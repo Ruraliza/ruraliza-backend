@@ -71,10 +71,10 @@ contract-check/             # Verificação de paridade de tipos com o frontend
 src/
   container.ts              # Raiz de composição: escolhe os repositórios e monta os casos de uso
   contracts/                # Contrato da API (só tipos): entidades, entradas e respostas
-  domain/                   # Result, interfaces dos repositórios e das imagens (ImageStore/ImageProcessor), Clock, datas
-  infra/memory/             # Repositórios e ImageStore em memória (implementam as interfaces de domain/)
+  domain/                   # Result, interfaces dos repositórios, das imagens (ImageStore/ImageProcessor) e dos documentos (DocumentStore), Clock, datas
+  infra/memory/             # Repositórios, ImageStore e DocumentStore em memória (implementam as interfaces de domain/)
   infra/images/             # SharpImageProcessor: redimensiona para até 1000 px (perfil: quadrado) e converte para WebP
-  usecases/                 # Regras de negócio: Farmer, Farm, Worker, Service, Hiring, Photo
+  usecases/                 # Regras de negócio: Farmer, Farm, Worker, Service, Hiring, Photo, Resume
   controllers/              # HTTP fino: valida o corpo, chama o caso de uso, traduz o Result em status
   http/                     # Tipos dos handlers, route(), parsers dos corpos e tradução de erros
   routes/                   # Endpoints + documentação de cada um (index.ts monta controllers e grupos)
@@ -100,10 +100,12 @@ src/
 | Produtores, trabalhadores, fazendas, serviços, candidaturas, pagamentos | Array em memória, um por entidade, com id sequencial | `InMemoryRepository` (`src/infra/memory/`) |
 | Fotos (perfil do produtor, perfil do trabalhador, fazendas) | `Map` em memória de id para bytes WebP | `InMemoryImageStore` (`src/infra/memory/InMemoryImageStore.ts`) |
 | Tratamento das fotos | Processado no upload, não é guardado | `SharpImageProcessor` (`src/infra/images/`) |
+| Currículos dos trabalhadores (PDF) | `Map` em memória de id para bytes do PDF | `InMemoryDocumentStore` (`src/infra/memory/InMemoryDocumentStore.ts`) |
 
 - Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
 - As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
 - Toda foto enviada passa pelo `SharpImageProcessor` antes de ser guardada: corrige a rotação do celular, reduz para **no máximo 1000 px no maior lado** (sem ampliar fotos pequenas), converte para **WebP (qualidade 78)** e remove os metadados (EXIF/GPS). Fotos de perfil saem sempre **quadradas** (até 1000×1000 px): o app envia a foto já recortada pelo usuário e, se chegar outra proporção, o servidor recorta o quadrado central. Arquivos que não são imagem são recusados com 400. Uploads acima de 10 MB são recusados com 413.
+- O currículo do trabalhador segue o mesmo esquema, sem processamento: o PDF é guardado como chegou, depois de conferir a assinatura `%PDF-` (outro arquivo dá 400; acima de 5 MB, 413). O trabalhador guarda só `resume_url` (`/api/documents/<uuid>.pdf`), servida por `GET /api/documents/:id`.
 - A escolha de tudo isso está num lugar só: `src/container.ts` (`createContainer`).
 
 ### Como ligar o PostgreSQL
@@ -116,7 +118,7 @@ src/
    - `insertion_date` → `timestamptz`.
    - Restrições `UNIQUE` e transações estão marcadas com `TODO(db)` no código (`grep -rn "TODO(db)" src`).
 4. **Busca de vagas.** `ServiceUseCases.searchOpen` filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no método).
-5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar).
+5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar). Os currículos fazem o mesmo com `DocumentStore` (`src/domain/documents.ts`), passado em `createContainer({ documents })`.
 6. **Seed.** `src/data/seed.ts` só roda na memória. No banco, vire um script de seed ou migração.
 
 Os testes continuam valendo: `npm run test:unit` usa o container com memória, e o `npm run smoke` pode rodar contra o banco para validar a troca.
@@ -163,9 +165,11 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`) |
 | GET | `/api/workers/:id` | Perfil completo |
 | PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `bio`, `experience`, `certificates`, `courses`; 400 se tentar alterar `id`/`cpf` |
-| DELETE | `/api/workers/:id` | Remove o trabalhador, suas candidaturas e a foto; 409 se tiver serviço `In Progress` |
+| DELETE | `/api/workers/:id` | Remove o trabalhador, suas candidaturas, a foto e o currículo; 409 se tiver serviço `In Progress` |
 | POST | `/api/workers/:id/photo` | Envia/troca a foto de perfil, recortada em quadrado (corpo = bytes da imagem) |
 | DELETE | `/api/workers/:id/photo` | Remove a foto de perfil |
+| POST | `/api/workers/:id/resume` | Envia/troca o currículo (corpo = bytes do PDF, `Content-Type: application/pdf`, até 5 MB); devolve o trabalhador com `resume_url` |
+| DELETE | `/api/workers/:id/resume` | Remove o currículo |
 | GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido (com o ponto da fazenda no mapa quando a candidatura foi aceita) |
 | GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador (com `farm.latitude`/`farm.longitude`) |
 | GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category`, `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`); 400 se algum filtro for inválido |
@@ -179,6 +183,7 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | GET | `/api/categories` | Lista fixa de categorias |
 | GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 403 se o `Origin` não for do frontend, 503 se a chave não estiver configurada |
 | GET | `/api/images/:id` | Serve uma foto (WebP, cache imutável de 1 ano) |
+| GET | `/api/documents/:id` | Serve um currículo (PDF, cache imutável de 1 ano) |
 
 **Localização da fazenda:** o produtor marca o ponto no mapa (`latitude`/`longitude`, obrigatórias no cadastro; fazendas antigas podem ter `null`). O trabalhador só recebe as coordenadas nos serviços em que foi aceito; nas vagas abertas vê apenas cidade/UF.
 

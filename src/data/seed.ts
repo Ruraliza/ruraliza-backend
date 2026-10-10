@@ -56,6 +56,7 @@ export async function seed(repos: Repositories, clock: Clock): Promise<void> {
     courses: 'NR-31 Segurança no trabalho rural',
     experience: '5 anos',
     photo_url: null,
+    resume_url: null,
     phone: '24988888888',
     cpf: '11144477735',
     insertion_date: registeredAt
