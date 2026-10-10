@@ -1,13 +1,14 @@
 // Dados de demonstração criados ao subir o servidor (somem a cada reinício com os repositórios em memória).
 // As datas são relativas ao relógio, então a demonstração vale em qualquer dia: há vagas publicadas em
 // dias diferentes (filtros from/to e sort=recent) e com todos os casos de prazo (sem prazo, vence em
-// alguns dias, vence hoje e já vencida). Os dois perfis de teste entram com a senha SEED_PASSWORD.
+// alguns dias, vence hoje e já vencida). As contas de teste entram com a senha SEED_PASSWORD:
+// uma só de produtor, uma só de trabalhador e uma com os dois perfis.
 import { SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
 import { dayOf } from '../domain/dates';
 import type { PasswordHasher } from '../domain/passwords';
 import type { Repositories } from '../domain/repositories';
-import { registerPassword } from '../usecases/AuthUseCases';
+import { createAccount } from '../usecases/accounts';
 
 export const SEED_PASSWORD = 'ruraliza123';
 
@@ -40,7 +41,7 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
     photo_url: null,
     insertion_date: registeredAt
   });
-  await registerPassword(repos.credentials, passwords, 'farmer', farmer.id, SEED_PASSWORD);
+  await createAccount(repos.accounts, passwords, { email: farmer.email, password: SEED_PASSWORD, role: 'farmer', profileId: farmer.id });
 
   const farmSaoJose = await repos.farms.create({
     farmer_id: farmer.id, address: 'Estrada de Terra, Km 2', city: 'Três Rios', state: 'RJ',
@@ -66,7 +67,16 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
     cpf: '11144477735',
     insertion_date: registeredAt
   });
-  await registerPassword(repos.credentials, passwords, 'worker', worker.id, SEED_PASSWORD);
+  await createAccount(repos.accounts, passwords, { email: worker.email, password: SEED_PASSWORD, role: 'worker', profileId: worker.id });
+
+  // Conta com os dois perfis (alterna entre os painéis), ainda sem fazendas nem vagas.
+  const both = { email: 'ambos@exemplo.com', name: 'Carlos Produtor e Trabalhador', phone: '24977777777', cpf: '39053344705' };
+  const bothFarmer = await repos.farmers.create({ ...both, farms: [], photo_url: null, insertion_date: registeredAt });
+  const bothWorker = await repos.workers.create({
+    ...both, bio: null, certificates: null, courses: null, experience: '2 anos em plantio', photo_url: null, resume_url: null, insertion_date: registeredAt
+  });
+  const bothAccount = await createAccount(repos.accounts, passwords, { email: both.email, password: SEED_PASSWORD, role: 'farmer', profileId: bothFarmer.id });
+  await repos.accounts.update({ ...bothAccount, worker_id: bothWorker.id });
 
   // Uma vaga por categoria (ver src/constants/categories.ts). Os serviços 1 a 3 são os citados na documentação.
   const demoServices: DemoService[] = [

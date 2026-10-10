@@ -2,8 +2,9 @@ import type { AnalyzeInput, Payment, Service, ServiceApplication } from '../cont
 import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
 import { type ChangeFeed, type ChangeTopic, serviceApplications, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
-import type { ApplicationRepository, PaymentRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
+import type { AccountRepository, ApplicationRepository, PaymentRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, invalid, notFound, ok, requireFound } from '../domain/result';
+import { findAccountOf } from './accounts';
 import { isExpired } from './shared';
 
 export interface AnalyzeOutcome {
@@ -25,6 +26,7 @@ export class HiringUseCases {
       applications: ApplicationRepository;
       workers: WorkerRepository;
       payments: PaymentRepository;
+      accounts: AccountRepository;
     },
     private readonly clock: Clock,
     private readonly changes: ChangeFeed
@@ -38,6 +40,12 @@ export class HiringUseCases {
 
     const worker = await workers.findById(workerId);
     if (!worker) return notFound('Trabalhador não encontrado.');
+
+    // Conta com os dois perfis: o trabalhador não concorre ao serviço que ele mesmo publicou.
+    const account = await findAccountOf(this.repos.accounts, 'worker', worker.id);
+    if (account?.farmer_id === service.farmer_id) {
+      return conflict('Você não pode se candidatar a um serviço que você mesmo publicou.');
+    }
 
     if (service.status !== SERVICE_STATUS.PENDING) {
       return conflict('Este serviço não está mais aberto para candidaturas.');

@@ -18,8 +18,9 @@ export type SchemaName =
   | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate' | 'FarmInput' | 'FarmUpdate'
   | 'ServiceInput' | 'ServiceUpdate' | 'AnalyzeInput' | 'WorkerActionInput'
   | 'UserRole' | 'SessionUser' | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
-  | 'LoginResponse' | 'PasswordResetRequestResponse'
-  | 'FarmerResponse' | 'WorkerResponse' | 'FarmResponse' | 'ServiceResponse'
+  | 'ProfileCreateInput' | 'ActiveRoleInput'
+  | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
+  | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse' | 'FarmResponse' | 'ServiceResponse'
   | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse';
 
 const id: Schema = { type: 'integer', minimum: 1, example: 1 };
@@ -116,7 +117,7 @@ const cpf: Schema = {
 
 // Campos editáveis dos dois perfis (o cpf só entra no cadastro).
 const profileEditableProps: Properties = {
-  email: { type: 'string', format: 'email', example: 'ana@exemplo.com', description: 'Guardado em minúsculas. Único por tipo de perfil.' },
+  email: { type: 'string', format: 'email', example: 'ana@exemplo.com', description: 'Guardado em minúsculas. É o e-mail da conta: único entre as contas e o mesmo nos dois perfis dela.' },
   name: { type: 'string', example: 'Ana Produtora' },
   phone: { type: 'string', example: '24999990000', description: 'Com DDD, só números.' }
 };
@@ -130,11 +131,17 @@ const newPassword: Schema = {
 };
 const profileInputProps: Properties = {
   ...profileEditableProps,
-  cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Único por tipo de perfil.' },
+  cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Pertence a uma conta só.' },
   password: newPassword
 };
 
 const optionalText: Schema = { type: 'string', nullable: true };
+const workerTextProps: Properties = {
+  bio: { ...optionalText, maxLength: 500, description: 'Breve apresentação. Vazio vira null.' },
+  certificates: { ...optionalText, maxLength: 1000, example: 'NR-31, curso de tratorista', description: 'Vazio vira null.' },
+  courses: { ...optionalText, maxLength: 1000, example: 'Operação de trator (SENAR)', description: 'Vazio vira null.' },
+  experience: { ...optionalText, maxLength: 1000, example: '5 anos em colheita de café', description: 'Vazio vira null.' }
+};
 
 export const schemas = {
   // --- Status ---
@@ -246,10 +253,7 @@ export const schemas = {
   WorkerInput: input(
     {
       ...profileInputProps,
-      bio: { ...optionalText, maxLength: 500, description: 'Breve apresentação. Vazio vira null.' },
-      certificates: { ...optionalText, maxLength: 1000, example: 'NR-31, curso de tratorista', description: 'Vazio vira null.' },
-      courses: { ...optionalText, maxLength: 1000, example: 'Operação de trator (SENAR)', description: 'Vazio vira null.' },
-      experience: { ...optionalText, maxLength: 1000, example: '5 anos em colheita de café', description: 'Vazio vira null.' }
+      ...workerTextProps
     },
     ['email', 'name', 'phone', 'cpf', 'password'],
     'Cadastro de trabalhador.'
@@ -322,20 +326,28 @@ export const schemas = {
   WorkerActionInput: input({ worker_id: id }, ['worker_id'], 'Trabalhador que executa a ação.'),
 
   // --- Acesso ---
-  UserRole: { type: 'string', enum: ['farmer', 'worker'], example: 'farmer', description: 'Tipo de perfil. O mesmo e-mail pode ter um de cada.' },
-  SessionUser: object({ role: ref('UserRole'), id }, ['role', 'id'], 'Quem entrou: o id é do produtor ou do trabalhador, conforme `role`.'),
+  UserRole: { type: 'string', enum: ['farmer', 'worker'], example: 'farmer', description: 'Tipo de perfil. Uma conta pode ter um de cada.' },
+  SessionUser: object(
+    {
+      account_id: id,
+      role: ref('UserRole'),
+      id,
+      profiles: object({ farmer: nullableId, worker: nullableId }, ['farmer', 'worker'], 'Perfis da conta (null = ainda não tem).')
+    },
+    ['account_id', 'role', 'id', 'profiles'],
+    'Quem entrou. `role`/`id` são o perfil ativo (o painel aberto): o id é do produtor ou do trabalhador, conforme `role`.'
+  ),
   LoginInput: input(
     {
-      role: ref('UserRole'),
       email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' },
       password: { type: 'string', format: 'password', example: 'ruraliza123' }
     },
-    ['role', 'email', 'password'],
-    'Login. Os perfis de teste do seed usam a senha `ruraliza123`.'
+    ['email', 'password'],
+    'Login. As contas de teste do seed usam a senha `ruraliza123`.'
   ),
   PasswordResetRequestInput: input(
-    { role: ref('UserRole'), email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' } },
-    ['role', 'email'],
+    { email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' } },
+    ['email'],
     'Passo 1 do "esqueci a senha".'
   ),
   PasswordResetInput: input(
@@ -348,7 +360,20 @@ export const schemas = {
     ['current_password', 'new_password'],
     'Troca de senha com a conta aberta. A nova precisa ser diferente da atual.'
   ),
+  ProfileCreateInput: input(
+    {
+      role: ref('UserRole'),
+      name: profileEditableProps['name'] as Schema,
+      phone: profileEditableProps['phone'] as Schema,
+      cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Não pode ser de outra conta.' },
+      ...workerTextProps
+    },
+    ['role', 'name', 'phone', 'cpf'],
+    'Segundo perfil na mesma conta: o e-mail e a senha são os da conta. `bio`, `certificates`, `courses` e `experience` só valem para trabalhador.'
+  ),
+  ActiveRoleInput: input({ role: ref('UserRole') }, ['role'], 'Painel a abrir. A conta precisa ter esse perfil.'),
   LoginResponse: object({ message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SessionUser') }, ['message', 'user']),
+  SessionResponse: object({ message: { type: 'string', example: 'Profile created successfully!' }, user: ref('SessionUser') }, ['message', 'user']),
   PasswordResetRequestResponse: object(
     {
       message: { type: 'string', example: 'Password reset requested (simulation: the e-mail was not sent).' },
@@ -364,6 +389,16 @@ export const schemas = {
   // --- Respostas das escritas ---
   FarmerResponse: object({ message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer') }, ['message', 'farmer']),
   WorkerResponse: object({ message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker') }, ['message', 'worker']),
+  FarmerSignupResponse: object(
+    { message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer'), user: ref('SessionUser') },
+    ['message', 'farmer', 'user'],
+    'Cadastro concluído: a conta foi criada e já está aberta (`user`).'
+  ),
+  WorkerSignupResponse: object(
+    { message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker'), user: ref('SessionUser') },
+    ['message', 'worker', 'user'],
+    'Cadastro concluído: a conta foi criada e já está aberta (`user`).'
+  ),
   FarmResponse: object({ message: { type: 'string', example: 'Farm registered successfully!' }, farm: ref('Farm') }, ['message', 'farm']),
   ServiceResponse: object({ message: { type: 'string', example: 'Service requested successfully!' }, service: ref('Service') }, ['message', 'service']),
   ApplicationResponse: object(

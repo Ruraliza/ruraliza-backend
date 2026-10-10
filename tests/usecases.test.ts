@@ -20,13 +20,13 @@ function unwrap<T>(result: Result<T>): T {
 }
 
 async function farmerWithFarm(c: Container): Promise<{ farmerId: number; farmId: number }> {
-  const farmer = unwrap(await c.useCases.farmers.create({ email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: PASSWORD }));
+  const { farmer } = unwrap(await c.useCases.farmers.create({ email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: PASSWORD }));
   const farm = unwrap(await c.useCases.farms.create(farmer.id, { address: 'Sítio', city: 'Três Rios', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }));
   return { farmerId: farmer.id, farmId: farm.id };
 }
 
 async function worker(c: Container, email: string, cpf: string): Promise<number> {
-  const w = unwrap(await c.useCases.workers.create({ email, name: email, phone: '1', cpf, password: PASSWORD, bio: null, certificates: null, courses: null, experience: null }));
+  const { worker: w } = unwrap(await c.useCases.workers.create({ email, name: email, phone: '1', cpf, password: PASSWORD, bio: null, certificates: null, courses: null, experience: null }));
   return w.id;
 }
 
@@ -148,7 +148,7 @@ describe('Localização da fazenda para o trabalhador', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const accepted = await worker(c, 'a@exemplo.com', '11144477735');
-    const other = await worker(c, 'b@exemplo.com', '52998224725');
+    const other = await worker(c, 'b@exemplo.com', '39053344705');
 
     // Vaga aberta: ninguém vê o ponto.
     const [open] = await c.useCases.services.searchOpen();
@@ -207,17 +207,102 @@ describe('FarmerUseCases', () => {
     assert.equal((await c.repos.payments.find({ service_id: serviceId })).length, 1); // histórico fica
   });
 
-  it('e-mail e CPF são únicos por tipo de perfil', async () => {
+  it('não se candidata ao serviço que publicou com o perfil de produtor da mesma conta', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const session = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
+
+    const own = await c.useCases.hiring.apply(serviceId, session.id);
+    assert.equal(own.ok ? '' : own.message, 'Você não pode se candidatar a um serviço que você mesmo publicou.');
+    unwrap(await c.useCases.hiring.apply(serviceId, await worker(c, 'outro@exemplo.com', '11144477735')));
+  });
+});
+
+describe('Contas', () => {
+  const workerProfile = { name: 'Ana', phone: '1', cpf: '52998224725', bio: null, certificates: null, courses: null, experience: null };
+
+  it('um e-mail e um CPF abrem uma conta só, em qualquer tipo de perfil', async () => {
     const c = setup();
     unwrap(await c.useCases.farmers.create({ email: 'a@exemplo.com', name: 'A', phone: '1', cpf: '52998224725', password: PASSWORD }));
 
-    const sameEmail = await c.useCases.farmers.create({ email: 'a@exemplo.com', name: 'B', phone: '1', cpf: '11144477735', password: PASSWORD });
+    const sameEmail = await c.useCases.workers.create({ ...workerProfile, email: 'a@exemplo.com', cpf: '11144477735', password: PASSWORD });
     const sameCpf = await c.useCases.farmers.create({ email: 'b@exemplo.com', name: 'B', phone: '1', cpf: '52998224725', password: PASSWORD });
-    assert.equal(sameEmail.ok ? '' : sameEmail.message, 'Já existe um cadastro com este e-mail.');
-    assert.equal(sameCpf.ok ? '' : sameCpf.message, 'Já existe um cadastro com este CPF.');
+    const sameCpfOtherRole = await c.useCases.workers.create({ ...workerProfile, email: 'b@exemplo.com', password: PASSWORD });
+    for (const r of [sameEmail, sameCpf, sameCpfOtherRole]) assert.equal(r.ok ? '' : r.kind, 'conflict');
+    assert.equal(sameEmail.ok ? '' : sameEmail.message, 'Já existe uma conta com este e-mail. Entre com ela e ative o outro perfil pelo menu.');
+  });
 
-    // Outro tipo de perfil pode repetir o CPF.
-    unwrap(await c.useCases.workers.create({ email: 'a@exemplo.com', name: 'A', phone: '1', cpf: '52998224725', password: PASSWORD, bio: null, certificates: null, courses: null, experience: null }));
+  it('o segundo perfil entra na mesma conta, com a mesma senha, e o login abre o último painel', async () => {
+    const c = setup();
+    const { farmerId } = await farmerWithFarm(c);
+    const first = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD }));
+    assert.deepEqual(first, { account_id: first.account_id, role: 'farmer', id: farmerId, profiles: { farmer: farmerId, worker: null } });
+
+    const both = unwrap(await c.useCases.accounts.addProfile(first.account_id, { role: 'worker', ...workerProfile, experience: '3 anos' }));
+    assert.equal(both.role, 'worker');
+    assert.deepEqual(both.profiles, { farmer: farmerId, worker: both.id });
+    const created = await c.repos.workers.findById(both.id);
+    assert.deepEqual([created?.email, created?.experience], ['ana@exemplo.com', '3 anos']);
+
+    const again = await c.useCases.accounts.addProfile(first.account_id, { role: 'worker', ...workerProfile });
+    assert.equal(again.ok ? '' : again.kind, 'conflict');
+
+    // A mesma senha abre o último painel usado; trocar de painel muda o próximo login.
+    assert.equal(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).role, 'worker');
+    assert.equal(unwrap(await c.useCases.accounts.setActiveRole(first.account_id, 'farmer')).id, farmerId);
+    assert.equal(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).role, 'farmer');
+  });
+
+  it('o segundo perfil não pode usar o CPF de outra conta', async () => {
+    const c = setup();
+    await farmerWithFarm(c);
+    await worker(c, 'w@exemplo.com', '11144477735');
+    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+
+    const taken = await c.useCases.accounts.addProfile(accountId, { role: 'worker', ...workerProfile, cpf: '11144477735' });
+    assert.equal(taken.ok ? '' : taken.kind, 'conflict');
+  });
+
+  it('só troca para um painel que a conta tem', async () => {
+    const c = setup();
+    await farmerWithFarm(c);
+    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+
+    const missing = await c.useCases.accounts.setActiveRole(accountId, 'worker');
+    assert.equal(missing.ok ? '' : missing.kind, 'not_found');
+    const ghost = await c.useCases.accounts.setActiveRole(999, 'farmer');
+    assert.equal(ghost.ok ? '' : ghost.kind, 'not_found');
+  });
+
+  it('trocar o e-mail num perfil vale para a conta e para o outro perfil', async () => {
+    const c = setup();
+    const { farmerId } = await farmerWithFarm(c);
+    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const workerId = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', ...workerProfile })).id;
+    await worker(c, 'w@exemplo.com', '11144477735');
+
+    const taken = await c.useCases.farmers.update(farmerId, { email: 'w@exemplo.com' });
+    assert.equal(taken.ok ? '' : taken.kind, 'conflict');
+
+    unwrap(await c.useCases.farmers.update(farmerId, { email: 'nova@exemplo.com' }));
+    assert.equal((await c.repos.workers.findById(workerId))?.email, 'nova@exemplo.com');
+    unwrap(await c.useCases.auth.login({ email: 'nova@exemplo.com', password: PASSWORD }));
+  });
+
+  it('remover um perfil mantém a conta com o outro; remover os dois apaga a conta', async () => {
+    const c = setup();
+    const { farmerId } = await farmerWithFarm(c);
+    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const workerId = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', ...workerProfile })).id;
+
+    unwrap(await c.useCases.workers.delete(workerId));
+    assert.deepEqual(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).profiles, { farmer: farmerId, worker: null });
+
+    unwrap(await c.useCases.farmers.delete(farmerId));
+    assert.deepEqual(await c.repos.accounts.find(), []);
+    assert.equal((await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).ok, false);
   });
 });
 
@@ -235,60 +320,52 @@ describe('AuthUseCases', () => {
 
     const farmer = await c.repos.farmers.findById(farmerId);
     assert.equal(farmer && 'password' in farmer, false);
-    const [credential] = await c.repos.credentials.find({ role: 'farmer', user_id: farmerId });
-    assert.ok(credential && !credential.password_hash.includes(PASSWORD));
+    const [account] = await c.repos.accounts.find({ farmer_id: farmerId });
+    assert.ok(account && !account.password_hash.includes(PASSWORD));
 
-    assert.deepEqual(unwrap(await c.useCases.auth.login({ role: 'farmer', email: 'ana@exemplo.com', password: PASSWORD })), { role: 'farmer', id: farmerId });
-    const wrong = await c.useCases.auth.login({ role: 'farmer', email: 'ana@exemplo.com', password: 'outra-senha' });
-    const unknown = await c.useCases.auth.login({ role: 'farmer', email: 'ninguem@exemplo.com', password: PASSWORD });
-    const otherRole = await c.useCases.auth.login({ role: 'worker', email: 'ana@exemplo.com', password: PASSWORD });
-    for (const r of [wrong, unknown, otherRole]) assert.equal(r.ok ? '' : r.message, 'E-mail ou senha incorretos.');
-  });
-
-  it('mesmo e-mail com perfil de produtor e de trabalhador: cada um tem a sua senha', async () => {
-    const c = setup();
-    const { farmerId } = await farmerWithFarm(c);
-    const w = unwrap(await c.useCases.workers.create({ email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: 'senha-de-trabalho', bio: null, certificates: null, courses: null, experience: null }));
-
-    assert.deepEqual(unwrap(await c.useCases.auth.login({ role: 'farmer', email: 'ana@exemplo.com', password: PASSWORD })), { role: 'farmer', id: farmerId });
-    assert.deepEqual(unwrap(await c.useCases.auth.login({ role: 'worker', email: 'ana@exemplo.com', password: 'senha-de-trabalho' })), { role: 'worker', id: w.id });
-    assert.equal((await c.useCases.auth.login({ role: 'worker', email: 'ana@exemplo.com', password: PASSWORD })).ok, false);
+    assert.equal(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).id, farmerId);
+    const wrong = await c.useCases.auth.login({ email: 'ana@exemplo.com', password: 'outra-senha' });
+    const unknown = await c.useCases.auth.login({ email: 'ninguem@exemplo.com', password: PASSWORD });
+    for (const r of [wrong, unknown]) assert.equal(r.ok ? '' : r.message, 'E-mail ou senha incorretos.');
   });
 
   it('esqueci a senha: o token vale uma vez, troca a senha e o anterior deixa de valer', async () => {
     const c = setup();
     const w = await worker(c, 'w@exemplo.com', '11144477735');
 
-    const missing = await c.useCases.auth.requestReset({ role: 'worker', email: 'ninguem@exemplo.com' });
+    const missing = await c.useCases.auth.requestReset({ email: 'ninguem@exemplo.com' });
     assert.equal(missing.ok ? '' : missing.kind, 'not_found');
 
-    const first = unwrap(await c.useCases.auth.requestReset({ role: 'worker', email: 'w@exemplo.com' })).reset_token;
-    const second = unwrap(await c.useCases.auth.requestReset({ role: 'worker', email: 'w@exemplo.com' })).reset_token;
+    const first = unwrap(await c.useCases.auth.requestReset({ email: 'w@exemplo.com' })).reset_token;
+    const second = unwrap(await c.useCases.auth.requestReset({ email: 'w@exemplo.com' })).reset_token;
     const stale = await c.useCases.auth.resetPassword({ token: first, password: 'nova-senha-1' });
     assert.equal(stale.ok ? '' : stale.kind, 'invalid'); // o pedido novo invalida o anterior
 
-    assert.deepEqual(unwrap(await c.useCases.auth.resetPassword({ token: second, password: 'nova-senha-1' })), { role: 'worker', id: w });
+    const reset = unwrap(await c.useCases.auth.resetPassword({ token: second, password: 'nova-senha-1' }));
+    assert.deepEqual([reset.role, reset.id], ['worker', w]);
     const reused = await c.useCases.auth.resetPassword({ token: second, password: 'outra-senha-2' });
     assert.equal(reused.ok ? '' : reused.kind, 'invalid');
 
-    assert.equal((await c.useCases.auth.login({ role: 'worker', email: 'w@exemplo.com', password: PASSWORD })).ok, false);
-    unwrap(await c.useCases.auth.login({ role: 'worker', email: 'w@exemplo.com', password: 'nova-senha-1' }));
+    assert.equal((await c.useCases.auth.login({ email: 'w@exemplo.com', password: PASSWORD })).ok, false);
+    unwrap(await c.useCases.auth.login({ email: 'w@exemplo.com', password: 'nova-senha-1' }));
   });
 
   it('o token de redefinição expira em 30 minutos', async () => {
     const { c, setNow } = setupAt();
     await worker(c, 'w@exemplo.com', '11144477735');
-    const { reset_token } = unwrap(await c.useCases.auth.requestReset({ role: 'worker', email: 'w@exemplo.com' }));
+    const { reset_token } = unwrap(await c.useCases.auth.requestReset({ email: 'w@exemplo.com' }));
 
     setNow('2026-01-01T00:30:00.000Z');
     const late = await c.useCases.auth.resetPassword({ token: reset_token, password: 'nova-senha-1' });
     assert.equal(late.ok ? '' : late.kind, 'invalid');
   });
 
-  it('trocar a senha logado exige a senha atual e cancela a redefinição pendente', async () => {
+  it('trocar a senha logado exige a senha atual, cancela a redefinição pendente e vale para os dois perfis', async () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
-    const { reset_token } = unwrap(await c.useCases.auth.requestReset({ role: 'farmer', email: 'ana@exemplo.com' }));
+    const { reset_token } = unwrap(await c.useCases.auth.requestReset({ email: 'ana@exemplo.com' }));
+    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const workerId = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' })).id;
 
     const wrong = await c.useCases.auth.changePassword('farmer', farmerId, { current_password: 'errada-123', new_password: 'nova-senha-1' });
     assert.equal(wrong.ok ? '' : wrong.kind, 'unauthorized');
@@ -298,16 +375,18 @@ describe('AuthUseCases', () => {
     assert.equal(ghost.ok ? '' : ghost.kind, 'not_found');
 
     unwrap(await c.useCases.auth.changePassword('farmer', farmerId, { current_password: PASSWORD, new_password: 'nova-senha-1' }));
-    unwrap(await c.useCases.auth.login({ role: 'farmer', email: 'ana@exemplo.com', password: 'nova-senha-1' }));
+    unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: 'nova-senha-1' }));
+    // A senha é da conta: a troca feita pelo perfil de produtor vale no de trabalhador.
+    unwrap(await c.useCases.auth.changePassword('worker', workerId, { current_password: 'nova-senha-1', new_password: 'nova-senha-2' }));
     const pending = await c.useCases.auth.resetPassword({ token: reset_token, password: 'outra-senha-2' });
     assert.equal(pending.ok ? '' : pending.kind, 'invalid');
   });
 
-  it('remover o perfil remove a senha', async () => {
+  it('remover o único perfil remove a conta', async () => {
     const c = setup();
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     unwrap(await c.useCases.workers.delete(w));
-    assert.deepEqual(await c.repos.credentials.find({ role: 'worker', user_id: w }), []);
+    assert.deepEqual(await c.repos.accounts.find({ worker_id: w }), []);
   });
 });
 

@@ -10,6 +10,7 @@ import { createInMemoryRepositories } from './infra/memory';
 import { InMemoryChangeFeed } from './infra/memory/InMemoryChangeFeed';
 import { InMemoryDocumentStore } from './infra/memory/InMemoryDocumentStore';
 import { InMemoryImageStore } from './infra/memory/InMemoryImageStore';
+import { AccountUseCases } from './usecases/AccountUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
 import { FarmUseCases } from './usecases/FarmUseCases';
 import { FarmerUseCases } from './usecases/FarmerUseCases';
@@ -28,6 +29,7 @@ import { WorkerUseCases } from './usecases/WorkerUseCases';
 
 export interface UseCases {
   auth: AuthUseCases;
+  accounts: AccountUseCases;
   farmers: FarmerUseCases;
   workers: WorkerUseCases;
   farms: FarmUseCases;
@@ -67,7 +69,9 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const resetTokens = options.resetTokens ?? randomResetTokens;
   const clock = options.clock ?? systemClock;
   const changes = options.changes ?? new InMemoryChangeFeed();
-  const { farmers, workers, farms, services, applications, payments, credentials } = repos;
+  const { farmers, workers, farms, services, applications, payments, accounts } = repos;
+  const farmerUseCases = new FarmerUseCases({ farmers, workers, farms, services, applications, accounts }, clock, images, passwords, changes);
+  const workerUseCases = new WorkerUseCases({ workers, farmers, services, applications, farms, accounts }, clock, { images, documents }, passwords, changes);
 
   return {
     repos,
@@ -77,12 +81,13 @@ export function createContainer(options: ContainerOptions = {}): Container {
     clock,
     changes,
     useCases: {
-      auth: new AuthUseCases({ farmers, workers, credentials }, clock, { hasher: passwords, resetTokens }),
-      farmers: new FarmerUseCases({ farmers, farms, services, applications, credentials }, clock, images, passwords, changes),
-      workers: new WorkerUseCases({ workers, services, applications, farms, credentials }, clock, { images, documents }, passwords, changes),
+      auth: new AuthUseCases({ farmers, workers, accounts }, clock, { hasher: passwords, resetTokens }),
+      accounts: new AccountUseCases({ accounts, farmers, workers }, { farmers: farmerUseCases, workers: workerUseCases }),
+      farmers: farmerUseCases,
+      workers: workerUseCases,
       farms: new FarmUseCases({ farmers, farms, services }, clock),
       services: new ServiceUseCases({ farmers, workers, farms, services, applications }, clock, changes),
-      hiring: new HiringUseCases({ services, applications, workers, payments }, clock, changes),
+      hiring: new HiringUseCases({ services, applications, workers, payments, accounts }, clock, changes),
       photos: new PhotoUseCases({ farmers, workers, farms }, { processor: imageProcessor, store: images }),
       resumes: new ResumeUseCases({ workers }, documents)
     }

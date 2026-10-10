@@ -1,16 +1,19 @@
 import type { UserRole } from '../contracts';
 
-// Senha de um perfil. Fica fora da entidade do perfil (Farmer/Worker) para nunca sair numa resposta:
-// é uma tabela à parte, ligada ao perfil por (role, user_id).
-// TODO(db): tabela `credentials` com UNIQUE (role, user_id) e ON DELETE CASCADE a partir do perfil.
-export interface Credential {
+// Conta de acesso: um e-mail e uma senha, ligados a até dois perfis (produtor e trabalhador).
+// Fica fora das entidades de perfil (Farmer/Worker) para a senha nunca sair numa resposta.
+// TODO(db): tabela `accounts` com UNIQUE (email), UNIQUE (farmer_id), UNIQUE (worker_id),
+// FKs para os perfis com ON DELETE SET NULL e CHECK de pelo menos um perfil.
+export interface Account {
   id: number;
-  role: UserRole;
-  user_id: number;
+  email: string; // o mesmo dos perfis ligados
   password_hash: string;
   // Redefinição pendente ("esqueci a senha"): só o resumo do token é guardado, nunca o token.
   reset_token_digest: string | null;
   reset_expires_at: string | null; // ISO 8601
+  farmer_id: number | null;
+  worker_id: number | null;
+  last_role: UserRole; // painel aberto por último: é o que abre no próximo login
 }
 
 export const PASSWORD_MIN_LENGTH = 8;

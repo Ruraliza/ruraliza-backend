@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CATEGORIES } from '../src/constants/categories';
+import type { SessionUser } from '../src/contracts';
 import { createContainer } from '../src/container';
 import { SEED_PASSWORD, seed } from '../src/data/seed';
 
@@ -30,11 +31,15 @@ describe('seed', () => {
     ]);
   });
 
-  it('os perfis de teste entram com a senha do seed', async () => {
+  it('as contas de teste entram com a senha do seed', async () => {
     const c = await seeded();
-    const farmer = await c.useCases.auth.login({ role: 'farmer', email: 'produtor@exemplo.com', password: SEED_PASSWORD });
-    const worker = await c.useCases.auth.login({ role: 'worker', email: 'trabalhador@exemplo.com', password: SEED_PASSWORD });
-    assert.deepEqual([farmer.ok && farmer.value, worker.ok && worker.value], [{ role: 'farmer', id: 1 }, { role: 'worker', id: 1 }]);
+    const login = async (email: string): Promise<SessionUser | false> => {
+      const r = await c.useCases.auth.login({ email, password: SEED_PASSWORD });
+      return r.ok && r.value;
+    };
+    assert.deepEqual(await login('produtor@exemplo.com'), { account_id: 1, role: 'farmer', id: 1, profiles: { farmer: 1, worker: null } });
+    assert.deepEqual(await login('trabalhador@exemplo.com'), { account_id: 2, role: 'worker', id: 1, profiles: { farmer: null, worker: 1 } });
+    assert.deepEqual(await login('ambos@exemplo.com'), { account_id: 3, role: 'farmer', id: 2, profiles: { farmer: 2, worker: 2 } });
   });
 
   it('as fazendas têm o ponto marcado no mapa', async () => {

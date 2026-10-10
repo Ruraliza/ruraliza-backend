@@ -10,12 +10,12 @@ export function authRoutes(auth: AuthController): readonly RouteDef[] {
       tag: TAGS.auth,
       summary: 'Entrar com e-mail e senha',
       description:
-        'O mesmo e-mail pode ter um perfil de produtor e outro de trabalhador, por isso `role` vai junto. ' +
-        'Devolve quem entrou (`user`); ainda não há token de sessão.',
+        'Uma conta por e-mail, com a mesma senha para os perfis de produtor e trabalhador. ' +
+        'Abre o último painel usado (`user.role`); ainda não há token de sessão.',
       body: 'LoginInput',
       success: { status: 200, description: 'E-mail e senha conferem.', schema: 'LoginResponse' },
       errors: {
-        400: 'Campo obrigatório faltando; `role` diferente de farmer/worker.',
+        400: 'Campo obrigatório faltando.',
         401: 'E-mail ou senha incorretos (a mesma mensagem nos dois casos).'
       }
     })),
@@ -30,8 +30,8 @@ export function authRoutes(auth: AuthController): readonly RouteDef[] {
       body: 'PasswordResetRequestInput',
       success: { status: 200, description: 'Redefinição criada.', schema: 'PasswordResetRequestResponse' },
       errors: {
-        400: 'Campo obrigatório faltando; `role` inválido; e-mail inválido.',
-        404: 'Não há cadastro desse tipo de perfil com este e-mail.'
+        400: 'Campo obrigatório faltando; e-mail inválido.',
+        404: 'Não há conta com este e-mail.'
       }
     })),
 

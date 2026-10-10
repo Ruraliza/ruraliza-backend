@@ -1,16 +1,16 @@
-import type { ApplicationWithService, OpenService, Worker, WorkerUpdate } from '../contracts';
+import type { ApplicationWithService, OpenService, SessionUser, Worker, WorkerUpdate } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
 import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
 import type { DocumentStore } from '../domain/documents';
 import type { ImageStore } from '../domain/images';
 import type { PasswordHasher } from '../domain/passwords';
-import type { ApplicationRepository, CredentialRepository, FarmRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
+import type { AccountRepository, ApplicationRepository, FarmRepository, FarmerRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, notFound, ok, requireFound } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
-import { registerPassword, removePassword } from './AuthUseCases';
 import { releaseImage } from './PhotoUseCases';
 import { releaseDocument } from './ResumeUseCases';
+import { changeAccountEmail, checkNewAccount, createAccount, toSession, unlinkProfile } from './accounts';
 import { checkProfileUnique, toOpenService } from './shared';
 
 // Dados de cadastro já validados (textos opcionais vazios viram null).
@@ -26,6 +26,9 @@ export interface NewWorker {
   experience: string | null;
 }
 
+// Dados do perfil de trabalhador (a senha é da conta).
+export type NewWorkerProfile = Omit<NewWorker, 'password'>;
+
 // Cadastro, edição, remoção e acompanhamento do trabalhador.
 export class WorkerUseCases {
   constructor(
@@ -34,7 +37,8 @@ export class WorkerUseCases {
       services: ServiceRepository;
       applications: ApplicationRepository;
       farms: FarmRepository;
-      credentials: CredentialRepository;
+      farmers: FarmerRepository;
+      accounts: AccountRepository;
     },
     private readonly clock: Clock,
     private readonly files: { images: ImageStore; documents: DocumentStore },
@@ -53,14 +57,23 @@ export class WorkerUseCases {
     return worker ? ok(worker) : notFound('Trabalhador não encontrado.');
   }
 
-  async create(input: NewWorker): Promise<Result<Worker>> {
-    const unique = await checkProfileUnique(this.repos.workers, input.email, input.cpf);
-    if (!unique.ok) return unique;
+  // Cadastro: cria a conta com o perfil de trabalhador e já devolve a sessão.
+  async create(input: NewWorker): Promise<Result<{ worker: Worker; user: SessionUser }>> {
+    const free = await checkNewAccount(this.repos, input.email, input.cpf);
+    if (!free.ok) return free;
 
     const { password, ...profile } = input;
-    const worker = await this.repos.workers.create({ ...profile, photo_url: null, resume_url: null, insertion_date: this.clock.now() });
-    await registerPassword(this.repos.credentials, this.hasher, 'worker', worker.id, password);
-    return ok(worker);
+    const worker = await this.createProfile(profile);
+    if (!worker.ok) return worker;
+    const account = await createAccount(this.repos.accounts, this.hasher, { email: input.email, password, role: 'worker', profileId: worker.value.id });
+    return ok({ worker: worker.value, user: toSession(account) });
+  }
+
+  // Só o perfil, sem conta: quem chama liga à conta (cadastro ou segundo perfil, em AccountUseCases).
+  async createProfile(profile: NewWorkerProfile): Promise<Result<Worker>> {
+    const unique = await checkProfileUnique(this.repos.workers, profile.email, profile.cpf);
+    if (!unique.ok) return unique;
+    return ok(await this.repos.workers.create({ ...profile, photo_url: null, resume_url: null, insertion_date: this.clock.now() }));
   }
 
   // id e cpf não podem ser alterados (o parser já recusa).
@@ -70,8 +83,12 @@ export class WorkerUseCases {
 
     const unique = await checkProfileUnique(this.repos.workers, changes.email, undefined, worker.id);
     if (!unique.ok) return unique;
+    if (changes.email !== undefined) {
+      const email = await changeAccountEmail(this.repos, 'worker', worker.id, changes.email);
+      if (!email.ok) return email;
+      worker.email = changes.email;
+    }
 
-    if (changes.email !== undefined) worker.email = changes.email;
     if (changes.name !== undefined) worker.name = changes.name;
     if (changes.bio !== undefined) worker.bio = changes.bio;
     if (changes.certificates !== undefined) worker.certificates = changes.certificates;
@@ -86,7 +103,7 @@ export class WorkerUseCases {
   // As candidaturas embutem o perfil do trabalhador, então saem junto com ele.
   // Bloqueado enquanto houver serviço em andamento atribuído a ele.
   async delete(id: number): Promise<Result<null>> {
-    const { workers, services, applications, credentials } = this.repos;
+    const { workers, services, applications, accounts } = this.repos;
     const worker = await workers.findById(id);
     if (!worker) return notFound('Trabalhador não encontrado.');
 
@@ -104,7 +121,7 @@ export class WorkerUseCases {
     this.changes.publish(own.map((a) => serviceApplications(a.service_id)));
     await releaseImage(this.files.images, worker.photo_url);
     await releaseDocument(this.files.documents, worker.resume_url);
-    await removePassword(credentials, 'worker', worker.id);
+    await unlinkProfile(accounts, 'worker', worker.id);
     await workers.delete(worker.id);
 
     return ok(null);

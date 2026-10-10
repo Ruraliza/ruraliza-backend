@@ -21,16 +21,17 @@ npm run smoke            # percorre o fluxo completo e os casos de erro principa
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
-Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
+Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
 
 ### Usuários de teste
 
-Criados pelo seed (`src/data/seed.ts`) a cada vez que o servidor sobe. Para entrar, escolha o tipo de perfil na tela **Entrar** (ou envie `role` em `POST /api/auth/login`).
+Criados pelo seed (`src/data/seed.ts`) a cada vez que o servidor sobe. Cada conta entra só com e-mail e senha; quem tem os dois perfis alterna entre os painéis pelo menu (acima de **Sair**).
 
-| Tipo (`role`) | ID | Nome | E-mail | Senha | CPF | Dados |
+| Conta | Perfis (ID) | Nome | E-mail | Senha | CPF | Dados |
 |---|---|---|---|---|---|---|
-| Produtor (`farmer`) | 1 | João Produtor | `produtor@exemplo.com` | `ruraliza123` | `52998224725` | Fazendas 1 (São José, Três Rios/RJ) e 2 (Boa Vista, Paraíba do Sul/RJ); serviços 1 a 7 |
-| Trabalhador (`worker`) | 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; nenhuma candidatura |
+| 1 | Produtor 1 | João Produtor | `produtor@exemplo.com` | `ruraliza123` | `52998224725` | Fazendas 1 (São José, Três Rios/RJ) e 2 (Boa Vista, Paraíba do Sul/RJ); serviços 1 a 7 |
+| 2 | Trabalhador 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; nenhuma candidatura |
+| 3 | Produtor 2 e trabalhador 2 | Carlos Produtor e Trabalhador | `ambos@exemplo.com` | `ruraliza123` | `39053344705` | Abre no painel de produtor; sem fazendas nem serviços |
 
 Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha"), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
 
@@ -119,7 +120,7 @@ src/
 - As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
 - Toda foto enviada passa pelo `SharpImageProcessor` antes de ser guardada: corrige a rotação do celular, reduz para **no máximo 1000 px no maior lado** (sem ampliar fotos pequenas), converte para **WebP (qualidade 78)** e remove os metadados (EXIF/GPS). Fotos de perfil saem sempre **quadradas** (até 1000×1000 px): o app envia a foto já recortada pelo usuário e, se chegar outra proporção, o servidor recorta o quadrado central. Arquivos que não são imagem são recusados com 400. Uploads acima de 10 MB são recusados com 413.
 - O currículo do trabalhador segue o mesmo esquema, sem processamento: o PDF é guardado como chegou, depois de conferir a assinatura `%PDF-` (outro arquivo dá 400; acima de 5 MB, 413). O trabalhador guarda só `resume_url` (`/api/documents/<uuid>.pdf`), servida por `GET /api/documents/:id`.
-- A senha **não fica no perfil**: vai para o repositório `credentials` (`role`, `user_id`, `password_hash`), então nunca sai numa resposta. O hash é **scrypt** com sal aleatório (`src/infra/crypto/NodeCrypto.ts`). O pedido de "esqueci a senha" guarda só o SHA-256 do token, com validade de 30 minutos.
+- A senha **não fica no perfil**: vai para o repositório `accounts` (`email`, `password_hash`, `farmer_id`, `worker_id`, `last_role`), então nunca sai numa resposta. Uma conta por e-mail e por CPF, com até um perfil de cada tipo e a mesma senha para os dois. O hash é **scrypt** com sal aleatório (`src/infra/crypto/NodeCrypto.ts`). O pedido de "esqueci a senha" guarda só o SHA-256 do token, com validade de 30 minutos.
 - A escolha de tudo isso está num lugar só: `src/container.ts` (`createContainer`).
 
 ### Como ligar o PostgreSQL
@@ -130,7 +131,7 @@ src/
    - `farm.photos` → tabela `farm_photos (id text, farm_id int references farms, url text, position int)`, ou coluna `jsonb`.
    - `expires_at` → `date` (dia do calendário, sem hora). A vaga vale até o fim desse dia **no horário de Brasília** (`src/domain/dates.ts`).
    - `insertion_date` → `timestamptz`.
-   - `credentials (id, role text, user_id int, password_hash text, reset_token_digest text, reset_expires_at timestamptz)` com `UNIQUE (role, user_id)`. Ao remover o perfil, a senha sai junto.
+   - `accounts (id, email text UNIQUE, password_hash text, reset_token_digest text, reset_expires_at timestamptz, farmer_id int UNIQUE references farmers ON DELETE SET NULL, worker_id int UNIQUE references workers ON DELETE SET NULL, last_role text)`. Ao remover um perfil, ele sai da conta; a conta some junto com o último perfil.
    - Restrições `UNIQUE` e transações estão marcadas com `TODO(db)` no código (`grep -rn "TODO(db)" src`).
 4. **Busca de vagas.** `ServiceUseCases.searchOpen` filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no método).
 5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar). Os currículos fazem o mesmo com `DocumentStore` (`src/domain/documents.ts`), passado em `createContainer({ documents })`.
@@ -150,14 +151,24 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 
 ### Acesso (`/api/auth`)
 
-Todo perfil tem senha (8 a 128 caracteres), enviada no cadastro em `password`. O mesmo e-mail pode ter um perfil de produtor e outro de trabalhador, cada um com a sua senha, por isso o login leva `role` (`farmer` ou `worker`). Ainda **não há token de sessão**: o login só confere a senha e devolve quem entrou; as demais rotas continuam sem proteção.
+Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres enviada no cadastro em `password`. A conta começa com o perfil escolhido no cadastro (`POST /api/farmers` ou `POST /api/workers`, que já devolvem a sessão em `user`) e pode ganhar o outro perfil depois (`/api/accounts`). A mesma senha vale para os dois. A sessão (`user`) é `{ account_id, role, id, profiles: { farmer, worker } }`: `role`/`id` são o painel aberto. Ainda **não há token de sessão**: o login só confere a senha e devolve quem entrou; as demais rotas continuam sem proteção.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| POST | `/api/auth/login` | `{ role, email, password }` → `{ message, user: { role, id } }`; 401 se e-mail ou senha não conferem (mesma mensagem nos dois casos) |
-| POST | `/api/auth/password-reset` | Esqueci a senha, passo 1: `{ role, email }`. **Simulação**: o código iria por e-mail; por enquanto o token volta na resposta (`reset_token`). Vale 30 min e uma vez só; um pedido novo invalida o anterior. 404 se não houver cadastro com o e-mail |
+| POST | `/api/auth/login` | `{ email, password }` → `{ message, user }`, abrindo o último painel usado; 401 se e-mail ou senha não conferem (mesma mensagem nos dois casos) |
+| POST | `/api/auth/password-reset` | Esqueci a senha, passo 1: `{ email }`. **Simulação**: o código iria por e-mail; por enquanto o token volta na resposta (`reset_token`). Vale 30 min e uma vez só; um pedido novo invalida o anterior. 404 se não houver conta com o e-mail |
 | POST | `/api/auth/password-reset/confirm` | Passo 2: `{ token, password }` grava a nova senha; 400 se o token for inválido, já usado ou expirado |
 | PATCH | `/api/farmers/:id/password` e `/api/workers/:id/password` | Troca com a conta aberta, sem código por e-mail: `{ current_password, new_password }`; 401 se a atual estiver errada, 400 se a nova for igual à atual. Cancela uma redefinição pendente |
+
+### Conta (`/api/accounts`)
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/accounts/:id` | Sessão da conta (`user`), no mesmo formato do login |
+| POST | `/api/accounts/:id/profiles` | Cria o outro perfil na conta: `{ role, name, phone, cpf }` (+ `bio`, `certificates`, `courses`, `experience` para trabalhador). E-mail e senha são os da conta. Já abre o painel novo. 409 se a conta já tem esse perfil ou se o CPF é de outra conta |
+| PATCH | `/api/accounts/:id/active-role` | `{ role }`: troca o painel aberto (e o que abre no próximo login); 404 se a conta não tem esse perfil |
+
+Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** como produtor (`POST /api/workers/services/:id/apply` responde 409).
 
 ### Produtor (`/api/farmers`)
 | Método | Rota | Descrição |
