@@ -9,6 +9,7 @@ export function createInMemoryRepositories(): Repositories {
     farms: new InMemoryRepository(['farmer_id'], (data, id) => ({ id, ...data })),
     services: new InMemoryRepository(['farmer_id', 'worker_id', 'farm_id', 'status'], (data, id) => ({ id, ...data })),
     applications: new InMemoryRepository(['service_id', 'worker_id', 'status'], (data, id) => ({ id, ...data })),
-    payments: new InMemoryRepository(['service_id'], (data, id) => ({ id, ...data }))
+    payments: new InMemoryRepository(['service_id'], (data, id) => ({ id, ...data })),
+    credentials: new InMemoryRepository(['role', 'user_id', 'reset_token_digest'], (data, id) => ({ id, ...data }))
   };
 }

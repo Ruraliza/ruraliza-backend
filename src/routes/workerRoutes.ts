@@ -1,3 +1,4 @@
+import type { AuthController } from '../controllers/AuthController';
 import type { JobController } from '../controllers/JobController';
 import type { PhotoController } from '../controllers/PhotoController';
 import type { ResumeController } from '../controllers/ResumeController';
@@ -15,11 +16,12 @@ export interface WorkerRouteControllers {
   jobs: JobController;
   photos: PhotoController;
   resumes: ResumeController;
+  auth: AuthController;
 }
 
 const date = { type: 'string' as const, format: 'date', example: '2026-10-01' };
 
-export function workerRoutes({ workers, jobs, photos, resumes }: WorkerRouteControllers): readonly RouteDef[] {
+export function workerRoutes({ workers, jobs, photos, resumes, auth }: WorkerRouteControllers): readonly RouteDef[] {
   return [
     // --- VAGAS ---
 
@@ -99,7 +101,7 @@ export function workerRoutes({ workers, jobs, photos, resumes }: WorkerRouteCont
       body: 'WorkerInput',
       success: { status: 201, description: 'Trabalhador cadastrado.', schema: 'WorkerResponse' },
       errors: {
-        400: 'Campo obrigatório faltando; e-mail inválido; CPF inválido.',
+        400: 'Campo obrigatório faltando; e-mail inválido; CPF inválido; senha fora do tamanho (8 a 128).',
         409: 'Já existe trabalhador com este e-mail ou CPF.'
       }
     })),
@@ -115,12 +117,12 @@ export function workerRoutes({ workers, jobs, photos, resumes }: WorkerRouteCont
     route('patch', '/:id', workers.updateWorker, operation({
       tag: TAGS.workers,
       summary: 'Editar trabalhador',
-      description: '`id` e `cpf` não podem ser alterados.',
+      description: '`id` e `cpf` não podem ser alterados; a senha muda em `PATCH /:id/password`.',
       params: [workerId],
       body: 'WorkerUpdate',
       success: { status: 200, description: 'Trabalhador atualizado.', schema: 'WorkerResponse' },
       errors: {
-        400: 'Tentou alterar `id` ou `cpf`; e-mail inválido.',
+        400: 'Tentou alterar `id`, `cpf` ou `password`; e-mail inválido.',
         404: 'Trabalhador não encontrado.',
         409: 'E-mail já usado por outro trabalhador.'
       }
@@ -133,6 +135,20 @@ export function workerRoutes({ workers, jobs, photos, resumes }: WorkerRouteCont
       params: [workerId],
       success: { status: 200, description: 'Trabalhador removido.', schema: 'MessageResponse' },
       errors: { 404: 'Trabalhador não encontrado.', 409: 'O trabalhador tem serviço `In Progress`.' }
+    })),
+
+    route('patch', '/:id/password', auth.changeWorkerPassword, operation({
+      tag: TAGS.workers,
+      summary: 'Trocar a senha (com a conta aberta)',
+      description: 'Confirma a senha atual; não precisa de código por e-mail. Cancela uma redefinição de senha pendente.',
+      params: [workerId],
+      body: 'PasswordChangeInput',
+      success: { status: 200, description: 'Senha trocada.', schema: 'MessageResponse' },
+      errors: {
+        400: 'Campo obrigatório faltando; nova senha fora do tamanho (8 a 128) ou igual à atual.',
+        401: 'A senha atual está incorreta.',
+        404: 'Trabalhador não encontrado.'
+      }
     })),
 
     route('post', '/:id/photo', photos.uploadWorkerPhoto, operation({

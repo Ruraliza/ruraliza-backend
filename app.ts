@@ -7,7 +7,7 @@ import swaggerUi from 'swagger-ui-express';
 import { isAllowedOrigin, serverPort } from './src/config';
 import { type Container, createContainer } from './src/container';
 import type { ApiError } from './src/contracts';
-import { seed } from './src/data/seed';
+import { SEED_PASSWORD, seed } from './src/data/seed';
 import { PDF_CONTENT_TYPE, RESUME_MAX_UPLOAD_BYTES } from './src/domain/documents';
 import { IMAGE_MAX_UPLOAD_BYTES } from './src/domain/images';
 import { buildOpenApiDocument } from './src/docs/openapi';
@@ -115,13 +115,14 @@ function errorHandler(error: unknown, req: Request, res: Response<ApiError>, _ne
 async function main(): Promise<void> {
   const devMode = process.argv.includes('--dev');
   const container = createContainer();
-  await seed(container.repos, container.clock);
+  await seed(container.repos, container.clock, container.passwords);
   const { app } = createApi(container, { devMode });
 
   const PORT = serverPort();
   app.listen(PORT, () => {
     console.log(`Servidor do Ruraliza rodando em http://localhost:${PORT}/api`);
     console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 1 trabalhador, 7 serviços: 6 vagas abertas e 1 vencida).');
+    console.log(`Perfis de teste: produtor@exemplo.com e trabalhador@exemplo.com, senha "${SEED_PASSWORD}".`);
     console.log('Atenção: todos os dados somem quando o servidor reinicia.');
     if (devMode) console.log('Modo desenvolvimento: CORS liberado para qualquer origem (exceto /api/config/maps).');
   });

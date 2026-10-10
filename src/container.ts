@@ -1,11 +1,14 @@
 import { type Clock, systemClock } from './domain/clock';
 import type { DocumentStore } from './domain/documents';
 import type { ImageProcessor, ImageStore } from './domain/images';
+import type { PasswordHasher, ResetTokens } from './domain/passwords';
 import type { Repositories } from './domain/repositories';
+import { randomResetTokens, scryptPasswordHasher } from './infra/crypto/NodeCrypto';
 import { SharpImageProcessor } from './infra/images/SharpImageProcessor';
 import { createInMemoryRepositories } from './infra/memory';
 import { InMemoryDocumentStore } from './infra/memory/InMemoryDocumentStore';
 import { InMemoryImageStore } from './infra/memory/InMemoryImageStore';
+import { AuthUseCases } from './usecases/AuthUseCases';
 import { FarmUseCases } from './usecases/FarmUseCases';
 import { FarmerUseCases } from './usecases/FarmerUseCases';
 import { HiringUseCases } from './usecases/HiringUseCases';
@@ -18,8 +21,10 @@ import { WorkerUseCases } from './usecases/WorkerUseCases';
 // Para trocar a persistência (ex.: PostgreSQL), passe outros `repos` aqui; para guardar as
 // fotos fora da memória (ex.: S3/R2 ou disco), passe outro `images` (ver src/domain/images.ts);
 // para os currículos em PDF, outro `documents` (ver src/domain/documents.ts).
+// As senhas usam scrypt (`passwords`); os testes podem passar um hasher mais rápido.
 
 export interface UseCases {
+  auth: AuthUseCases;
   farmers: FarmerUseCases;
   workers: WorkerUseCases;
   farms: FarmUseCases;
@@ -33,6 +38,7 @@ export interface Container {
   repos: Repositories;
   images: ImageStore;
   documents: DocumentStore;
+  passwords: PasswordHasher;
   clock: Clock;
   useCases: UseCases;
 }
@@ -42,6 +48,8 @@ export interface ContainerOptions {
   images?: ImageStore;
   documents?: DocumentStore;
   imageProcessor?: ImageProcessor;
+  passwords?: PasswordHasher;
+  resetTokens?: ResetTokens;
   clock?: Clock;
 }
 
@@ -50,17 +58,21 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const images = options.images ?? new InMemoryImageStore();
   const documents = options.documents ?? new InMemoryDocumentStore();
   const imageProcessor = options.imageProcessor ?? new SharpImageProcessor();
+  const passwords = options.passwords ?? scryptPasswordHasher;
+  const resetTokens = options.resetTokens ?? randomResetTokens;
   const clock = options.clock ?? systemClock;
-  const { farmers, workers, farms, services, applications, payments } = repos;
+  const { farmers, workers, farms, services, applications, payments, credentials } = repos;
 
   return {
     repos,
     images,
     documents,
+    passwords,
     clock,
     useCases: {
-      farmers: new FarmerUseCases({ farmers, farms, services, applications }, clock, images),
-      workers: new WorkerUseCases({ workers, services, applications, farms }, clock, { images, documents }),
+      auth: new AuthUseCases({ farmers, workers, credentials }, clock, { hasher: passwords, resetTokens }),
+      farmers: new FarmerUseCases({ farmers, farms, services, applications, credentials }, clock, images, passwords),
+      workers: new WorkerUseCases({ workers, services, applications, farms, credentials }, clock, { images, documents }, passwords),
       farms: new FarmUseCases({ farmers, farms, services }, clock),
       services: new ServiceUseCases({ farmers, workers, farms, services, applications }, clock),
       hiring: new HiringUseCases({ services, applications, workers, payments }, clock),

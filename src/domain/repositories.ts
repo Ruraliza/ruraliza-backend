@@ -1,4 +1,5 @@
 import type { Farm, Farmer, Payment, Service, ServiceApplication, Worker } from '../contracts';
+import type { Credential } from './passwords';
 
 // Acesso a dados que as regras de negócio enxergam. Tudo é assíncrono desde já:
 // a implementação em memória e a futura em PostgreSQL cumprem a mesma interface.
@@ -25,6 +26,8 @@ export type ServiceRepository = Repository<Service, 'farmer_id' | 'worker_id' | 
 // TODO(db): restrição UNIQUE (service_id, worker_id).
 export type ApplicationRepository = Repository<ServiceApplication, 'service_id' | 'worker_id' | 'status'>;
 export type PaymentRepository = Repository<Payment, 'service_id'>;
+// TODO(db): restrição UNIQUE (role, user_id).
+export type CredentialRepository = Repository<Credential, 'role' | 'user_id' | 'reset_token_digest'>;
 
 export interface Repositories {
   farmers: FarmerRepository;
@@ -33,4 +36,5 @@ export interface Repositories {
   services: ServiceRepository;
   applications: ApplicationRepository;
   payments: PaymentRepository;
+  credentials: CredentialRepository;
 }

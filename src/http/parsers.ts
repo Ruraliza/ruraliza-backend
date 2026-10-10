@@ -3,16 +3,22 @@ import type {
   AnalyzeInput,
   JobFilters,
   JobSort,
+  LoginInput,
   FarmInput,
   FarmUpdate,
   FarmerInput,
   FarmerUpdate,
+  PasswordChangeInput,
+  PasswordResetInput,
+  PasswordResetRequestInput,
   ServiceInput,
   ServiceUpdate,
+  UserRole,
   WorkerActionInput,
   WorkerUpdate
 } from '../contracts';
 import { isCalendarDate } from '../domain/dates';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '../domain/passwords';
 import { type Result, invalid, ok } from '../domain/result';
 import type { NewWorker } from '../usecases/WorkerUseCases';
 import { normalizeEmail } from '../utils/profile';
@@ -32,9 +38,19 @@ function tooLong(label: string, value: string | null | undefined, max: number): 
 // Validação do formato dos corpos (400). Regras que dependem dos dados (unicidade, existência,
 // estado do serviço) ficam nos casos de uso.
 
+// --- Senhas ---
+
+// Senha nova, como chegou (sem trim: espaços contam). `label` aparece na mensagem de erro.
+function parseNewPassword(value: unknown, label: string): Result<string> {
+  if (typeof value !== 'string') return invalid(`${label} deve ser um texto.`);
+  if (value.length < PASSWORD_MIN_LENGTH) return invalid(`${label} precisa ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`);
+  if (value.length > PASSWORD_MAX_LENGTH) return invalid(`${label} pode ter no máximo ${PASSWORD_MAX_LENGTH} caracteres.`);
+  return ok(value);
+}
+
 // --- Perfis ---
 
-const REQUIRED_PROFILE_FIELDS = ['email', 'name', 'phone', 'cpf'] as const;
+const REQUIRED_PROFILE_FIELDS = ['email', 'name', 'phone', 'cpf', 'password'] as const;
 
 export function parseProfileInput(body: Body): Result<FarmerInput> {
   const missing = missingFields(body, REQUIRED_PROFILE_FIELDS);
@@ -46,13 +62,19 @@ export function parseProfileInput(body: Body): Result<FarmerInput> {
   const cpf = body['cpf'];
   if (!isValidCpf(cpf)) return invalid('CPF inválido. Envie os 11 dígitos, só números, e confira se estão corretos.');
 
-  return ok({ email, name: text(body['name']).trim(), phone: text(body['phone']), cpf });
+  const password = parseNewPassword(body['password'], 'A senha');
+  if (!password.ok) return password;
+
+  return ok({ email, name: text(body['name']).trim(), phone: text(body['phone']), cpf, password: password.value });
 }
 
 // Só os campos enviados aparecem no resultado.
 export function parseProfileUpdate(body: Body): Result<FarmerUpdate> {
   if (body['id'] !== undefined || body['cpf'] !== undefined) {
     return invalid('Não é permitido alterar o id ou o cpf.');
+  }
+  if (body['password'] !== undefined) {
+    return invalid('A senha não muda por aqui. Use PATCH /:id/password, com a senha atual.');
   }
 
   const update: FarmerUpdate = {};
@@ -115,6 +137,58 @@ export function parseWorkerUpdate(body: Body): Result<WorkerUpdate> {
   }
   const problem = workerTextProblem(update);
   return problem ? invalid(problem) : ok(update);
+}
+
+// --- Acesso ---
+
+const USER_ROLES: readonly UserRole[] = ['farmer', 'worker'];
+
+function parseRole(value: unknown): Result<UserRole> {
+  const role = USER_ROLES.find((r) => r === value);
+  return role ? ok(role) : invalid("O tipo de perfil (role) deve ser 'farmer' ou 'worker'.");
+}
+
+export function parseLoginInput(body: Body): Result<LoginInput> {
+  const missing = missingFields(body, ['role', 'email', 'password']);
+  if (missing.length > 0) return invalid(missingMessage(missing));
+
+  const role = parseRole(body['role']);
+  if (!role.ok) return role;
+  const password = body['password'];
+  if (typeof password !== 'string') return invalid('A senha deve ser um texto.');
+  // Sem validar formato de e-mail nem tamanho da senha: qualquer erro vira "e-mail ou senha incorretos".
+  return ok({ role: role.value, email: normalizeEmail(body['email']), password });
+}
+
+export function parsePasswordResetRequest(body: Body): Result<PasswordResetRequestInput> {
+  const missing = missingFields(body, ['role', 'email']);
+  if (missing.length > 0) return invalid(missingMessage(missing));
+
+  const role = parseRole(body['role']);
+  if (!role.ok) return role;
+  const email = normalizeEmail(body['email']);
+  if (!isValidEmail(email)) return invalid('E-mail inválido. Use o formato nome@dominio.com.');
+  return ok({ role: role.value, email });
+}
+
+export function parsePasswordReset(body: Body): Result<PasswordResetInput> {
+  const missing = missingFields(body, ['token', 'password']);
+  if (missing.length > 0) return invalid(missingMessage(missing));
+
+  const password = parseNewPassword(body['password'], 'A nova senha');
+  if (!password.ok) return password;
+  return ok({ token: text(body['token']), password: password.value });
+}
+
+export function parsePasswordChange(body: Body): Result<PasswordChangeInput> {
+  const missing = missingFields(body, ['current_password', 'new_password']);
+  if (missing.length > 0) return invalid(missingMessage(missing));
+
+  const current = body['current_password'];
+  if (typeof current !== 'string') return invalid('A senha atual deve ser um texto.');
+  const next = parseNewPassword(body['new_password'], 'A nova senha');
+  if (!next.ok) return next;
+  return ok({ current_password: current, new_password: next.value });
 }
 
 // --- Fazendas ---

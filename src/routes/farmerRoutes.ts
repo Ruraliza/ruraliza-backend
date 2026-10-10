@@ -1,3 +1,4 @@
+import type { AuthController } from '../controllers/AuthController';
 import type { FarmController } from '../controllers/FarmController';
 import type { FarmerController } from '../controllers/FarmerController';
 import type { PhotoController } from '../controllers/PhotoController';
@@ -22,9 +23,10 @@ export interface FarmerRouteControllers {
   farms: FarmController;
   services: ServiceController;
   photos: PhotoController;
+  auth: AuthController;
 }
 
-export function farmerRoutes({ farmers, farms, services, photos }: FarmerRouteControllers): readonly RouteDef[] {
+export function farmerRoutes({ farmers, farms, services, photos, auth }: FarmerRouteControllers): readonly RouteDef[] {
   return [
     // --- SERVIÇOS ---
 
@@ -118,7 +120,7 @@ export function farmerRoutes({ farmers, farms, services, photos }: FarmerRouteCo
       body: 'FarmerInput',
       success: { status: 201, description: 'Produtor cadastrado.', schema: 'FarmerResponse' },
       errors: {
-        400: 'Campo obrigatório faltando; e-mail inválido; CPF inválido.',
+        400: 'Campo obrigatório faltando; e-mail inválido; CPF inválido; senha fora do tamanho (8 a 128).',
         409: 'Já existe produtor com este e-mail ou CPF.'
       }
     })),
@@ -134,12 +136,12 @@ export function farmerRoutes({ farmers, farms, services, photos }: FarmerRouteCo
     route('patch', '/:id', farmers.updateFarmer, operation({
       tag: TAGS.farmers,
       summary: 'Editar produtor',
-      description: '`id` e `cpf` não podem ser alterados.',
+      description: '`id` e `cpf` não podem ser alterados; a senha muda em `PATCH /:id/password`.',
       params: [farmerId],
       body: 'FarmerUpdate',
       success: { status: 200, description: 'Produtor atualizado.', schema: 'FarmerResponse' },
       errors: {
-        400: 'Tentou alterar `id` ou `cpf`; e-mail inválido.',
+        400: 'Tentou alterar `id`, `cpf` ou `password`; e-mail inválido.',
         404: 'Produtor não encontrado.',
         409: 'E-mail já usado por outro produtor.'
       }
@@ -152,6 +154,20 @@ export function farmerRoutes({ farmers, farms, services, photos }: FarmerRouteCo
       params: [farmerId],
       success: { status: 200, description: 'Produtor removido.', schema: 'MessageResponse' },
       errors: { 404: 'Produtor não encontrado.', 409: 'O produtor tem serviço `In Progress`.' }
+    })),
+
+    route('patch', '/:id/password', auth.changeFarmerPassword, operation({
+      tag: TAGS.farmers,
+      summary: 'Trocar a senha (com a conta aberta)',
+      description: 'Confirma a senha atual; não precisa de código por e-mail. Cancela uma redefinição de senha pendente.',
+      params: [farmerId],
+      body: 'PasswordChangeInput',
+      success: { status: 200, description: 'Senha trocada.', schema: 'MessageResponse' },
+      errors: {
+        400: 'Campo obrigatório faltando; nova senha fora do tamanho (8 a 128) ou igual à atual.',
+        401: 'A senha atual está incorreta.',
+        404: 'Produtor não encontrado.'
+      }
     })),
 
     route('post', '/:id/photo', photos.uploadFarmerPhoto, operation({

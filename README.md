@@ -23,6 +23,17 @@ npm run check:contracts  # confere que o contrato bate com os models do frontend
 
 Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
 
+### Usuários de teste
+
+Criados pelo seed (`src/data/seed.ts`) a cada vez que o servidor sobe. Para entrar, escolha o tipo de perfil na tela **Entrar** (ou envie `role` em `POST /api/auth/login`).
+
+| Tipo (`role`) | ID | Nome | E-mail | Senha | CPF | Dados |
+|---|---|---|---|---|---|---|
+| Produtor (`farmer`) | 1 | João Produtor | `produtor@exemplo.com` | `ruraliza123` | `52998224725` | Fazendas 1 (São José, Três Rios/RJ) e 2 (Boa Vista, Paraíba do Sul/RJ); serviços 1 a 7 |
+| Trabalhador (`worker`) | 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; nenhuma candidatura |
+
+Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha"), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
+
 ### Configuração (`.env`)
 
 As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com instruções:
@@ -73,8 +84,9 @@ src/
   contracts/                # Contrato da API (só tipos): entidades, entradas e respostas
   domain/                   # Result, interfaces dos repositórios, das imagens (ImageStore/ImageProcessor) e dos documentos (DocumentStore), Clock, datas
   infra/memory/             # Repositórios, ImageStore e DocumentStore em memória (implementam as interfaces de domain/)
+  infra/crypto/             # Hash das senhas (scrypt) e tokens de redefinição, com node:crypto
   infra/images/             # SharpImageProcessor: redimensiona para até 1000 px (perfil: quadrado) e converte para WebP
-  usecases/                 # Regras de negócio: Farmer, Farm, Worker, Service, Hiring, Photo, Resume
+  usecases/                 # Regras de negócio: Auth, Farmer, Farm, Worker, Service, Hiring, Photo, Resume
   controllers/              # HTTP fino: valida o corpo, chama o caso de uso, traduz o Result em status
   http/                     # Tipos dos handlers, route(), parsers dos corpos e tradução de erros
   routes/                   # Endpoints + documentação de cada um (index.ts monta controllers e grupos)
@@ -100,12 +112,14 @@ src/
 | Produtores, trabalhadores, fazendas, serviços, candidaturas, pagamentos | Array em memória, um por entidade, com id sequencial | `InMemoryRepository` (`src/infra/memory/`) |
 | Fotos (perfil do produtor, perfil do trabalhador, fazendas) | `Map` em memória de id para bytes WebP | `InMemoryImageStore` (`src/infra/memory/InMemoryImageStore.ts`) |
 | Tratamento das fotos | Processado no upload, não é guardado | `SharpImageProcessor` (`src/infra/images/`) |
+| Senhas (hash) e pedidos de redefinição | Array em memória, separado dos perfis | `InMemoryRepository` de `Credential` (`src/domain/passwords.ts`) |
 | Currículos dos trabalhadores (PDF) | `Map` em memória de id para bytes do PDF | `InMemoryDocumentStore` (`src/infra/memory/InMemoryDocumentStore.ts`) |
 
 - Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
 - As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
 - Toda foto enviada passa pelo `SharpImageProcessor` antes de ser guardada: corrige a rotação do celular, reduz para **no máximo 1000 px no maior lado** (sem ampliar fotos pequenas), converte para **WebP (qualidade 78)** e remove os metadados (EXIF/GPS). Fotos de perfil saem sempre **quadradas** (até 1000×1000 px): o app envia a foto já recortada pelo usuário e, se chegar outra proporção, o servidor recorta o quadrado central. Arquivos que não são imagem são recusados com 400. Uploads acima de 10 MB são recusados com 413.
 - O currículo do trabalhador segue o mesmo esquema, sem processamento: o PDF é guardado como chegou, depois de conferir a assinatura `%PDF-` (outro arquivo dá 400; acima de 5 MB, 413). O trabalhador guarda só `resume_url` (`/api/documents/<uuid>.pdf`), servida por `GET /api/documents/:id`.
+- A senha **não fica no perfil**: vai para o repositório `credentials` (`role`, `user_id`, `password_hash`), então nunca sai numa resposta. O hash é **scrypt** com sal aleatório (`src/infra/crypto/NodeCrypto.ts`). O pedido de "esqueci a senha" guarda só o SHA-256 do token, com validade de 30 minutos.
 - A escolha de tudo isso está num lugar só: `src/container.ts` (`createContainer`).
 
 ### Como ligar o PostgreSQL
@@ -116,6 +130,7 @@ src/
    - `farm.photos` → tabela `farm_photos (id text, farm_id int references farms, url text, position int)`, ou coluna `jsonb`.
    - `expires_at` → `date` (dia do calendário, sem hora). A vaga vale até o fim desse dia **no horário de Brasília** (`src/domain/dates.ts`).
    - `insertion_date` → `timestamptz`.
+   - `credentials (id, role text, user_id int, password_hash text, reset_token_digest text, reset_expires_at timestamptz)` com `UNIQUE (role, user_id)`. Ao remover o perfil, a senha sai junto.
    - Restrições `UNIQUE` e transações estão marcadas com `TODO(db)` no código (`grep -rn "TODO(db)" src`).
 4. **Busca de vagas.** `ServiceUseCases.searchOpen` filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no método).
 5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar). Os currículos fazem o mesmo com `DocumentStore` (`src/domain/documents.ts`), passado em `createContainer({ documents })`.
@@ -127,19 +142,31 @@ Os testes continuam valendo: `npm run test:unit` usa o container com memória, e
 
 ## 🛣️ Rotas
 
-Erros sempre no formato `{ "error": "mensagem" }` com o status correto (400 validação, 404 não encontrado, 409 conflito). POST/PATCH de sucesso devolvem `{ message, <entidade> }`; GET devolve o recurso ou a lista.
+Erros sempre no formato `{ "error": "mensagem" }` com o status correto (400 validação, 401 e-mail ou senha incorretos, 404 não encontrado, 409 conflito). POST/PATCH de sucesso devolvem `{ message, <entidade> }`; GET devolve o recurso ou a lista.
 
 Status na API (em inglês): serviço `Pending | In Progress | Completed | Rejected | Cancelled`; candidatura `Pending | Accepted | Rejected`; pagamento `Completed`.
 
 CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos. Em listas e respostas embutidas sai mascarado (`***.456.789-**`).
 
+### Acesso (`/api/auth`)
+
+Todo perfil tem senha (8 a 128 caracteres), enviada no cadastro em `password`. O mesmo e-mail pode ter um perfil de produtor e outro de trabalhador, cada um com a sua senha, por isso o login leva `role` (`farmer` ou `worker`). Ainda **não há token de sessão**: o login só confere a senha e devolve quem entrou; as demais rotas continuam sem proteção.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/api/auth/login` | `{ role, email, password }` → `{ message, user: { role, id } }`; 401 se e-mail ou senha não conferem (mesma mensagem nos dois casos) |
+| POST | `/api/auth/password-reset` | Esqueci a senha, passo 1: `{ role, email }`. **Simulação**: o código iria por e-mail; por enquanto o token volta na resposta (`reset_token`). Vale 30 min e uma vez só; um pedido novo invalida o anterior. 404 se não houver cadastro com o e-mail |
+| POST | `/api/auth/password-reset/confirm` | Passo 2: `{ token, password }` grava a nova senha; 400 se o token for inválido, já usado ou expirado |
+| PATCH | `/api/farmers/:id/password` e `/api/workers/:id/password` | Troca com a conta aberta, sem código por e-mail: `{ current_password, new_password }`; 401 se a atual estiver errada, 400 se a nova for igual à atual. Cancela uma redefinição pendente |
+
 ### Produtor (`/api/farmers`)
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/farmers` | Lista produtores |
-| POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`); 409 se e-mail/CPF já existe entre produtores |
+| POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`); 409 se e-mail/CPF já existe entre produtores |
 | GET | `/api/farmers/:id` | Perfil completo (`farms` = lista de IDs das fazendas) |
-| PATCH | `/api/farmers/:id` | Edita `email`, `name`, `phone`; 400 se tentar alterar `id`/`cpf` |
+| PATCH | `/api/farmers/:id` | Edita `email`, `name`, `phone`; 400 se tentar alterar `id`/`cpf`/`password` |
+| PATCH | `/api/farmers/:id/password` | Troca a senha (ver [Acesso](#acesso-apiauth)) |
 | DELETE | `/api/farmers/:id` | Remove o produtor com fazendas, serviços, candidaturas e fotos; 409 se houver serviço `In Progress` |
 | POST | `/api/farmers/:id/photo` | Envia/troca a foto de perfil, recortada em quadrado (corpo = bytes da imagem, `Content-Type: image/*`); devolve o produtor com `photo_url` |
 | DELETE | `/api/farmers/:id/photo` | Remove a foto de perfil |
@@ -162,9 +189,10 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/workers` | Lista trabalhadores |
-| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`) |
+| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`) |
 | GET | `/api/workers/:id` | Perfil completo |
-| PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `bio`, `experience`, `certificates`, `courses`; 400 se tentar alterar `id`/`cpf` |
+| PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `bio`, `experience`, `certificates`, `courses`; 400 se tentar alterar `id`/`cpf`/`password` |
+| PATCH | `/api/workers/:id/password` | Troca a senha (ver [Acesso](#acesso-apiauth)) |
 | DELETE | `/api/workers/:id` | Remove o trabalhador, suas candidaturas, a foto e o currículo; 409 se tiver serviço `In Progress` |
 | POST | `/api/workers/:id/photo` | Envia/troca a foto de perfil, recortada em quadrado (corpo = bytes da imagem) |
 | DELETE | `/api/workers/:id/photo` | Remove a foto de perfil |
@@ -194,5 +222,6 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 ## 🛠️ Próximos passos
 - [ ] Banco de dados (ver [Armazenamento](#-armazenamento-temporário-e-migração-para-postgresql) e os `TODO(db)` no código: IDs, unicidade, transações no aceite/pagamento).
 - [ ] Guardar as fotos num bucket (S3/R2) em vez da memória.
-- [ ] Autenticação real.
+- [ ] Enviar o código de redefinição de senha por e-mail (e parar de devolvê-lo em `POST /api/auth/password-reset`; ver `TODO(email)`).
+- [ ] Token de sessão no login e proteção das rotas (hoje o login só confere a senha).
 - [ ] Trilhas de qualificação, registro de horas e relatórios em PDF.

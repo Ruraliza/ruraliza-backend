@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { CATEGORIES } from '../src/constants/categories';
 import { createContainer } from '../src/container';
-import { seed } from '../src/data/seed';
+import { SEED_PASSWORD, seed } from '../src/data/seed';
 
 // Meio-dia em Brasília, para os limites de dia ficarem claros.
 const NOW = '2026-03-15T15:00:00.000Z';
 
 async function seeded(): Promise<ReturnType<typeof createContainer>> {
   const c = createContainer({ clock: { now: () => NOW } });
-  await seed(c.repos, c.clock);
+  await seed(c.repos, c.clock, c.passwords);
   return c;
 }
 
@@ -28,6 +28,13 @@ describe('seed', () => {
     assert.deepEqual(services.slice(0, 3).map((s) => [s.id, s.name]), [
       [1, 'Colheita de café'], [2, 'Plantio de milho'], [3, 'Conserto de cerca']
     ]);
+  });
+
+  it('os perfis de teste entram com a senha do seed', async () => {
+    const c = await seeded();
+    const farmer = await c.useCases.auth.login({ role: 'farmer', email: 'produtor@exemplo.com', password: SEED_PASSWORD });
+    const worker = await c.useCases.auth.login({ role: 'worker', email: 'trabalhador@exemplo.com', password: SEED_PASSWORD });
+    assert.deepEqual([farmer.ok && farmer.value, worker.ok && worker.value], [{ role: 'farmer', id: 1 }, { role: 'worker', id: 1 }]);
   });
 
   it('as fazendas têm o ponto marcado no mapa', async () => {

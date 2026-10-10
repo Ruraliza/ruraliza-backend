@@ -3,9 +3,11 @@ import { SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
 import type { DocumentStore } from '../domain/documents';
 import type { ImageStore } from '../domain/images';
-import type { ApplicationRepository, FarmRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
+import type { PasswordHasher } from '../domain/passwords';
+import type { ApplicationRepository, CredentialRepository, FarmRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, notFound, ok, requireFound } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
+import { registerPassword, removePassword } from './AuthUseCases';
 import { releaseImage } from './PhotoUseCases';
 import { releaseDocument } from './ResumeUseCases';
 import { checkProfileUnique, toOpenService } from './shared';
@@ -16,6 +18,7 @@ export interface NewWorker {
   name: string;
   phone: string;
   cpf: string;
+  password: string;
   bio: string | null;
   certificates: string | null;
   courses: string | null;
@@ -30,9 +33,11 @@ export class WorkerUseCases {
       services: ServiceRepository;
       applications: ApplicationRepository;
       farms: FarmRepository;
+      credentials: CredentialRepository;
     },
     private readonly clock: Clock,
-    private readonly files: { images: ImageStore; documents: DocumentStore }
+    private readonly files: { images: ImageStore; documents: DocumentStore },
+    private readonly hasher: PasswordHasher
   ) {}
 
   // Lista com CPF mascarado.
@@ -50,7 +55,9 @@ export class WorkerUseCases {
     const unique = await checkProfileUnique(this.repos.workers, input.email, input.cpf);
     if (!unique.ok) return unique;
 
-    const worker = await this.repos.workers.create({ ...input, photo_url: null, resume_url: null, insertion_date: this.clock.now() });
+    const { password, ...profile } = input;
+    const worker = await this.repos.workers.create({ ...profile, photo_url: null, resume_url: null, insertion_date: this.clock.now() });
+    await registerPassword(this.repos.credentials, this.hasher, 'worker', worker.id, password);
     return ok(worker);
   }
 
@@ -77,7 +84,7 @@ export class WorkerUseCases {
   // As candidaturas embutem o perfil do trabalhador, então saem junto com ele.
   // Bloqueado enquanto houver serviço em andamento atribuído a ele.
   async delete(id: number): Promise<Result<null>> {
-    const { workers, services, applications } = this.repos;
+    const { workers, services, applications, credentials } = this.repos;
     const worker = await workers.findById(id);
     if (!worker) return notFound('Trabalhador não encontrado.');
 
@@ -92,6 +99,7 @@ export class WorkerUseCases {
     }
     await releaseImage(this.files.images, worker.photo_url);
     await releaseDocument(this.files.documents, worker.resume_url);
+    await removePassword(credentials, 'worker', worker.id);
     await workers.delete(worker.id);
 
     return ok(null);
