@@ -182,6 +182,7 @@ Todo perfil tem senha (8 a 128 caracteres), enviada no cadastro em `password`. O
 | PATCH | `/api/farmers/services/:id` | Edita `farm_id`, `name`, `category`, `duration`, `price`, `description`, `expires_at` (`null` tira o prazo; data futura renova uma vaga vencida); 409 se não estiver `Pending` |
 | PATCH | `/api/farmers/services/:id/cancel` | Cancela (`Cancelled`) e recusa as candidaturas pendentes; 409 se não estiver `Pending` |
 | GET | `/api/farmers/services/:id/applications` | Candidaturas com o trabalhador embutido |
+| GET | `/api/farmers/services/:id/events` | Acompanha as candidaturas em tempo real (SSE, ver [abaixo](#atualização-em-tempo-real-sse)); 404 se o serviço não existe |
 | PATCH | `/api/farmers/services/:id/analyze` | `{ application_id, action: "Accept" \| "Reject" }` |
 | POST | `/api/farmers/services/:id/payment` | Libera pagamento (simulação) de serviço `In Progress`; cria `Payment` |
 
@@ -199,6 +200,7 @@ Todo perfil tem senha (8 a 128 caracteres), enviada no cadastro em `password`. O
 | POST | `/api/workers/:id/resume` | Envia/troca o currículo (corpo = bytes do PDF, `Content-Type: application/pdf`, até 5 MB); devolve o trabalhador com `resume_url` |
 | DELETE | `/api/workers/:id/resume` | Remove o currículo |
 | GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido (com o ponto da fazenda no mapa quando a candidatura foi aceita) |
+| GET | `/api/workers/:id/events` | Acompanha o status das candidaturas em tempo real (SSE, ver [abaixo](#atualização-em-tempo-real-sse)); 404 se o trabalhador não existe |
 | GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador (com `farm.latitude`/`farm.longitude`) |
 | GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category`, `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`); 400 se algum filtro for inválido |
 | GET | `/api/workers/services/:id?worker_id=` | Detalhe da vaga. Com `worker_id` do trabalhador aceito no serviço, inclui `farm.latitude`/`farm.longitude` |
@@ -214,6 +216,12 @@ Todo perfil tem senha (8 a 128 caracteres), enviada no cadastro em `password`. O
 | GET | `/api/documents/:id` | Serve um currículo (PDF, cache imutável de 1 ano) |
 
 **Localização da fazenda:** o produtor marca o ponto no mapa (`latitude`/`longitude`, obrigatórias no cadastro; fazendas antigas podem ter `null`). O trabalhador só recebe as coordenadas nos serviços em que foi aceito; nas vagas abertas vê apenas cidade/UF.
+
+### Atualização em tempo real (SSE)
+
+As telas de candidatos do serviço (produtor) e de candidaturas (trabalhador) se atualizam sozinhas por **Server-Sent Events**: o frontend abre `GET .../events` com `EventSource`, a resposta (`text/event-stream`) fica aberta e chega `event: applications` a cada mudança. O aviso não traz dados; a tela busca a lista de novo pela rota de sempre. A cada 25 s vai um `: ping` para a conexão não ser cortada por inatividade, e o `EventSource` reconecta sozinho se ela cair.
+
+Os casos de uso publicam os avisos (`ChangeFeed`, `src/domain/changes.ts`) depois de cada mudança: candidatura, desistência, aceite/recusa (inclusive as recusadas pelo aceite e as que voltam a `Pending`), edição, cancelamento e pagamento do serviço, e remoção de produtor ou trabalhador. A implementação em memória (`InMemoryChangeFeed`) só vale para **um processo**; com várias instâncias da API, troque por algo compartilhado (LISTEN/NOTIFY do PostgreSQL ou Redis pub/sub) em `createContainer({ changes })`.
 
 **Prazo das vagas (`expires_at`):** dia do calendário. A vaga aceita candidaturas até o fim desse dia no horário de Brasília. Depois disso continua `Pending` para o produtor, mas some da busca e recusa candidaturas (409) até o produtor renovar a data. Não dá para publicar ou editar com data no passado (400).
 

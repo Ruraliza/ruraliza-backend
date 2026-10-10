@@ -1,5 +1,6 @@
 import type { Farmer, FarmerInput, FarmerUpdate } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
+import { type ChangeFeed, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
 import type { ImageStore } from '../domain/images';
 import type { PasswordHasher } from '../domain/passwords';
@@ -22,7 +23,8 @@ export class FarmerUseCases {
     },
     private readonly clock: Clock,
     private readonly images: ImageStore,
-    private readonly hasher: PasswordHasher
+    private readonly hasher: PasswordHasher,
+    private readonly changes: ChangeFeed
   ) {}
 
   // Lista com CPF mascarado.
@@ -75,9 +77,11 @@ export class FarmerUseCases {
     }
 
     // TODO(db): numa transação, ou com ON DELETE CASCADE.
+    const applicants = new Set<number>();
     for (const service of ownServices) {
       for (const application of await applications.find({ service_id: service.id })) {
         await applications.delete(application.id);
+        applicants.add(application.worker_id);
       }
       await services.delete(service.id);
     }
@@ -88,6 +92,8 @@ export class FarmerUseCases {
     await releaseImage(this.images, farmer.photo_url);
     await removePassword(credentials, 'farmer', farmer.id);
     await farmers.delete(farmer.id);
+    // As candidaturas somem da tela "Candidaturas" de quem se candidatou.
+    this.changes.publish([...applicants].map(workerApplications));
 
     return ok(null);
   }

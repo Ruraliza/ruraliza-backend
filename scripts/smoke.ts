@@ -111,6 +111,52 @@ async function upload<T = unknown>(
   return typed;
 }
 
+interface EventStream {
+  expectEvent: (title: string, event: string) => Promise<void>;
+  close: () => void;
+}
+
+// Abre um stream SSE (a resposta fica aberta até `close`) e espera os eventos um a um, na ordem.
+async function openEvents(title: string, path: string): Promise<EventStream> {
+  const controller = new AbortController();
+  const res = await fetch(`${baseUrl}${path}`, { signal: controller.signal, headers: { Accept: 'text/event-stream' } });
+  assert.equal(res.status, 200, `${title}: esperado 200, veio ${res.status}`);
+  assert.match(res.headers.get('content-type') ?? '', /^text\/event-stream/, `${title}: Content-Type`);
+  assert.ok(res.body, `${title}: sem corpo`);
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  passed++;
+  console.log(`  ok  200 GET    ${path}  — ${title}`);
+
+  let buffer = '';
+  const readChunk = async (what: string): Promise<string> => {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(`${what}: nenhum evento em 2 s`)), 2000);
+    });
+    try {
+      const { value, done } = await Promise.race([reader.read(), timeout]);
+      if (done) assert.fail(`${what}: o stream fechou`);
+      return value;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  return {
+    async expectEvent(what, event) {
+      const marker = `event: ${event}\n`;
+      while (!buffer.includes(marker) || !buffer.includes('\n\n', buffer.indexOf(marker))) {
+        buffer += await readChunk(what);
+      }
+      // Consome até o fim deste evento; os seguintes ficam para a próxima chamada.
+      buffer = buffer.slice(buffer.indexOf('\n\n', buffer.indexOf(marker)) + 2);
+      passed++;
+      console.log(`  ok  SSE  event: ${event}  — ${what}`);
+    },
+    close: () => controller.abort()
+  };
+}
+
 // Baixa uma imagem servida pela API e devolve largura/altura/formato reais.
 async function download(title: string, url: string, expectedStatus = 200): Promise<{ width: number; height: number; format: string } | null> {
   const res = await fetch(`${baseUrl.replace(/\/api$/, '')}${url}`);
@@ -337,19 +383,29 @@ async function run(): Promise<void> {
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Capina', category: 'Manutenção', duration: 5, price: 150 }, 201);
   const { worker: worker3 } = await step<WorkerResponse>('cadastrar 3º trabalhador', 'POST', '/workers',
     { name: 'Davi', email: 'davi@exemplo.com', phone: '1', cpf: '71428793860', password: PW }, 201);
+  const farmerEvents = await openEvents('produtor acompanha as candidaturas (SSE)', `/farmers/services/${ws.id}/events`);
   await step('candidatar para desistir', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker.id }, 201);
+  await farmerEvents.expectEvent('produtor avisado da candidatura', 'applications');
   await step<ServiceResponse>('desistir da candidatura', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 200,
     (b) => assert.equal(b.service.status, 'Pending'));
+  await farmerEvents.expectEvent('produtor avisado da desistência', 'applications');
+  farmerEvents.close();
+  await step('acompanhar serviço inexistente', 'GET', '/farmers/services/999/events', undefined, 404);
+  await step('acompanhar trabalhador inexistente', 'GET', '/workers/999/events', undefined, 404);
   await step<ApplicationWithWorker[]>('candidatura removida', 'GET', `/farmers/services/${ws.id}/applications`, undefined, 200, (b) => assert.equal(b.length, 0));
   const { application: wa1 } = await step<ApplicationResponse>('candidatar de novo', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker.id }, 201);
   const { application: wa2 } = await step<ApplicationResponse>('2º candidato', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker2.id }, 201);
   const { application: wa3 } = await step<ApplicationResponse>('3º candidato', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker3.id }, 201);
+  const worker2Events = await openEvents('2º candidato acompanha as candidaturas (SSE)', `/workers/${worker2.id}/events`);
   await step('produtor recusa o 3º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa3.id, action: 'Reject' }, 200);
   await step('produtor aceita o 1º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa1.id, action: 'Accept' }, 200);
+  await worker2Events.expectEvent('2º candidato avisado da recusa pelo aceite', 'applications');
   await step<ServiceResponse>('desistir do serviço aceito', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 200, (b) => {
     assert.equal(b.service.status, 'Pending');
     assert.equal(b.service.worker_id, null);
   });
+  await worker2Events.expectEvent('2º candidato avisado da candidatura de volta a Pending', 'applications');
+  worker2Events.close();
   await step<ApplicationWithWorker[]>('volta à etapa anterior', 'GET', `/farmers/services/${ws.id}/applications`, undefined, 200, (b) => {
     assert.equal(b.length, 2);
     assert.equal(b.find((a) => a.id === wa2.id)?.status, 'Pending'); // recusada pelo aceite: volta

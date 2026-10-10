@@ -445,3 +445,59 @@ describe('Currículo', () => {
     assert.equal((await c.repos.workers.findById(w))?.resume_url, null);
   });
 });
+
+describe('Avisos em tempo real (SSE)', () => {
+  // Conta quantas vezes cada tela aberta seria avisada.
+  async function watch(c: Container, kind: 'service' | 'worker', id: number): Promise<{ count: () => number; stop: () => void }> {
+    let calls = 0;
+    const listener = (): void => { calls++; };
+    const stop = unwrap(kind === 'service'
+      ? await c.useCases.services.watchApplications(id, listener)
+      : await c.useCases.workers.watchApplications(id, listener));
+    return { count: () => calls, stop };
+  }
+
+  it('o produtor é avisado quando alguém se candidata ou desiste', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    const farmerScreen = await watch(c, 'service', serviceId);
+
+    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    assert.equal(farmerScreen.count(), 1);
+    unwrap(await c.useCases.hiring.withdraw(serviceId, w));
+    assert.equal(farmerScreen.count(), 2);
+
+    farmerScreen.stop();
+    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    assert.equal(farmerScreen.count(), 2); // parou de acompanhar
+  });
+
+  it('o trabalhador é avisado quando o status das candidaturas dele muda', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const [w1, w2] = [await worker(c, 'w1@exemplo.com', '11144477735'), await worker(c, 'w2@exemplo.com', '39053344705')];
+    const a1 = unwrap(await c.useCases.hiring.apply(serviceId, w1));
+    unwrap(await c.useCases.hiring.apply(serviceId, w2));
+    const [screen1, screen2] = [await watch(c, 'worker', w1), await watch(c, 'worker', w2)];
+
+    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: a1.id, action: 'Accept' }));
+    assert.deepEqual([screen1.count(), screen2.count()], [1, 1]); // aceito e recusado pelo aceite
+
+    unwrap(await c.useCases.hiring.withdraw(serviceId, w1));
+    assert.deepEqual([screen1.count(), screen2.count()], [2, 2]); // a do 2º volta a Pending
+
+    unwrap(await c.useCases.services.cancel(serviceId));
+    assert.deepEqual([screen1.count(), screen2.count()], [2, 3]); // só quem ainda tinha candidatura
+  });
+
+  it('acompanhar serviço ou trabalhador inexistente dá not_found', async () => {
+    const c = setup();
+    const noop = (): void => undefined;
+    const service = await c.useCases.services.watchApplications(999, noop);
+    const w = await c.useCases.workers.watchApplications(999, noop);
+    assert.deepEqual([service.ok ? '' : service.kind, w.ok ? '' : w.kind], ['not_found', 'not_found']);
+  });
+});

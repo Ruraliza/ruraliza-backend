@@ -1,5 +1,6 @@
 import type { ApplicationWithService, OpenService, Worker, WorkerUpdate } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
+import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
 import type { DocumentStore } from '../domain/documents';
 import type { ImageStore } from '../domain/images';
@@ -37,7 +38,8 @@ export class WorkerUseCases {
     },
     private readonly clock: Clock,
     private readonly files: { images: ImageStore; documents: DocumentStore },
-    private readonly hasher: PasswordHasher
+    private readonly hasher: PasswordHasher,
+    private readonly changes: ChangeFeed
   ) {}
 
   // Lista com CPF mascarado.
@@ -94,9 +96,12 @@ export class WorkerUseCases {
     }
 
     // TODO(db): numa transação, ou com ON DELETE CASCADE.
-    for (const application of await applications.find({ worker_id: worker.id })) {
+    const own = await applications.find({ worker_id: worker.id });
+    for (const application of own) {
       await applications.delete(application.id);
     }
+    // Some das listas de candidatos dos serviços em que se candidatou.
+    this.changes.publish(own.map((a) => serviceApplications(a.service_id)));
     await releaseImage(this.files.images, worker.photo_url);
     await releaseDocument(this.files.documents, worker.resume_url);
     await removePassword(credentials, 'worker', worker.id);
@@ -119,6 +124,13 @@ export class WorkerUseCases {
       })
     );
     return ok(result);
+  }
+
+  // Acompanha as candidaturas do trabalhador; devolve a função que para de acompanhar.
+  async watchApplications(workerId: number, listener: ChangeListener): Promise<Result<() => void>> {
+    const worker = await this.repos.workers.findById(workerId);
+    if (!worker) return notFound('Trabalhador não encontrado.');
+    return ok(this.changes.subscribe(workerApplications(worker.id), listener));
   }
 
   // Serviços em que foi aceito (em andamento ou concluídos).
