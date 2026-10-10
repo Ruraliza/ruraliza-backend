@@ -21,7 +21,18 @@ npm run smoke            # percorre o fluxo completo e os casos de erro principa
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
-Ao subir, o servidor carrega **dados de teste**: 1 produtor (`produtor@exemplo.com`, com 2 fazendas), 1 trabalhador (`trabalhador@exemplo.com`), os dois com a senha **`ruraliza123`**, e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
+Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
+
+### Usuários de teste
+
+Criados pelo seed (`src/data/seed.ts`) a cada vez que o servidor sobe. Para entrar, escolha o tipo de perfil na tela **Entrar** (ou envie `role` em `POST /api/auth/login`).
+
+| Tipo (`role`) | ID | Nome | E-mail | Senha | CPF | Dados |
+|---|---|---|---|---|---|---|
+| Produtor (`farmer`) | 1 | João Produtor | `produtor@exemplo.com` | `ruraliza123` | `52998224725` | Fazendas 1 (São José, Três Rios/RJ) e 2 (Boa Vista, Paraíba do Sul/RJ); serviços 1 a 7 |
+| Trabalhador (`worker`) | 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; nenhuma candidatura |
+
+Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha"), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
 
 ### Configuração (`.env`)
 
