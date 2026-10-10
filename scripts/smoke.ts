@@ -344,15 +344,15 @@ async function run(): Promise<void> {
   await step('mover serviço para fazenda removida', 'PATCH', `/farmers/services/${ws.id}`, { farm_id: f2.id }, 404);
 
   console.log('\nFotos');
-  // Foto de celular simulada: 2400x1600 JPEG. Tem que voltar WebP com no máximo 1000px.
+  // Foto de celular simulada: 2400x1600 JPEG. Perfil tem que voltar WebP quadrado, no máximo 1000px.
   const bigPhoto = new Uint8Array(await sharp({ create: { width: 2400, height: 1600, channels: 3, background: '#3a7d24' } }).jpeg().toBuffer());
   const smallPhoto = new Uint8Array(await sharp({ create: { width: 400, height: 300, channels: 3, background: '#ee8a14' } }).png().toBuffer());
 
   const { worker: wPhoto } = await upload<WorkerResponse>('foto de perfil do trabalhador', `/workers/${worker.id}/photo`, bigPhoto, 'image/jpeg', 200,
     (b) => assert.match(b.worker.photo_url ?? '', /^\/api\/images\/.+\.webp$/));
   const firstUrl = wPhoto.photo_url ?? '';
-  const size = await download('foto reduzida e em WebP', firstUrl);
-  assert.deepEqual(size, { width: 1000, height: 667, format: 'webp' });
+  const size = await download('foto reduzida, quadrada e em WebP', firstUrl);
+  assert.deepEqual(size, { width: 1000, height: 1000, format: 'webp' });
   await upload<WorkerResponse>('trocar a foto', `/workers/${worker.id}/photo`, smallPhoto, 'image/png', 200,
     (b) => assert.notEqual(b.worker.photo_url, firstUrl));
   await download('foto antiga apagada', firstUrl, 404);

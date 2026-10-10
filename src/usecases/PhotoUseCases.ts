@@ -5,7 +5,8 @@ import { type Result, conflict, notFound, ok } from '../domain/result';
 import { findActiveFarm } from './shared';
 
 // Fotos de perfil (produtor e trabalhador) e da fazenda. Toda imagem passa pelo ImageProcessor
-// (≤ 1000px, WebP, sem metadados) antes de ir para o ImageStore; a entidade guarda só a URL.
+// (≤ 1000px, WebP, sem metadados; perfil sempre quadrado) antes de ir para o ImageStore;
+// a entidade guarda só a URL.
 export class PhotoUseCases {
   constructor(
     private readonly repos: { farmers: FarmerRepository; workers: WorkerRepository; farms: FarmRepository },
@@ -18,13 +19,13 @@ export class PhotoUseCases {
     return image ? ok(image) : notFound('Imagem não encontrada.');
   }
 
-  // --- Perfis (uma foto; enviar de novo substitui) ---
+  // --- Perfis (uma foto quadrada; enviar de novo substitui) ---
 
   async setFarmerPhoto(farmerId: number, upload: Uint8Array): Promise<Result<Farmer>> {
     const farmer = await this.repos.farmers.findById(farmerId);
     if (!farmer) return notFound('Produtor não encontrado.');
 
-    const url = await this.store(upload);
+    const url = await this.storeProfilePhoto(upload);
     if (!url.ok) return url;
     await releaseImage(this.images.store, farmer.photo_url);
     farmer.photo_url = url.value;
@@ -46,7 +47,7 @@ export class PhotoUseCases {
     const worker = await this.repos.workers.findById(workerId);
     if (!worker) return notFound('Trabalhador não encontrado.');
 
-    const url = await this.store(upload);
+    const url = await this.storeProfilePhoto(upload);
     if (!url.ok) return url;
     await releaseImage(this.images.store, worker.photo_url);
     worker.photo_url = url.value;
@@ -94,8 +95,8 @@ export class PhotoUseCases {
     return ok(farm.value);
   }
 
-  private async store(upload: Uint8Array): Promise<Result<string>> {
-    const processed = await this.images.processor.normalize(upload);
+  private async storeProfilePhoto(upload: Uint8Array): Promise<Result<string>> {
+    const processed = await this.images.processor.normalize(upload, { square: true });
     if (!processed.ok) return processed;
     const id = await this.images.store.save(processed.value);
     return ok(this.images.store.urlFor(id));

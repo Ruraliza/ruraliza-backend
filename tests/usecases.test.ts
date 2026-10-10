@@ -288,6 +288,24 @@ describe('Fotos', () => {
     for (const id of ids) assert.equal(await c.images.get(id), undefined);
   });
 
+  it('foto de perfil sai quadrada (quadrado central, até 1000px); foto da fazenda mantém a proporção', async () => {
+    const sharp = (await import('sharp')).default;
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const wide = new Uint8Array(await sharp({ create: { width: 2400, height: 1600, channels: 3, background: '#3a7d24' } }).jpeg().toBuffer());
+    const small = new Uint8Array(await sharp({ create: { width: 300, height: 400, channels: 3, background: '#ee8a14' } }).png().toBuffer());
+    const sizeOf = async (url: string | null | undefined): Promise<[number | undefined, number | undefined]> => {
+      const image = await c.images.get(c.images.idFromUrl(url ?? '') ?? '');
+      assert.ok(image);
+      const { width, height } = await sharp(image.bytes).metadata();
+      return [width, height];
+    };
+
+    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.setFarmerPhoto(farmerId, wide)).photo_url), [1000, 1000]);
+    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.setFarmerPhoto(farmerId, small)).photo_url), [300, 300]);
+    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.addFarmPhoto(farmerId, farmId, wide)).photos[0]?.url), [1000, 667]);
+  });
+
   it('recusa bytes que não são imagem', async () => {
     const c = setup();
     const w = await worker(c, 'w@exemplo.com', '11144477735');

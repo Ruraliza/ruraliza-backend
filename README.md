@@ -73,7 +73,7 @@ src/
   contracts/                # Contrato da API (só tipos): entidades, entradas e respostas
   domain/                   # Result, interfaces dos repositórios e das imagens (ImageStore/ImageProcessor), Clock, datas
   infra/memory/             # Repositórios e ImageStore em memória (implementam as interfaces de domain/)
-  infra/images/             # SharpImageProcessor: redimensiona para até 1000 px e converte para WebP
+  infra/images/             # SharpImageProcessor: redimensiona para até 1000 px (perfil: quadrado) e converte para WebP
   usecases/                 # Regras de negócio: Farmer, Farm, Worker, Service, Hiring, Photo
   controllers/              # HTTP fino: valida o corpo, chama o caso de uso, traduz o Result em status
   http/                     # Tipos dos handlers, route(), parsers dos corpos e tradução de erros
@@ -103,7 +103,7 @@ src/
 
 - Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
 - As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
-- Toda foto enviada passa pelo `SharpImageProcessor` antes de ser guardada: corrige a rotação do celular, reduz para **no máximo 1000 px no maior lado** (sem ampliar fotos pequenas), converte para **WebP (qualidade 78)** e remove os metadados (EXIF/GPS). Arquivos que não são imagem são recusados com 400. Uploads acima de 10 MB são recusados com 413.
+- Toda foto enviada passa pelo `SharpImageProcessor` antes de ser guardada: corrige a rotação do celular, reduz para **no máximo 1000 px no maior lado** (sem ampliar fotos pequenas), converte para **WebP (qualidade 78)** e remove os metadados (EXIF/GPS). Fotos de perfil saem sempre **quadradas** (até 1000×1000 px): o app envia a foto já recortada pelo usuário e, se chegar outra proporção, o servidor recorta o quadrado central. Arquivos que não são imagem são recusados com 400. Uploads acima de 10 MB são recusados com 413.
 - A escolha de tudo isso está num lugar só: `src/container.ts` (`createContainer`).
 
 ### Como ligar o PostgreSQL
@@ -139,7 +139,7 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | GET | `/api/farmers/:id` | Perfil completo (`farms` = lista de IDs das fazendas) |
 | PATCH | `/api/farmers/:id` | Edita `email`, `name`, `phone`; 400 se tentar alterar `id`/`cpf` |
 | DELETE | `/api/farmers/:id` | Remove o produtor com fazendas, serviços, candidaturas e fotos; 409 se houver serviço `In Progress` |
-| POST | `/api/farmers/:id/photo` | Envia/troca a foto de perfil (corpo = bytes da imagem, `Content-Type: image/*`); devolve o produtor com `photo_url` |
+| POST | `/api/farmers/:id/photo` | Envia/troca a foto de perfil, recortada em quadrado (corpo = bytes da imagem, `Content-Type: image/*`); devolve o produtor com `photo_url` |
 | DELETE | `/api/farmers/:id/photo` | Remove a foto de perfil |
 | GET | `/api/farmers/:id/farms` | Fazendas do produtor |
 | POST | `/api/farmers/:id/farms` | Cadastra fazenda (`address`, `city`, `state`, `latitude`, `longitude` do ponto marcado no mapa) |
@@ -164,7 +164,7 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 | GET | `/api/workers/:id` | Perfil completo |
 | PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `bio`, `experience`, `certificates`, `courses`; 400 se tentar alterar `id`/`cpf` |
 | DELETE | `/api/workers/:id` | Remove o trabalhador, suas candidaturas e a foto; 409 se tiver serviço `In Progress` |
-| POST | `/api/workers/:id/photo` | Envia/troca a foto de perfil (corpo = bytes da imagem) |
+| POST | `/api/workers/:id/photo` | Envia/troca a foto de perfil, recortada em quadrado (corpo = bytes da imagem) |
 | DELETE | `/api/workers/:id/photo` | Remove a foto de perfil |
 | GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido (com o ponto da fazenda no mapa quando a candidatura foi aceita) |
 | GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador (com `farm.latitude`/`farm.longitude`) |

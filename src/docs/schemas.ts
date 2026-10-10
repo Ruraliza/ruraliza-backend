@@ -27,7 +27,7 @@ const photoUrl: Schema = {
   type: 'string',
   nullable: true,
   example: '/api/images/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.webp',
-  description: 'Foto de perfil (WebP, no máximo 1000px). null quando não há foto. Relativa à API.'
+  description: 'Foto de perfil (WebP quadrado, no máximo 1000×1000px). null quando não há foto. Relativa à API.'
 };
 const lastDay: Schema = {
   type: 'string',
