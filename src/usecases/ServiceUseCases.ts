@@ -12,6 +12,7 @@ import type {
 import { APPLICATION_STATUS, SERVICE_STATUS } from '../constants/status';
 import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
+import { type PushNotifier, WORKER_APPLICATIONS_URL } from '../domain/push';
 import { dayOf, isPastDay } from '../domain/dates';
 import type {
   ApplicationRepository,
@@ -41,7 +42,8 @@ export class ServiceUseCases {
       applications: ApplicationRepository;
     },
     private readonly clock: Clock,
-    private readonly changes: ChangeFeed
+    private readonly changes: ChangeFeed,
+    private readonly push: PushNotifier
   ) {}
 
   // RF01 - Publica um serviço Pending numa fazenda ativa do produtor.
@@ -119,6 +121,11 @@ export class ServiceUseCases {
     for (const a of await applications.find({ service_id: service.id, status: APPLICATION_STATUS.PENDING })) {
       a.status = APPLICATION_STATUS.REJECTED;
       await applications.update(a);
+      this.push.notify('worker', a.worker_id, {
+        title: 'Serviço cancelado',
+        body: `O produtor cancelou ${service.name}.`,
+        url: WORKER_APPLICATIONS_URL
+      });
     }
     await this.notifyApplicants(service.id);
 

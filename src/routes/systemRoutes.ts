@@ -1,5 +1,5 @@
-import { googleMapsSettings, isAllowedOrigin } from '../config';
-import type { HealthResponse, MapsConfig } from '../contracts';
+import { googleMapsSettings, isAllowedOrigin, vapidSettings } from '../config';
+import type { HealthResponse, MapsConfig, PushConfig } from '../contracts';
 import { TAGS, operation } from '../docs/operations';
 import { type RouteDef, route } from '../http/route';
 import type { Handler } from '../http/types';
@@ -20,6 +20,13 @@ const mapsConfig: Handler<MapsConfig> = (req, res) => {
   return res.json({ api_key: apiKey, map_id: mapId });
 };
 
+// Chave pública VAPID (VAPID_PUBLIC_KEY no .env). É pública por definição: não precisa checar a origem.
+const pushConfig: Handler<PushConfig> = (_req, res) => {
+  const vapid = vapidSettings();
+  if (!vapid) return res.status(503).json({ error: 'Notificações push não configuradas no servidor.' });
+  return res.json({ public_key: vapid.publicKey });
+};
+
 // Montadas em /api (a raiz do servidor redireciona para a documentação, ver app.ts).
 export const systemRoutes: readonly RouteDef[] = [
   route('get', '/health', health, operation({
@@ -37,5 +44,13 @@ export const systemRoutes: readonly RouteDef[] = [
       403: 'Pedido sem o cabeçalho Origin do frontend (https://ruraliza.github.io ou CORS_ORIGINS).',
       503: 'GOOGLE_MAPS_API_KEY não definida no .env.'
     }
+  })),
+
+  route('get', '/config/push', pushConfig, operation({
+    tag: TAGS.system,
+    summary: 'Configuração das notificações push',
+    description: 'Chave pública VAPID para o `PushManager.subscribe()` do navegador.',
+    success: { status: 200, description: 'Chave pública VAPID.', schema: 'PushConfig' },
+    errors: { 503: 'VAPID_PUBLIC_KEY ou VAPID_PRIVATE_KEY não definida no .env.' }
   }))
 ];

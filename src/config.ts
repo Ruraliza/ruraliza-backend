@@ -35,3 +35,18 @@ export function allowedOrigins(): string[] {
 export function isAllowedOrigin(origin: string | undefined): boolean {
   return origin !== undefined && allowedOrigins().includes(origin);
 }
+
+export interface VapidSettings {
+  publicKey: string;
+  privateKey: string;
+  subject: string;
+}
+
+// Chaves VAPID das notificações push (gere com `npx web-push generate-vapid-keys`).
+// null = push desligado: as inscrições são aceitas, mas nada é enviado.
+export function vapidSettings(): VapidSettings | null {
+  const publicKey = (process.env['VAPID_PUBLIC_KEY'] ?? '').trim();
+  const privateKey = (process.env['VAPID_PRIVATE_KEY'] ?? '').trim();
+  if (!publicKey || !privateKey) return null;
+  return { publicKey, privateKey, subject: (process.env['VAPID_SUBJECT'] ?? '').trim() || 'mailto:contato@ruraliza.app' };
+}

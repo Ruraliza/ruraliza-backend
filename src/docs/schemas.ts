@@ -11,14 +11,14 @@ type Properties = Record<string, Schema | OpenAPIV3.ReferenceObject>;
 // e `ref()` só aceita estes, então um $ref quebrado não compila.
 export type SchemaName =
   | 'ServiceStatus' | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
-  | 'ApiError' | 'MessageResponse' | 'HealthResponse' | 'MapsConfig' | 'CategoryList'
+  | 'ApiError' | 'MessageResponse' | 'HealthResponse' | 'MapsConfig' | 'PushConfig' | 'CategoryList'
   | 'Farmer' | 'Worker' | 'Farm' | 'FarmPhoto' | 'FarmLocation'
   | 'Service' | 'ServiceWithFarm' | 'FarmerServiceItem' | 'OpenService'
   | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
   | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate' | 'FarmInput' | 'FarmUpdate'
   | 'ServiceInput' | 'ServiceUpdate' | 'AnalyzeInput' | 'WorkerActionInput'
   | 'UserRole' | 'SessionUser' | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
-  | 'ProfileCreateInput' | 'ActiveRoleInput'
+  | 'ProfileCreateInput' | 'ActiveRoleInput' | 'PushSubscriptionInput' | 'PushUnsubscribeInput'
   | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
   | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse' | 'FarmResponse' | 'ServiceResponse'
   | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse';
@@ -161,6 +161,11 @@ export const schemas = {
     },
     ['api_key', 'map_id'],
     'Configuração do Google Maps para o frontend.'
+  ),
+  PushConfig: object(
+    { public_key: { type: 'string', example: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' } },
+    ['public_key'],
+    'Chave pública VAPID (base64url) para o PushManager.subscribe().'
   ),
   CategoryList: { type: 'array', items: { type: 'string', enum: [...CATEGORIES] }, example: [...CATEGORIES] },
 
@@ -370,6 +375,22 @@ export const schemas = {
     },
     ['role', 'name', 'phone', 'cpf'],
     'Segundo perfil na mesma conta: o e-mail e a senha são os da conta. `bio`, `certificates`, `courses` e `experience` só valem para trabalhador.'
+  ),
+  PushSubscriptionInput: input(
+    {
+      endpoint: { type: 'string', format: 'uri', example: 'https://fcm.googleapis.com/fcm/send/abc123' },
+      keys: object(
+        { p256dh: { type: 'string', example: 'BNcRdreALRFX…' }, auth: { type: 'string', example: 'tBHItJI5svbpez7KI4CCXg' } },
+        ['p256dh', 'auth']
+      )
+    },
+    ['endpoint', 'keys'],
+    'O `PushSubscription.toJSON()` do navegador (`expirationTime` é ignorado).'
+  ),
+  PushUnsubscribeInput: input(
+    { endpoint: { type: 'string', format: 'uri', example: 'https://fcm.googleapis.com/fcm/send/abc123' } },
+    ['endpoint'],
+    'Inscrição (navegador) a remover.'
   ),
   ActiveRoleInput: input({ role: ref('UserRole') }, ['role'], 'Painel a abrir. A conta precisa ter esse perfil.'),
   LoginResponse: object({ message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SessionUser') }, ['message', 'user']),

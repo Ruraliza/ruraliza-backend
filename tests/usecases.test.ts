@@ -580,3 +580,118 @@ describe('Avisos em tempo real (SSE)', () => {
     assert.deepEqual([service.ok ? '' : service.kind, w.ok ? '' : w.kind], ['not_found', 'not_found']);
   });
 });
+
+describe('Notificações push', () => {
+  const ENDPOINT = 'https://push.exemplo.com/abc';
+  const KEYS = { p256dh: 'chave', auth: 'segredo' };
+
+  // Grava o que seria enviado; `gone` simula inscrições revogadas no navegador.
+  function pushSetup(gone: readonly string[] = []): { c: Container; sent: { endpoint: string; title: string; url: string }[] } {
+    const sent: { endpoint: string; title: string; url: string }[] = [];
+    const c = createContainer({
+      clock: { now: () => NOW },
+      push: {
+        send: (sub, message) => {
+          sent.push({ endpoint: sub.endpoint, title: message.title, url: message.url });
+          return Promise.resolve(gone.includes(sub.endpoint) ? 'gone' : 'sent');
+        }
+      }
+    });
+    return { c, sent };
+  }
+
+  async function accountOf(c: Container, filter: { farmer_id: number } | { worker_id: number }): Promise<number> {
+    const [account] = await c.repos.accounts.find(filter);
+    assert.ok(account);
+    return account.id;
+  }
+
+  it('candidatura avisa o produtor; aceite avisa o aceito e os recusados pelo aceite', async () => {
+    const { c, sent } = pushSetup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const [w1, w2] = [await worker(c, 'w1@exemplo.com', '11144477735'), await worker(c, 'w2@exemplo.com', '39053344705')];
+    unwrap(await c.useCases.push.subscribe(await accountOf(c, { farmer_id: farmerId }), { endpoint: 'https://push.exemplo.com/produtor', keys: KEYS }));
+    unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w1 }), { endpoint: 'https://push.exemplo.com/w1', keys: KEYS }));
+    unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w2 }), { endpoint: 'https://push.exemplo.com/w2', keys: KEYS }));
+
+    const a1 = unwrap(await c.useCases.hiring.apply(serviceId, w1));
+    unwrap(await c.useCases.hiring.apply(serviceId, w2));
+    await c.useCases.push.idle();
+    assert.deepEqual(sent.map((s) => [s.endpoint, s.url]), [
+      ['https://push.exemplo.com/produtor', `produtor/servicos/${serviceId}`],
+      ['https://push.exemplo.com/produtor', `produtor/servicos/${serviceId}`]
+    ]);
+
+    sent.length = 0;
+    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: a1.id, action: 'Accept' }));
+    await c.useCases.push.idle();
+    assert.deepEqual(sent.map((s) => [s.endpoint, s.title]), [
+      ['https://push.exemplo.com/w1', 'Você foi aceito!'],
+      ['https://push.exemplo.com/w2', 'Candidatura recusada']
+    ]);
+  });
+
+  it('a mesma inscrição reenviada não duplica e passa para a conta que entrou por último', async () => {
+    const { c, sent } = pushSetup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    const farmerAccount = await accountOf(c, { farmer_id: farmerId });
+
+    unwrap(await c.useCases.push.subscribe(farmerAccount, { endpoint: ENDPOINT, keys: KEYS }));
+    unwrap(await c.useCases.push.subscribe(farmerAccount, { endpoint: ENDPOINT, keys: KEYS }));
+    assert.equal((await c.repos.pushSubscriptions.find()).length, 1);
+
+    unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w }), { endpoint: ENDPOINT, keys: KEYS }));
+    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    await c.useCases.push.idle();
+    assert.equal(sent.length, 0); // o aparelho agora é do trabalhador, não do produtor
+  });
+
+  it('inscrição revogada no navegador é apagada no primeiro envio', async () => {
+    const { c } = pushSetup([ENDPOINT]);
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    unwrap(await c.useCases.push.subscribe(await accountOf(c, { farmer_id: farmerId }), { endpoint: ENDPOINT, keys: KEYS }));
+
+    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    await c.useCases.push.idle();
+    assert.equal((await c.repos.pushSubscriptions.find()).length, 0);
+  });
+
+  it('cancelar inscrição para os envios; conta inexistente dá not_found', async () => {
+    const { c, sent } = pushSetup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    const farmerAccount = await accountOf(c, { farmer_id: farmerId });
+    unwrap(await c.useCases.push.subscribe(farmerAccount, { endpoint: ENDPOINT, keys: KEYS }));
+    unwrap(await c.useCases.push.unsubscribe(farmerAccount, ENDPOINT));
+
+    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    await c.useCases.push.idle();
+    assert.equal(sent.length, 0);
+
+    const missing = await c.useCases.push.subscribe(999, { endpoint: ENDPOINT, keys: KEYS });
+    assert.equal(missing.ok ? '' : missing.kind, 'not_found');
+  });
+
+  it('falha no serviço de push não afeta a operação', async () => {
+    const c = createContainer({ clock: { now: () => NOW }, push: { send: () => Promise.reject(new Error('fora do ar')) } });
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    unwrap(await c.useCases.push.subscribe(await accountOf(c, { farmer_id: farmerId }), { endpoint: ENDPOINT, keys: KEYS }));
+
+    const original = console.error;
+    console.error = () => {};
+    try {
+      unwrap(await c.useCases.hiring.apply(serviceId, w));
+      await c.useCases.push.idle();
+    } finally {
+      console.error = original;
+    }
+  });
+});

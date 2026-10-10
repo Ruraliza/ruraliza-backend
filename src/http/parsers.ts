@@ -13,6 +13,8 @@ import type {
   PasswordResetInput,
   PasswordResetRequestInput,
   ProfileCreateInput,
+  PushSubscriptionInput,
+  PushUnsubscribeInput,
   ServiceInput,
   ServiceUpdate,
   UserRole,
@@ -25,7 +27,7 @@ import { type Result, invalid, ok } from '../domain/result';
 import type { NewWorker } from '../usecases/WorkerUseCases';
 import { normalizeEmail } from '../utils/profile';
 import { isLatitude, isLongitude, isPositiveNumber, isValidCpf, isValidEmail, missingFields, text } from '../utils/validation';
-import { type Body, missingMessage } from './body';
+import { type Body, isRecord, missingMessage } from './body';
 import type { Query } from './types';
 
 // Limites de tamanho dos textos livres (evita perfis e anúncios gigantes).
@@ -415,4 +417,32 @@ export function parseWorkerAction(body: Body): Result<WorkerActionInput> {
   const workerId = body['worker_id'];
   if (!workerId) return invalid('Informe o worker_id.');
   return ok({ worker_id: Number(workerId) });
+}
+
+// --- Notificações push ---
+
+// Endpoint do serviço de push do navegador (FCM, Mozilla, Apple...): sempre https.
+function parsePushEndpoint(value: unknown): Result<string> {
+  if (typeof value !== 'string' || !URL.canParse(value) || new URL(value).protocol !== 'https:') {
+    return invalid('endpoint deve ser a URL https da inscrição de push.');
+  }
+  return ok(value);
+}
+
+export function parsePushSubscription(body: Body): Result<PushSubscriptionInput> {
+  const endpoint = parsePushEndpoint(body['endpoint']);
+  if (!endpoint.ok) return endpoint;
+
+  const keys = body['keys'];
+  const p256dh = isRecord(keys) ? keys['p256dh'] : undefined;
+  const auth = isRecord(keys) ? keys['auth'] : undefined;
+  if (typeof p256dh !== 'string' || !p256dh || typeof auth !== 'string' || !auth) {
+    return invalid('Envie keys.p256dh e keys.auth da inscrição de push.');
+  }
+  return ok({ endpoint: endpoint.value, keys: { p256dh, auth } });
+}
+
+export function parsePushUnsubscribe(body: Body): Result<PushUnsubscribeInput> {
+  const endpoint = parsePushEndpoint(body['endpoint']);
+  return endpoint.ok ? ok({ endpoint: endpoint.value }) : endpoint;
 }

@@ -23,7 +23,7 @@ import { workerRoutes } from './workerRoutes';
 // então rota e documentação não têm como divergir.
 export function createRouteGroups(useCases: UseCases): readonly RouteGroup[] {
   const auth = createAuthController(useCases.auth);
-  const accounts = createAccountController(useCases.accounts);
+  const accounts = createAccountController(useCases.accounts, useCases.push);
   const farmers = createFarmerController(useCases.farmers);
   const farms = createFarmController(useCases.farms);
   const services = createServiceController(useCases.services, useCases.hiring);

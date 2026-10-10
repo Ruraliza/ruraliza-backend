@@ -6,6 +6,7 @@ export type * from './config';
 export type * from './farm';
 export type * from './farmer';
 export type * from './payment';
+export type * from './push';
 export type * from './service';
 export type * from './service-application';
 export type * from './status';

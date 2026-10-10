@@ -2,6 +2,7 @@ import type { AnalyzeInput, Payment, Service, ServiceApplication } from '../cont
 import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
 import { type ChangeFeed, type ChangeTopic, serviceApplications, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
+import { type PushMessage, type PushNotifier, WORKER_APPLICATIONS_URL, farmerServiceUrl } from '../domain/push';
 import type { AccountRepository, ApplicationRepository, PaymentRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, invalid, notFound, ok, requireFound } from '../domain/result';
 import { findAccountOf } from './accounts';
@@ -17,7 +18,7 @@ export type WithdrawOutcome = { undone: 'application' | 'service'; service: Serv
 
 // Contratação: candidatura, aceite/recusa, desistência e pagamento.
 // Cada operação altera várias entidades juntas e, no fim, avisa as telas abertas do serviço
-// e dos trabalhadores afetados (`changes`).
+// e dos trabalhadores afetados (`changes`) e manda push para quem precisa agir ou saber (`push`).
 // TODO(db): executar cada uma numa transação.
 export class HiringUseCases {
   constructor(
@@ -29,7 +30,8 @@ export class HiringUseCases {
       accounts: AccountRepository;
     },
     private readonly clock: Clock,
-    private readonly changes: ChangeFeed
+    private readonly changes: ChangeFeed,
+    private readonly push: PushNotifier
   ) {}
 
   // RF02 - Candidata-se a um serviço aberto (uma vez por serviço).
@@ -67,6 +69,11 @@ export class HiringUseCases {
       insertion_date: this.clock.now()
     });
     this.notify(service.id, [worker.id]);
+    this.push.notify('farmer', service.farmer_id, {
+      title: 'Nova candidatura',
+      body: `${worker.name} se candidatou a ${service.name}.`,
+      url: farmerServiceUrl(service.id)
+    });
     return ok(application);
   }
 
@@ -87,23 +94,30 @@ export class HiringUseCases {
       application.status = APPLICATION_STATUS.REJECTED;
       await applications.update(application);
       this.notify(service.id, [application.worker_id]);
+      this.push.notify('worker', application.worker_id, rejectedMessage(service));
       return ok({ application });
     }
 
     application.status = APPLICATION_STATUS.ACCEPTED;
     await applications.update(application);
-    const affected = [application.worker_id];
+    const autoRejected: number[] = [];
     for (const other of await applications.find({ service_id: service.id, status: APPLICATION_STATUS.PENDING })) {
       // auto_rejected: recusada pelo aceite de outro; volta a Pending se o aceito desistir.
       other.status = APPLICATION_STATUS.REJECTED;
       other.auto_rejected = true;
       await applications.update(other);
-      affected.push(other.worker_id);
+      autoRejected.push(other.worker_id);
     }
     service.worker_id = application.worker_id;
     service.status = SERVICE_STATUS.IN_PROGRESS;
     await services.update(service);
-    this.notify(service.id, affected);
+    this.notify(service.id, [application.worker_id, ...autoRejected]);
+    this.push.notify('worker', application.worker_id, {
+      title: 'Você foi aceito!',
+      body: `O produtor aceitou sua candidatura em ${service.name}.`,
+      url: WORKER_APPLICATIONS_URL
+    });
+    for (const workerId of autoRejected) this.push.notify('worker', workerId, rejectedMessage(service));
 
     return ok({ application, service });
   }
@@ -123,6 +137,7 @@ export class HiringUseCases {
     if (application.status === APPLICATION_STATUS.PENDING && service.status === SERVICE_STATUS.PENDING) {
       await applications.delete(application.id);
       this.notify(service.id, [workerId]);
+      this.notifyWithdrawal(service);
       return ok({ undone: 'application', service });
     }
 
@@ -140,6 +155,7 @@ export class HiringUseCases {
       service.status = SERVICE_STATUS.PENDING;
       await services.update(service);
       this.notify(service.id, affected);
+      this.notifyWithdrawal(service);
       return ok({ undone: 'service', service });
     }
 
@@ -168,6 +184,11 @@ export class HiringUseCases {
     service.status = SERVICE_STATUS.COMPLETED;
     await services.update(service);
     this.notify(service.id, [workerId]);
+    this.push.notify('worker', workerId, {
+      title: 'Pagamento liberado',
+      body: `O pagamento de ${service.name} foi liberado.`,
+      url: WORKER_APPLICATIONS_URL
+    });
 
     return ok({ service, payment });
   }
@@ -177,4 +198,16 @@ export class HiringUseCases {
     const topics: ChangeTopic[] = [serviceApplications(serviceId), ...workerIds.map(workerApplications)];
     this.changes.publish(topics);
   }
+
+  private notifyWithdrawal(service: Service): void {
+    this.push.notify('farmer', service.farmer_id, {
+      title: 'Desistência',
+      body: `Um trabalhador desistiu de ${service.name}.`,
+      url: farmerServiceUrl(service.id)
+    });
+  }
+}
+
+function rejectedMessage(service: Service): PushMessage {
+  return { title: 'Candidatura recusada', body: `Sua candidatura em ${service.name} não foi aceita.`, url: WORKER_APPLICATIONS_URL };
 }
