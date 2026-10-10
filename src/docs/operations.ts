@@ -45,8 +45,9 @@ export interface OperationSpec {
   description?: string;
   params?: OpenAPIV3.ParameterObject[];
   body?: SchemaName | typeof IMAGE_UPLOAD | typeof PDF_UPLOAD;
-  // Resposta JSON (`schema`) ou binária (`binary`: o Content-Type devolvido).
-  success: { status: 200 | 201; description: string } & ({ schema: SuccessSchema } | { binary: string });
+  // Resposta JSON (`schema`), binária (`binary`: o Content-Type devolvido) ou stream SSE (`eventStream`).
+  success: { status: 200 | 201; description: string } &
+    ({ schema: SuccessSchema } | { binary: string } | { eventStream: true });
   // Cada erro possível da rota, com as situações que o causam.
   errors?: Partial<Record<ErrorStatus, string>>;
 }
@@ -56,14 +57,18 @@ const errorResponse = (description: string): OpenAPIV3.ResponseObject => ({
   content: { 'application/json': { schema: ref('ApiError') } }
 });
 
+function successContent(success: OperationSpec['success']): Record<string, OpenAPIV3.MediaTypeObject> {
+  if ('binary' in success) return { [success.binary]: { schema: { type: 'string', format: 'binary' } } };
+  if ('eventStream' in success) return { 'text/event-stream': { schema: { type: 'string' } } };
+  return { 'application/json': { schema: toSchema(success.schema) } };
+}
+
 export function operation(spec: OperationSpec): OpenAPIV3.OperationObject {
   const success = spec.success;
   const responses: OpenAPIV3.ResponsesObject = {
     [success.status]: {
       description: success.description,
-      content: 'binary' in success
-        ? { [success.binary]: { schema: { type: 'string', format: 'binary' } } }
-        : { 'application/json': { schema: toSchema(success.schema) } }
+      content: successContent(success)
     }
   };
   for (const [status, description] of Object.entries(spec.errors ?? {})) {

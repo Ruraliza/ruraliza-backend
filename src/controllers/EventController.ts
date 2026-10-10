@@ -1,0 +1,29 @@
+import { sendFailure, toId } from '../http/respond';
+import { APPLICATIONS_CHANGED_EVENT, openEventStream, sendEvent } from '../http/sse';
+import type { Handler, IdParams } from '../http/types';
+import type { ServiceUseCases } from '../usecases/ServiceUseCases';
+import type { WorkerUseCases } from '../usecases/WorkerUseCases';
+
+// HTTP dos avisos em tempo real (SSE) para as telas abertas atualizarem sem recarregar.
+export interface EventController {
+  serviceApplicationEvents: Handler<never, IdParams>;
+  workerApplicationEvents: Handler<never, IdParams>;
+}
+
+export function createEventController(services: ServiceUseCases, workers: WorkerUseCases): EventController {
+  // GET /api/farmers/services/:id/events - Avisa quando alguém se candidata, desiste ou é aceito/recusado
+  const serviceApplicationEvents: Handler<never, IdParams> = async (req, res) => {
+    const result = await services.watchApplications(toId(req.params.id), () => sendEvent(res, APPLICATIONS_CHANGED_EVENT));
+    if (!result.ok) { sendFailure(res, result); return; }
+    openEventStream(res, result.value);
+  };
+
+  // GET /api/workers/:id/events - Avisa quando o status de uma candidatura do trabalhador muda
+  const workerApplicationEvents: Handler<never, IdParams> = async (req, res) => {
+    const result = await workers.watchApplications(toId(req.params.id), () => sendEvent(res, APPLICATIONS_CHANGED_EVENT));
+    if (!result.ok) { sendFailure(res, result); return; }
+    openEventStream(res, result.value);
+  };
+
+  return { serviceApplicationEvents, workerApplicationEvents };
+}

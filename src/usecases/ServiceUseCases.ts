@@ -10,6 +10,7 @@ import type {
   ServiceWithFarm
 } from '../contracts';
 import { APPLICATION_STATUS, SERVICE_STATUS } from '../constants/status';
+import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
 import { dayOf, isPastDay } from '../domain/dates';
 import type {
@@ -39,7 +40,8 @@ export class ServiceUseCases {
       services: ServiceRepository;
       applications: ApplicationRepository;
     },
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly changes: ChangeFeed
   ) {}
 
   // RF01 - Publica um serviço Pending numa fazenda ativa do produtor.
@@ -96,6 +98,8 @@ export class ServiceUseCases {
     if (changes.duration !== undefined) service.duration = changes.duration;
     if (changes.price !== undefined) service.price = changes.price;
     await this.repos.services.update(service);
+    // As candidaturas do trabalhador mostram nome, valor e cidade do serviço.
+    await this.notifyApplicants(service.id);
 
     return ok(service);
   }
@@ -116,8 +120,15 @@ export class ServiceUseCases {
       a.status = APPLICATION_STATUS.REJECTED;
       await applications.update(a);
     }
+    await this.notifyApplicants(service.id);
 
     return ok(service);
+  }
+
+  // Avisa a tela de candidaturas do serviço e a de todos os candidatos dele.
+  private async notifyApplicants(serviceId: number): Promise<void> {
+    const applicants = await this.repos.applications.find({ service_id: serviceId });
+    this.changes.publish([serviceApplications(serviceId), ...applicants.map((a) => workerApplications(a.worker_id))]);
   }
 
   // A validade é o último dia para candidaturas: não pode ficar no passado.
@@ -168,6 +179,13 @@ export class ServiceUseCases {
       })
     );
     return ok(result);
+  }
+
+  // Acompanha as candidaturas do serviço (tela do produtor); devolve a função que para de acompanhar.
+  async watchApplications(id: number, listener: ChangeListener): Promise<Result<() => void>> {
+    const service = await this.repos.services.findById(id);
+    if (!service) return notFound('Serviço não encontrado.');
+    return ok(this.changes.subscribe(serviceApplications(service.id), listener));
   }
 
   // RF02 - Vagas abertas: Pending e dentro da validade, com filtros combinados (E).

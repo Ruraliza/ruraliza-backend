@@ -1,5 +1,6 @@
 import type { AnalyzeInput, Payment, Service, ServiceApplication } from '../contracts';
 import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
+import { type ChangeFeed, type ChangeTopic, serviceApplications, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
 import type { ApplicationRepository, PaymentRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, invalid, notFound, ok, requireFound } from '../domain/result';
@@ -14,7 +15,8 @@ export interface AnalyzeOutcome {
 export type WithdrawOutcome = { undone: 'application' | 'service'; service: Service };
 
 // Contratação: candidatura, aceite/recusa, desistência e pagamento.
-// Cada operação altera várias entidades juntas.
+// Cada operação altera várias entidades juntas e, no fim, avisa as telas abertas do serviço
+// e dos trabalhadores afetados (`changes`).
 // TODO(db): executar cada uma numa transação.
 export class HiringUseCases {
   constructor(
@@ -24,7 +26,8 @@ export class HiringUseCases {
       workers: WorkerRepository;
       payments: PaymentRepository;
     },
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly changes: ChangeFeed
   ) {}
 
   // RF02 - Candidata-se a um serviço aberto (uma vez por serviço).
@@ -55,6 +58,7 @@ export class HiringUseCases {
       status: APPLICATION_STATUS.PENDING,
       insertion_date: this.clock.now()
     });
+    this.notify(service.id, [worker.id]);
     return ok(application);
   }
 
@@ -74,20 +78,24 @@ export class HiringUseCases {
     if (action === 'Reject') {
       application.status = APPLICATION_STATUS.REJECTED;
       await applications.update(application);
+      this.notify(service.id, [application.worker_id]);
       return ok({ application });
     }
 
     application.status = APPLICATION_STATUS.ACCEPTED;
     await applications.update(application);
+    const affected = [application.worker_id];
     for (const other of await applications.find({ service_id: service.id, status: APPLICATION_STATUS.PENDING })) {
       // auto_rejected: recusada pelo aceite de outro; volta a Pending se o aceito desistir.
       other.status = APPLICATION_STATUS.REJECTED;
       other.auto_rejected = true;
       await applications.update(other);
+      affected.push(other.worker_id);
     }
     service.worker_id = application.worker_id;
     service.status = SERVICE_STATUS.IN_PROGRESS;
     await services.update(service);
+    this.notify(service.id, affected);
 
     return ok({ application, service });
   }
@@ -106,20 +114,24 @@ export class HiringUseCases {
 
     if (application.status === APPLICATION_STATUS.PENDING && service.status === SERVICE_STATUS.PENDING) {
       await applications.delete(application.id);
+      this.notify(service.id, [workerId]);
       return ok({ undone: 'application', service });
     }
 
     if (application.status === APPLICATION_STATUS.ACCEPTED && service.status === SERVICE_STATUS.IN_PROGRESS) {
       await applications.delete(application.id);
+      const affected = [workerId];
       for (const other of await applications.find({ service_id: service.id })) {
         if (other.auto_rejected !== true) continue;
         other.status = APPLICATION_STATUS.PENDING;
         delete other.auto_rejected;
         await applications.update(other);
+        affected.push(other.worker_id);
       }
       service.worker_id = null;
       service.status = SERVICE_STATUS.PENDING;
       await services.update(service);
+      this.notify(service.id, affected);
       return ok({ undone: 'service', service });
     }
 
@@ -147,7 +159,14 @@ export class HiringUseCases {
     service.payment_id = payment.id;
     service.status = SERVICE_STATUS.COMPLETED;
     await services.update(service);
+    this.notify(service.id, [workerId]);
 
     return ok({ service, payment });
+  }
+
+  // Avisa a tela de candidaturas do serviço e a de cada trabalhador afetado.
+  private notify(serviceId: number, workerIds: readonly number[]): void {
+    const topics: ChangeTopic[] = [serviceApplications(serviceId), ...workerIds.map(workerApplications)];
+    this.changes.publish(topics);
   }
 }

@@ -1,4 +1,5 @@
 import type { AuthController } from '../controllers/AuthController';
+import type { EventController } from '../controllers/EventController';
 import type { FarmController } from '../controllers/FarmController';
 import type { FarmerController } from '../controllers/FarmerController';
 import type { PhotoController } from '../controllers/PhotoController';
@@ -24,9 +25,10 @@ export interface FarmerRouteControllers {
   services: ServiceController;
   photos: PhotoController;
   auth: AuthController;
+  events: EventController;
 }
 
-export function farmerRoutes({ farmers, farms, services, photos, auth }: FarmerRouteControllers): readonly RouteDef[] {
+export function farmerRoutes({ farmers, farms, services, photos, auth, events }: FarmerRouteControllers): readonly RouteDef[] {
   return [
     // --- SERVIÇOS ---
 
@@ -78,6 +80,19 @@ export function farmerRoutes({ farmers, farms, services, photos, auth }: FarmerR
       summary: 'Candidaturas do serviço',
       params: [serviceId],
       success: { status: 200, description: 'Candidaturas com o trabalhador embutido (CPF mascarado).', schema: { listOf: 'ApplicationWithWorker' } },
+      errors: { 404: 'Serviço não encontrado.' }
+    })),
+
+    route('get', '/services/:id/events', events.serviceApplicationEvents, operation({
+      tag: TAGS.farmerServices,
+      summary: 'Acompanhar candidaturas em tempo real (SSE)',
+      description:
+        'Server-Sent Events (`text/event-stream`), para usar com `EventSource` no navegador. A conexão fica aberta e ' +
+        '`event: applications` (com `data: {}`) chega a cada mudança; o aviso não traz dados: busque a lista de novo em `GET /api/farmers/services/{id}/applications`. ' +
+        'Avisa quando alguém se candidata ou desiste, quando uma candidatura é aceita/recusada e quando o serviço é editado, cancelado ou pago. ' +
+        'A cada 25 s vai um comentário (`: ping`) para manter a conexão viva.',
+      params: [serviceId],
+      success: { status: 200, description: 'Stream de eventos aberto.', eventStream: true },
       errors: { 404: 'Serviço não encontrado.' }
     })),
 

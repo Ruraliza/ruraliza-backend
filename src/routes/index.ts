@@ -1,5 +1,6 @@
 import type { UseCases } from '../container';
 import { createAuthController } from '../controllers/AuthController';
+import { createEventController } from '../controllers/EventController';
 import { createFarmController } from '../controllers/FarmController';
 import { createFarmerController } from '../controllers/FarmerController';
 import { createJobController } from '../controllers/JobController';
@@ -27,11 +28,12 @@ export function createRouteGroups(useCases: UseCases): readonly RouteGroup[] {
   const jobs = createJobController(useCases.services, useCases.hiring);
   const photos = createPhotoController(useCases.photos);
   const resumes = createResumeController(useCases.resumes);
+  const events = createEventController(useCases.services, useCases.workers);
 
   return [
     { prefix: '/api/auth', routes: authRoutes(auth) },
-    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, farms, services, photos, auth }) },
-    { prefix: '/api/workers', routes: workerRoutes({ workers, jobs, photos, resumes, auth }) },
+    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, farms, services, photos, auth, events }) },
+    { prefix: '/api/workers', routes: workerRoutes({ workers, jobs, photos, resumes, auth, events }) },
     { prefix: '/api/images', routes: imageRoutes(photos) },
     { prefix: '/api/documents', routes: documentRoutes(resumes) },
     { prefix: '/api/categories', routes: categoryRoutes },
