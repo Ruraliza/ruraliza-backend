@@ -45,6 +45,8 @@ As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com 
 | `CORS_ORIGINS` | Origens (separadas por vírgula) aceitas pelo CORS e por `GET /api/config/maps`. Sem ela, só `https://ruraliza.github.io`. Em `npm run dev` o CORS aceita qualquer origem, mas a rota do mapa continua restrita. No `.env` local use `http://localhost:4200`; no Render, não defina |
 | `GOOGLE_MAPS_API_KEY` | Chave do Google Maps Platform (Maps JavaScript API + Geocoding API + Maps Embed API). Entregue ao frontend por `GET /api/config/maps`, então **restrinja por HTTP referrer** no Google Cloud. Sem ela, essa rota responde 503 e o mapa fica indisponível |
 | `GOOGLE_MAPS_MAP_ID` | Map ID para o alfinete arrastável (padrão `DEMO_MAP_ID`, só para desenvolvimento) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Chaves das notificações push (gere com `npx web-push generate-vapid-keys`). Sem elas, `GET /api/config/push` responde 503 e nada é enviado |
+| `VAPID_SUBJECT` | Contato do responsável pelo envio (`mailto:` ou `https:`), exigido pelos serviços de push |
 
 Em produção (Render), cadastre as mesmas variáveis no painel do serviço.
 
@@ -167,6 +169,8 @@ Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres
 | GET | `/api/accounts/:id` | Sessão da conta (`user`), no mesmo formato do login |
 | POST | `/api/accounts/:id/profiles` | Cria o outro perfil na conta: `{ role, name, phone, cpf }` (+ `bio`, `certificates`, `courses`, `experience` para trabalhador). E-mail e senha são os da conta. Já abre o painel novo. 409 se a conta já tem esse perfil ou se o CPF é de outra conta |
 | PATCH | `/api/accounts/:id/active-role` | `{ role }`: troca o painel aberto (e o que abre no próximo login); 404 se a conta não tem esse perfil |
+| POST | `/api/accounts/:id/push-subscriptions` | `{ endpoint, keys: { p256dh, auth } }` (o `PushSubscription.toJSON()` do navegador): ativa as notificações push neste navegador, para os dois perfis da conta. Reenviar a mesma inscrição não duplica |
+| DELETE | `/api/accounts/:id/push-subscriptions` | `{ endpoint }`: desativa as notificações neste navegador |
 
 Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** como produtor (`POST /api/workers/services/:id/apply` responde 409).
 
@@ -222,6 +226,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/categories` | Lista fixa de categorias |
+| GET | `/api/config/push` | Chave pública VAPID das notificações push; 503 se as chaves não estiverem no `.env` |
 | GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 403 se o `Origin` não for do frontend, 503 se a chave não estiver configurada |
 | GET | `/api/images/:id` | Serve uma foto (WebP, cache imutável de 1 ano) |
 | GET | `/api/documents/:id` | Serve um currículo (PDF, cache imutável de 1 ano) |
@@ -233,6 +238,12 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 As telas de candidatos do serviço (produtor) e de candidaturas (trabalhador) se atualizam sozinhas por **Server-Sent Events**: o frontend abre `GET .../events` com `EventSource`, a resposta (`text/event-stream`) fica aberta e chega `event: applications` a cada mudança. O aviso não traz dados; a tela busca a lista de novo pela rota de sempre. A cada 25 s vai um `: ping` para a conexão não ser cortada por inatividade, e o `EventSource` reconecta sozinho se ela cair.
 
 Os casos de uso publicam os avisos (`ChangeFeed`, `src/domain/changes.ts`) depois de cada mudança: candidatura, desistência, aceite/recusa (inclusive as recusadas pelo aceite e as que voltam a `Pending`), edição, cancelamento e pagamento do serviço, e remoção de produtor ou trabalhador. A implementação em memória (`InMemoryChangeFeed`) só vale para **um processo**; com várias instâncias da API, troque por algo compartilhado (LISTEN/NOTIFY do PostgreSQL ou Redis pub/sub) em `createContainer({ changes })`.
+
+### Notificações push
+
+Com o app fechado, quem precisa agir recebe uma notificação (**Web Push**, chaves VAPID do `.env`): o produtor quando alguém se candidata ou desiste; o trabalhador quando é aceito, recusado (inclusive pelo aceite de outro), quando o serviço é cancelado e quando o pagamento é liberado. A mensagem segue o formato do service worker do Angular (`notification.data.onActionClick`), e o clique abre o app na tela certa.
+
+O envio (`PushUseCases`, `src/infra/push/WebPushSender.ts`) roda em segundo plano: falha no serviço de push só vai para o log, nunca para a resposta. Inscrições que o navegador revogou (404/410) são apagadas no primeiro envio. Como o resto dos dados, as inscrições ficam em memória; o frontend reenvia a dele a cada abertura do app.
 
 **Prazo das vagas (`expires_at`):** dia do calendário. A vaga aceita candidaturas até o fim desse dia no horário de Brasília. Depois disso continua `Pending` para o produtor, mas some da busca e recusa candidaturas (409) até o produtor renovar a data. Não dá para publicar ou editar com data no passado (400).
 

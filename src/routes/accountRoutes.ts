@@ -40,6 +40,28 @@ export function accountRoutes(accounts: AccountController): readonly RouteDef[] 
       body: 'ActiveRoleInput',
       success: { status: 200, description: 'Painel trocado.', schema: 'SessionResponse' },
       errors: { 400: '`role` faltando ou inválido.', 404: 'Conta não encontrada, ou ela ainda não tem esse perfil.' }
+    })),
+
+    route('post', '/:id/push-subscriptions', accounts.subscribePush, operation({
+      tag: TAGS.auth,
+      summary: 'Ativar notificações push neste navegador',
+      description:
+        'Guarda a inscrição de `PushManager.subscribe()` (com a chave de GET /api/config/push). ' +
+        'Vale para os dois perfis da conta. Pode ser reenviada: o `endpoint` identifica o navegador.',
+      params: [accountId],
+      body: 'PushSubscriptionInput',
+      success: { status: 201, description: 'Inscrição guardada.', schema: 'MessageResponse' },
+      errors: { 400: '`endpoint` não é uma URL https; `keys.p256dh` ou `keys.auth` faltando.', 404: 'Conta não encontrada.' }
+    })),
+
+    route('delete', '/:id/push-subscriptions', accounts.unsubscribePush, operation({
+      tag: TAGS.auth,
+      summary: 'Desativar notificações push neste navegador',
+      description: 'Remove a inscrição com esse `endpoint` (se não existir, nada muda).',
+      params: [accountId],
+      body: 'PushUnsubscribeInput',
+      success: { status: 200, description: 'Inscrição removida.', schema: 'MessageResponse' },
+      errors: { 400: '`endpoint` não é uma URL https.', 404: 'Conta não encontrada.' }
     }))
   ];
 }

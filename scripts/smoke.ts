@@ -18,6 +18,7 @@ import type {
   FarmerSignupResponse,
   LoginResponse,
   MapsConfig,
+  PushConfig,
   OpenService,
   PasswordResetRequestResponse,
   PaymentResponse,
@@ -332,6 +333,14 @@ async function run(): Promise<void> {
   const accountUrl = `/accounts/${farmerSession.account_id}`;
   await step<SessionUser>('sessão da conta', 'GET', accountUrl, undefined, 200, (b) => assert.deepEqual(b, farmerSession));
   await step('conta inexistente', 'GET', '/accounts/999', undefined, 404);
+  const pushSub = { endpoint: 'https://push.exemplo.com/smoke', keys: { p256dh: 'chave', auth: 'segredo' } };
+  await step('ativar push', 'POST', `${accountUrl}/push-subscriptions`, pushSub, 201);
+  await step('ativar push de novo (mesmo navegador)', 'POST', `${accountUrl}/push-subscriptions`, pushSub, 201);
+  await step('push com endpoint http', 'POST', `${accountUrl}/push-subscriptions`, { ...pushSub, endpoint: 'http://push.exemplo.com/x' }, 400);
+  await step('push sem keys', 'POST', `${accountUrl}/push-subscriptions`, { endpoint: pushSub.endpoint }, 400);
+  await step('push em conta inexistente', 'POST', '/accounts/999/push-subscriptions', pushSub, 404);
+  await step('desativar push', 'DELETE', `${accountUrl}/push-subscriptions`, { endpoint: pushSub.endpoint }, 200);
+  await step('desativar push sem endpoint', 'DELETE', `${accountUrl}/push-subscriptions`, {}, 400);
   await step('painel que a conta não tem', 'PATCH', `${accountUrl}/active-role`, { role: 'worker' }, 404);
   await step('perfil novo com e-mail', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725', email: 'x@exemplo.com' }, 400);
   await step('perfil novo com CPF de outra conta', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '98765432100' }, 409);
@@ -607,6 +616,17 @@ async function run(): Promise<void> {
   process.env['CORS_ORIGINS'] = 'http://localhost:4200';
   await step('configuração do mapa de origem do CORS_ORIGINS', 'GET', '/config/maps', undefined, 200, undefined,
     { Origin: 'http://localhost:4200' });
+  const savedVapid = [process.env['VAPID_PUBLIC_KEY'], process.env['VAPID_PRIVATE_KEY']];
+  process.env['VAPID_PUBLIC_KEY'] = '';
+  await step('push sem chaves VAPID no .env', 'GET', '/config/push', undefined, 503);
+  process.env['VAPID_PUBLIC_KEY'] = 'chave-publica';
+  process.env['VAPID_PRIVATE_KEY'] = 'chave-privada';
+  await step<PushConfig>('configuração do push', 'GET', '/config/push', undefined, 200,
+    (b) => assert.equal(b.public_key, 'chave-publica'));
+  if (savedVapid[0] === undefined) delete process.env['VAPID_PUBLIC_KEY'];
+  else process.env['VAPID_PUBLIC_KEY'] = savedVapid[0];
+  if (savedVapid[1] === undefined) delete process.env['VAPID_PRIVATE_KEY'];
+  else process.env['VAPID_PRIVATE_KEY'] = savedVapid[1];
   if (savedKey === undefined) delete process.env['GOOGLE_MAPS_API_KEY'];
   else process.env['GOOGLE_MAPS_API_KEY'] = savedKey;
   if (savedOrigins === undefined) delete process.env['CORS_ORIGINS'];

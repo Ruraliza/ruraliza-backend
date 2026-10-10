@@ -1,5 +1,6 @@
 import type { Farm, Farmer, Payment, Service, ServiceApplication, Worker } from '../contracts';
 import type { Account } from './passwords';
+import type { PushSubscriptionRecord } from './push';
 
 // Acesso a dados que as regras de negócio enxergam. Tudo é assíncrono desde já:
 // a implementação em memória e a futura em PostgreSQL cumprem a mesma interface.
@@ -28,6 +29,7 @@ export type ApplicationRepository = Repository<ServiceApplication, 'service_id' 
 export type PaymentRepository = Repository<Payment, 'service_id'>;
 // TODO(db): restrições UNIQUE (email), (farmer_id) e (worker_id).
 export type AccountRepository = Repository<Account, 'email' | 'farmer_id' | 'worker_id' | 'reset_token_digest'>;
+export type PushSubscriptionRepository = Repository<PushSubscriptionRecord, 'account_id' | 'endpoint'>;
 
 export interface Repositories {
   farmers: FarmerRepository;
@@ -37,4 +39,5 @@ export interface Repositories {
   applications: ApplicationRepository;
   payments: PaymentRepository;
   accounts: AccountRepository;
+  pushSubscriptions: PushSubscriptionRepository;
 }

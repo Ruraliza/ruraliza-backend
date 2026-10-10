@@ -7,6 +7,7 @@ import type * as FrontConfig from '../../ruraliza-frontend/src/models/config.mod
 import type * as FrontFarm from '../../ruraliza-frontend/src/models/farm.model';
 import type * as FrontFarmer from '../../ruraliza-frontend/src/models/farmer.model';
 import type * as FrontPayment from '../../ruraliza-frontend/src/models/payment.model';
+import type * as FrontPush from '../../ruraliza-frontend/src/models/push.model';
 import type * as FrontService from '../../ruraliza-frontend/src/models/service.model';
 import type * as FrontApplication from '../../ruraliza-frontend/src/models/service-application.model';
 import type * as FrontStatus from '../../ruraliza-frontend/src/models/status';
@@ -23,6 +24,10 @@ export type ContractParity = [
   Expect<Equals<Api.PaymentStatus, FrontStatus.PaymentStatus>>,
 
   Expect<Equals<Api.MapsConfig, FrontConfig.MapsConfig>>,
+
+  Expect<Equals<Api.PushSubscriptionInput, FrontPush.PushSubscriptionInput>>,
+  Expect<Equals<Api.PushUnsubscribeInput, FrontPush.PushUnsubscribeInput>>,
+  Expect<Equals<Api.PushConfig, FrontPush.PushConfig>>,
 
   Expect<Equals<Api.UserRole, FrontAuth.UserRole>>,
   Expect<Equals<Api.SessionUser, FrontAuth.SessionUser>>,

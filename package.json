@@ -27,7 +27,8 @@
     "pg-harness": "^0.2.1",
     "sequelize": "^6.37.8",
     "sharp": "^0.35.5",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -35,6 +36,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.3",
     "@types/swagger-ui-express": "^4.1.8",
+    "@types/web-push": "^3.6.4",
     "ajv": "^8.20.0",
     "ajv-draft-04": "^1.0.0",
     "eslint": "^10.11.0",
