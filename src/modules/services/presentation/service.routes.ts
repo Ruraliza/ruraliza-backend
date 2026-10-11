@@ -87,7 +87,7 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
         summary: 'Buscar vagas abertas (RF02)',
         description:
           'Serviços `Pending` dentro da validade (`expires_at` vazio ou hoje/futuro, no horário de Brasília), ' +
-          'com cidade/UF e fotos da fazenda (sem o endereço completo). Todos os filtros são opcionais e se combinam.',
+          'com cidade/UF, fotos e reputação da fazenda (sem o endereço completo). Todos os filtros são opcionais e se combinam.',
         params: [
           queryParam('q', 'Busca no nome, na descrição, na categoria e na cidade. Ignora acentos e maiúsculas; todas as palavras precisam aparecer.', { type: 'string', maxLength: 100 }),
           queryParam('category', 'Filtra por categoria (ver GET /api/categories).', { type: 'string' }),
@@ -95,10 +95,11 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
           queryParam('max_hours', 'Carga horária máxima (horas).', { type: 'number', minimum: 0 }),
           queryParam('from', 'Publicadas a partir deste dia.', date),
           queryParam('to', 'Publicadas até este dia.', date),
-          queryParam('sort', 'Ordem. Padrão: recent.', { type: 'string', enum: ['recent', 'price_desc', 'price_asc', 'duration_asc', 'duration_desc'] })
+          queryParam('min_rating', 'Só fazendas com média de avaliação a partir desta nota (fazendas sem avaliação ficam de fora).', { type: 'number', minimum: 1, maximum: 5 }),
+          queryParam('sort', 'Ordem. Padrão: recent. `rating`: fazendas mais bem avaliadas primeiro (média ponderada pela quantidade de avaliações).', { type: 'string', enum: ['recent', 'price_desc', 'price_asc', 'duration_asc', 'duration_desc', 'rating'] })
         ],
         success: { status: 200, description: 'Vagas abertas.', schema: { listOf: 'OpenService' } },
-        errors: { 400: 'Número ou data em formato inválido; mínimo maior que o máximo; `from` depois de `to`; `sort` desconhecido.' }
+        errors: { 400: 'Número ou data em formato inválido; mínimo maior que o máximo; `from` depois de `to`; `min_rating` fora de 1 a 5; `sort` desconhecido.' }
       }), access.worker()),
 
       route('get', '/services/:id', jobs.getServiceDetail, serviceOperation({

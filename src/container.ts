@@ -1,11 +1,13 @@
 import { type AccountUseCases, type ProfileFactory, createAccountUseCases } from '#modules/accounts';
 import { type AdminUseCases, createAdminUseCases } from '#modules/admin';
+import { type ChatUseCases, createChatUseCases } from '#modules/chat';
 import { type AuthUseCases, createAuthUseCases } from '#modules/auth';
 import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import { type PushDispatcher, type PushSender, type PushUseCases, WebPushSender, createPushDispatcher, createPushUseCases } from '#modules/notifications';
+import { type ReviewUseCases, createReviewUseCases } from '#modules/reviews';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
 import { type CertificateCodes, type TrackUseCases, createTrackUseCases, randomCertificateCodes } from '#modules/tracks';
@@ -16,6 +18,7 @@ import { type Clock, systemClock } from '#shared/domain/clock';
 import type { DocumentStore } from '#shared/domain/documents';
 import type { ImageProcessor, ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
+import type { ProfileCleanup } from '#shared/domain/profile-cleanup';
 import type { ResetTokens, SessionTokens } from '#shared/domain/tokens';
 import { createHmacSessionTokens, randomResetTokens, scryptPasswordHasher } from '#shared/infra/crypto/node-crypto';
 import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-document-store';
@@ -43,6 +46,8 @@ export interface UseCases {
   farms: FarmUseCases;
   services: ServiceUseCases;
   hiring: HiringUseCases;
+  reviews: ReviewUseCases;
+  chat: ChatUseCases;
   photos: PhotoUseCases;
   push: PushUseCases;
   systemUsers: SystemUserUseCases;
@@ -87,11 +92,20 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const clock = options.clock ?? systemClock;
   const changes = options.changes ?? new InMemoryChangeFeed();
   const tokens = options.tokens ?? createHmacSessionTokens(authTokenSecret(), clock);
-  const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers, tracks, enrollments, certificates } = repos;
+  const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers, workerReviews, farmReviews, chats, chatMessages, tracks, enrollments, certificates } = repos;
   const pushDeps = { accounts, pushSubscriptions, clock, sender: options.push ?? new WebPushSender() };
   const notifier = createPushDispatcher(pushDeps);
-  const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes });
-  const workerUseCases = createWorkerUseCases({ workers, farmers, farms, services, applications, accounts, pushSubscriptions, clock, images, documents, passwords, changes });
+  // Avaliações e conversas vêm antes: a contratação e as vagas leem a reputação, a contratação abre
+  // e fecha a conversa, e a remoção de um perfil apaga as conversas e as avaliações dele.
+  const reviewUseCases = createReviewUseCases({ services, payments, farms, workers, workerReviews, farmReviews, clock, changes, push: notifier });
+  const chatUseCases = createChatUseCases({ chats, chatMessages, services, farmers, workers, clock, changes, push: notifier });
+  const cleanup: ProfileCleanup = {
+    farmerRemoved: async (id) => { await chatUseCases.cleanup.farmerRemoved(id); await reviewUseCases.cleanup.farmerRemoved(id); },
+    workerRemoved: async (id) => { await chatUseCases.cleanup.workerRemoved(id); await reviewUseCases.cleanup.workerRemoved(id); }
+  };
+  const reputation = reviewUseCases.getReputation;
+  const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes, cleanup });
+  const workerUseCases = createWorkerUseCases({ workers, farmers, farms, services, applications, accounts, pushSubscriptions, clock, images, documents, passwords, changes, cleanup });
   // O segundo perfil de uma conta (src/modules/accounts) é criado pelos casos de uso dos perfis.
   const profiles: ProfileFactory = {
     create: (role, { bio, certificates, courses, experience, ...base }) => role === 'farmer'
@@ -114,8 +128,10 @@ export function createContainer(options: ContainerOptions = {}): Container {
       farmers: farmerUseCases,
       workers: workerUseCases,
       farms: createFarmUseCases({ farmers, farms, services, clock }),
-      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier }),
-      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier }),
+      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier, reputation }),
+      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier, events: chatUseCases.hiringEvents, reputation }),
+      reviews: reviewUseCases,
+      chat: chatUseCases,
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
       push: createPushUseCases(pushDeps),
       systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),

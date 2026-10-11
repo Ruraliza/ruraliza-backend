@@ -1,4 +1,5 @@
 import type { Account, AccountRepository } from '#modules/accounts';
+import type { ChatRepository } from '#modules/chat';
 import type { ServiceRepository } from '#modules/services';
 import { type SystemPermission, type SystemUserRepository, canDo } from '#modules/system-users';
 import { type Result, forbidden, ok, unauthorized } from '#shared/domain/result';
@@ -41,18 +42,20 @@ function bearerToken(req: AccessRequest, tokenInQuery: boolean): string | undefi
 }
 
 export interface AccessDeps {
-  repos: { accounts: AccountRepository; systemUsers: SystemUserRepository; services: ServiceRepository };
+  repos: { accounts: AccountRepository; systemUsers: SystemUserRepository; services: ServiceRepository; chats: ChatRepository };
   tokens: SessionTokens;
 }
 
 export interface AccessPolicies {
   ownAccount(param?: string): Access;
-  ownFarmer(param?: string): Access;
+  ownFarmer(param?: string, options?: AccessOptions): Access;
   ownWorker(param?: string, options?: AccessOptions): Access;
   farmerOfService(param?: string, options?: AccessOptions): Access;
   farmerInBody(name?: string): Access;
   workerInBody(name?: string): Access;
   worker(query?: string): Access;
+  chatParticipant(param?: string, options?: AccessOptions): Access;
+  anyAccount: Access;
   system(permission: SystemPermission | readonly SystemPermission[]): Access;
   anySystemUser: Access;
 }
@@ -101,8 +104,8 @@ export function createAccess({ repos, tokens }: AccessDeps): AccessPolicies {
     },
 
     // O próprio perfil de produtor (`:param` é o id do produtor).
-    ownFarmer(param = 'id'): Access {
-      return account('O próprio produtor.', (acc, req) => owns(acc.farmer_id, idFrom(req.params, param)));
+    ownFarmer(param = 'id', options: AccessOptions = {}): Access {
+      return account('O próprio produtor.', (acc, req) => owns(acc.farmer_id, idFrom(req.params, param)), options);
     },
 
     // O próprio perfil de trabalhador (`:param` é o id do trabalhador).
@@ -137,6 +140,22 @@ export function createAccess({ repos, tokens }: AccessDeps): AccessPolicies {
     worker(query = 'worker_id'): Access {
       return account(`Trabalhador; \`${query}\`, se enviado, precisa ser o dele.`, (acc, req) => owns(acc.worker_id, idFrom(req.query, query)));
     },
+
+    // O produtor ou o trabalhador da conversa `:param`.
+    chatParticipant(param = 'id', options: AccessOptions = {}): Access {
+      return account(
+        'O produtor ou o trabalhador da conversa.',
+        async (acc, req) => {
+          const chat = await repos.chats.findById(idFrom(req.params, param) ?? NaN);
+          if (!chat) return ok(null);
+          return chat.farmer_id === acc.farmer_id || chat.worker_id === acc.worker_id ? ok(null) : forbidden(NOT_YOURS);
+        },
+        options
+      );
+    },
+
+    // Qualquer conta do app (ex.: ver a reputação publicada de um trabalhador ou de uma fazenda).
+    anyAccount: account('Qualquer conta do app.', () => ok(null)),
 
     // Usuário de sistema cujo cargo tem a permissão (com uma lista, qualquer uma delas).
     system(permission: SystemPermission | readonly SystemPermission[]): Access {

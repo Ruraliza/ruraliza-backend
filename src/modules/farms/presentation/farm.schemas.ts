@@ -1,9 +1,11 @@
+import type { ReviewSchemaName } from '#modules/reviews';
 import { type Properties, type RefTo, type Schema, id, input, isoDate, latitude, longitude, object, refTo } from '#shared/infra/docs/schema-kit';
 
 // Schemas OpenAPI das fazendas (contrato em ../farm.contract.ts). Registrados em src/docs/schemas.ts.
 export type FarmSchemaName = 'Farm' | 'FarmPhoto' | 'FarmLocation' | 'FarmInput' | 'FarmUpdate' | 'FarmResponse';
 
 const ref: RefTo<FarmSchemaName> = refTo;
+const reviewRef: RefTo<ReviewSchemaName> = refTo;
 
 const farmProps: Properties = {
   id,
@@ -35,7 +37,8 @@ export const farmSchemas = {
       state: { type: 'string', example: 'RJ' },
       photos: { type: 'array', items: { type: 'string' }, example: ['/api/images/3f2c….webp'], description: 'URLs das fotos da fazenda (a primeira é a capa).' },
       latitude: { ...latitude, description: 'Só para o trabalhador aceito no serviço.' },
-      longitude: { ...longitude, description: 'Só para o trabalhador aceito no serviço.' }
+      longitude: { ...longitude, description: 'Só para o trabalhador aceito no serviço.' },
+      reputation: { allOf: [reviewRef('FarmReputation')], description: 'Avaliações publicadas da fazenda (na busca e no detalhe da vaga).' }
     },
     ['city', 'state', 'photos'],
     'Local da fazenda exposto ao trabalhador (sem o endereço completo; o ponto no mapa só vai para o trabalhador aceito).'

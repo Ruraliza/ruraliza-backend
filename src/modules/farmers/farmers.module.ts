@@ -6,6 +6,7 @@ import type { PushSubscriptionRepository } from '#modules/notifications';
 import type { ServiceRepository } from '#modules/services';
 import type { WorkerRepository } from '#modules/workers';
 import type { ChangeFeed } from '#shared/domain/changes';
+import type { ProfileCleanup } from '#shared/domain/profile-cleanup';
 import type { Clock } from '#shared/domain/clock';
 import type { ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
@@ -33,6 +34,8 @@ export interface FarmersModuleDeps {
   images: ImageStore;
   passwords: PasswordHasher;
   changes: ChangeFeed;
+  // Conversas e avaliações do perfil removido (ligado pelo container).
+  cleanup: ProfileCleanup;
 }
 
 export interface FarmerUseCases {

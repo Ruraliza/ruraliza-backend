@@ -3,6 +3,7 @@ import { SERVICE_STATUS, type Service, type ServiceRepository } from '#modules/s
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import type { ApplicationRepository } from '../domain/application.repository';
+import type { HiringEvents } from '../domain/hiring-events';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
 import { notifyWithdrawal, publishApplicationChanges } from './hiring-notifications';
 
@@ -11,6 +12,7 @@ export interface WithdrawFromServiceDeps {
   applications: ApplicationRepository;
   changes: ChangeFeed;
   push: PushNotifier;
+  events: HiringEvents;
 }
 
 export interface WithdrawFromServiceInput {
@@ -57,6 +59,7 @@ export class WithdrawFromServiceUseCase {
       service.worker_id = null;
       service.status = SERVICE_STATUS.PENDING;
       await services.update(service);
+      await this.deps.events.withdrawn(service, workerId); // encerra a conversa
       publishApplicationChanges(changes, service.id, affected);
       notifyWithdrawal(push, service);
       return ok({ undone: 'service', service });

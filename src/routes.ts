@@ -1,5 +1,6 @@
 import { createAccountRoutes } from '#modules/accounts';
 import { createAdminRoutes } from '#modules/admin';
+import { createChatRoutes } from '#modules/chat';
 import { createAccess, createAuthRoutes } from '#modules/auth';
 import { createFarmerRoutes } from '#modules/farmers';
 import { createFarmRoutes } from '#modules/farms';
@@ -7,6 +8,7 @@ import { createHiringRoutes } from '#modules/hiring';
 import { createPhotoRoutes } from '#modules/media';
 import { createPushRoutes } from '#modules/notifications';
 import { platformRoutes } from '#modules/platform';
+import { createReviewRoutes } from '#modules/reviews';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
 import { createSystemUserRoutes } from '#modules/system-users';
 import { createTrackRoutes } from '#modules/tracks';
@@ -28,6 +30,8 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const photos = createPhotoRoutes(useCases.photos, access);
   const services = createServiceRoutes(useCases.services, access);
   const hiring = createHiringRoutes(useCases.hiring, access);
+  const reviews = createReviewRoutes(useCases.reviews, access);
+  const chat = createChatRoutes(useCases.chat, access);
   const tracks = createTrackRoutes(useCases.tracks, access);
 
   return [
@@ -38,6 +42,8 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
       routes: [
         ...services.services, // publicar, ver, editar e cancelar
         ...hiring.farmer, // candidaturas, avisos, aceite e pagamento
+        ...reviews.farmer, // avaliar o trabalhador e o que falta avaliar
+        ...chat.farmer, // conversas do produtor
         ...farmers, // cadastro e perfil
         ...auth.farmerPassword,
         ...photos.farmer,
@@ -52,6 +58,8 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
         ...services.jobs, // buscar e ver vagas
         ...tracks.learning, // trilhas de estudo: lista, detalhe e matrícula
         ...hiring.worker, // candidatura e desistência
+        ...reviews.worker, // avaliar a fazenda e o que falta avaliar
+        ...chat.worker, // conversas do trabalhador
         ...workers.profile, // cadastro e perfil
         ...auth.workerPassword,
         ...photos.worker,
@@ -60,6 +68,8 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
         ...tracks.progress // estudo da trilha, aulas concluídas e certificados
       ]
     },
+    { prefix: '/api/chats', routes: chat.chats },
+    { prefix: '/api/reviews', routes: reviews.reputation },
     { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage] },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },

@@ -14,6 +14,8 @@ export const TAGS = {
   jobs: 'Vagas (trabalhador)',
   images: 'Imagens',
   documents: 'Documentos',
+  reviews: 'Avaliações',
+  chat: 'Conversas',
   tracks: 'Trilhas (tutor)',
   learning: 'Trilhas (trabalhador)',
   certificates: 'Certificados',

@@ -27,6 +27,19 @@ export function maskCpf(cpf: string): string {
   return `***.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-**`;
 }
 
+// 24988887766 -> (24) *****-**66: o produtor vê só que há um número, sem poder chamar antes da hora.
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 4) return '*'.repeat(digits.length);
+  return `(${digits.slice(0, 2)}) *****-**${digits.slice(-2)}`;
+}
+
+// maria@exemplo.com -> m***@exemplo.com
+export function maskEmail(email: string): string {
+  const at = email.indexOf('@');
+  return at <= 0 ? '***' : `${email.slice(0, 1)}***${email.slice(at)}`;
+}
+
 export function isPositiveNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }

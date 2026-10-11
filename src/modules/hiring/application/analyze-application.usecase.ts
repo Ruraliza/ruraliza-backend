@@ -3,6 +3,7 @@ import { SERVICE_STATUS, type Service, type ServiceRepository } from '#modules/s
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Result, conflict, invalid, notFound, ok } from '#shared/domain/result';
 import type { ApplicationRepository } from '../domain/application.repository';
+import type { HiringEvents } from '../domain/hiring-events';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
 import type { AnalyzeInput, ServiceApplication } from '../hiring.contract';
 import { publishApplicationChanges, rejectedMessage } from './hiring-notifications';
@@ -12,6 +13,7 @@ export interface AnalyzeApplicationDeps {
   applications: ApplicationRepository;
   changes: ChangeFeed;
   push: PushNotifier;
+  events: HiringEvents;
 }
 
 export interface AnalyzeApplicationInput extends AnalyzeInput {
@@ -61,6 +63,7 @@ export class AnalyzeApplicationUseCase {
     service.worker_id = application.worker_id;
     service.status = SERVICE_STATUS.IN_PROGRESS;
     await services.update(service);
+    await this.deps.events.accepted(service); // abre a conversa
     publishApplicationChanges(changes, service.id, [application.worker_id, ...autoRejected]);
     push.notify('worker', application.worker_id, {
       title: 'Você foi aceito!',

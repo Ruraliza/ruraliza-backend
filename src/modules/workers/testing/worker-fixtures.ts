@@ -7,6 +7,7 @@ import { createInMemoryPushSubscriptionRepository } from '#modules/notifications
 import { createInMemoryServiceRepository } from '#modules/services';
 import type { Service } from '#modules/services';
 import type { ChangeTopic } from '#shared/domain/changes';
+import { NO_PROFILE_CLEANUP } from '#shared/domain/profile-cleanup';
 import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-document-store';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { fixedClock } from '#shared/testing/fixed-clock';
@@ -46,6 +47,7 @@ export function workersTestbed(): WorkersTestbed {
     documents: new InMemoryDocumentStore(),
     passwords: { hash: (p) => Promise.resolve(`hash(${p})`), verify: (p, h) => Promise.resolve(h === `hash(${p})`) },
     changes,
+    cleanup: NO_PROFILE_CLEANUP,
     published: changes.published
   };
 }

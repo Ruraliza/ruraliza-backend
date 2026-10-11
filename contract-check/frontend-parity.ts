@@ -8,6 +8,8 @@ import type * as FrontFarm from '../../ruraliza-frontend/src/app/core/models/far
 import type * as FrontFarmer from '../../ruraliza-frontend/src/app/core/models/farmer.model';
 import type * as FrontPayment from '../../ruraliza-frontend/src/app/core/models/payment.model';
 import type * as FrontPush from '../../ruraliza-frontend/src/app/core/models/push.model';
+import type * as FrontReview from '../../ruraliza-frontend/src/app/core/models/review.model';
+import type * as FrontChat from '../../ruraliza-frontend/src/app/core/models/chat.model';
 import type * as FrontService from '../../ruraliza-frontend/src/app/core/models/service.model';
 import type * as FrontApplication from '../../ruraliza-frontend/src/app/core/models/service-application.model';
 import type * as FrontStatus from '../../ruraliza-frontend/src/app/core/models/status';
@@ -73,6 +75,34 @@ export type ContractParity = [
   Expect<Equals<Api.AnalyzeAction, FrontApplication.AnalyzeAction>>,
 
   Expect<Equals<Api.Payment, FrontPayment.Payment>>,
+
+  Expect<Equals<Api.WorkerReviewScores, FrontReview.WorkerReviewScores>>,
+  Expect<Equals<Api.FarmReviewScores, FrontReview.FarmReviewScores>>,
+  Expect<Equals<Api.WorkerReview, FrontReview.WorkerReview>>,
+  Expect<Equals<Api.FarmReview, FrontReview.FarmReview>>,
+  Expect<Equals<Api.WorkerReviewInput, FrontReview.WorkerReviewInput>>,
+  Expect<Equals<Api.FarmReviewInput, FrontReview.FarmReviewInput>>,
+  Expect<Equals<Api.WorkerReputation, FrontReview.WorkerReputation>>,
+  Expect<Equals<Api.FarmReputation, FrontReview.FarmReputation>>,
+  Expect<Equals<Api.WorkerReviewItem, FrontReview.WorkerReviewItem>>,
+  Expect<Equals<Api.FarmReviewItem, FrontReview.FarmReviewItem>>,
+  Expect<Equals<Api.WorkerReviewsPage, FrontReview.WorkerReviewsPage>>,
+  Expect<Equals<Api.FarmReviewsPage, FrontReview.FarmReviewsPage>>,
+  Expect<Equals<Api.FarmerServiceReviews, FrontReview.FarmerServiceReviews>>,
+  Expect<Equals<Api.WorkerServiceReviews, FrontReview.WorkerServiceReviews>>,
+  Expect<Equals<Api.FarmerReviewResponse, FrontReview.FarmerReviewResponse>>,
+  Expect<Equals<Api.WorkerReviewResponse, FrontReview.WorkerReviewResponse>>,
+  Expect<Equals<Api.PendingReview, FrontReview.PendingReview>>,
+
+  Expect<Equals<Api.ChatSender, FrontChat.ChatSender>>,
+  Expect<Equals<Api.ChatMessage, FrontChat.ChatMessage>>,
+  Expect<Equals<Api.ChatPerson, FrontChat.ChatPerson>>,
+  Expect<Equals<Api.Chat, FrontChat.Chat>>,
+  Expect<Equals<Api.ChatDetail, FrontChat.ChatDetail>>,
+  Expect<Equals<Api.ChatMessageInput, FrontChat.ChatMessageInput>>,
+  Expect<Equals<Api.ChatMessageResponse, FrontChat.ChatMessageResponse>>,
+  Expect<Equals<Api.ChatPhoneInput, FrontChat.ChatPhoneInput>>,
+  Expect<Equals<Api.ChatResponse, FrontChat.ChatResponse>>,
 
   Expect<Equals<Api.SystemRole, FrontSystem.SystemRole>>,
   Expect<Equals<Api.SystemUser, FrontSystem.SystemUser>>,

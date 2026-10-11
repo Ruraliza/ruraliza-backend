@@ -1,6 +1,7 @@
 // API pública do módulo de serviços (vagas): o único arquivo que outros módulos enxergam (#modules/services).
 export type * from './service.contract';
 export { CATEGORIES } from './domain/categories';
+export type { FarmReputationReader } from './domain/farm-reputation';
 export type { ServiceRepository } from './domain/service.repository';
 export { SERVICE_STATUS, isServiceStatus, serviceStatusList } from './domain/service-status';
 export { isExpired, toOpenService } from './domain/service.rules';

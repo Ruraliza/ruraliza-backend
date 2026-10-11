@@ -23,7 +23,7 @@ export function hiringRoutes(hiring: HiringController, access: AccessPolicies): 
         tag: TAGS.farmerServices,
         summary: 'Candidaturas do serviço',
         params: [serviceId],
-        success: { status: 200, description: 'Candidaturas com o trabalhador embutido (CPF mascarado).', schema: { listOf: 'ApplicationWithWorker' } },
+        success: { status: 200, description: 'Candidaturas com o trabalhador (CPF, telefone e e-mail mascarados) e a reputação dele.', schema: { listOf: 'ApplicationWithWorker' } },
         errors: { 404: 'Serviço não encontrado.' }
       }), access.farmerOfService()),
 

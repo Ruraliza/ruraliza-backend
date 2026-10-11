@@ -5,6 +5,10 @@ import type { ServerResponse } from 'node:http';
 
 // Nome do evento enviado quando as candidaturas mudam (o frontend busca a lista de novo).
 export const APPLICATIONS_CHANGED_EVENT = 'applications';
+// Chegou mensagem (ou mudou o WhatsApp liberado) numa conversa aberta na tela.
+export const CHAT_CHANGED_EVENT = 'chat';
+// Alguma conversa do perfil mudou (mensagem nova, lida, aberta ou encerrada): lista e contador do menu.
+export const CHATS_CHANGED_EVENT = 'chats';
 
 // Comentário periódico: mantém a conexão viva atrás de proxies que cortam conexões ociosas.
 const HEARTBEAT_MS = 25_000;

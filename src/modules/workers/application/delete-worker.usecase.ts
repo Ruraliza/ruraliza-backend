@@ -5,6 +5,7 @@ import { SERVICE_STATUS, type ServiceRepository } from '#modules/services';
 import { type ChangeFeed, serviceApplications } from '#shared/domain/changes';
 import { type DocumentStore, releaseDocument } from '#shared/domain/documents';
 import { type ImageStore, releaseImage } from '#shared/domain/images';
+import type { ProfileCleanup } from '#shared/domain/profile-cleanup';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import type { WorkerRepository } from '../domain/worker.repository';
 
@@ -17,10 +18,11 @@ export interface DeleteWorkerDeps {
   images: ImageStore;
   documents: DocumentStore;
   changes: ChangeFeed;
+  cleanup: ProfileCleanup;
 }
 
-// As candidaturas embutem o perfil do trabalhador, então saem junto com ele (e a foto, o currículo
-// e o perfil na conta). Bloqueado enquanto houver serviço em andamento atribuído a ele.
+// As candidaturas embutem o perfil do trabalhador, então saem junto com ele (e a foto, o currículo,
+// as conversas, as avaliações e o perfil na conta). Bloqueado enquanto houver serviço em andamento atribuído a ele.
 export class DeleteWorkerUseCase {
   constructor(private readonly deps: DeleteWorkerDeps) {}
 
@@ -35,6 +37,7 @@ export class DeleteWorkerUseCase {
     }
 
     // TODO(db): numa transação, ou com ON DELETE CASCADE.
+    await this.deps.cleanup.workerRemoved(worker.id);
     const own = await applications.find({ worker_id: worker.id });
     for (const application of own) {
       await applications.delete(application.id);

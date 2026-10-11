@@ -19,7 +19,7 @@ export interface HiringController {
 }
 
 export function createHiringController(hiring: HiringUseCases): HiringController {
-  // GET /api/farmers/services/:id/applications - Candidaturas com o trabalhador embutido (CPF mascarado)
+  // GET /api/farmers/services/:id/applications - Candidaturas com o trabalhador (contato mascarado) e a reputação
   const listServiceApplications: Handler<ApplicationWithWorker[], IdParams> = async (req, res) => {
     const result = await hiring.listServiceApplications.execute({ serviceId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }

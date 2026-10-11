@@ -1,11 +1,13 @@
 import { type AccountSchemaName, accountSchemas } from '#modules/accounts';
 import { type AdminSchemaName, adminSchemas } from '#modules/admin';
 import { type AuthSchemaName, authSchemas } from '#modules/auth';
+import { type ChatSchemaName, chatSchemas } from '#modules/chat';
 import { type FarmerSchemaName, farmerSchemas } from '#modules/farmers';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
 import { type PushSchemaName, pushSchemas } from '#modules/notifications';
 import { type PlatformSchemaName, platformSchemas } from '#modules/platform';
+import { type ReviewSchemaName, reviewSchemas } from '#modules/reviews';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
 import { type SystemUserSchemaName, systemUserSchemas } from '#modules/system-users';
 import { type TrackSchemaName, trackSchemas } from '#modules/tracks';
@@ -26,6 +28,8 @@ export type SchemaName =
   | WorkerSchemaName
   | ServiceSchemaName
   | HiringSchemaName
+  | ReviewSchemaName
+  | ChatSchemaName
   | PushSchemaName
   | SystemUserSchemaName
   | AdminSchemaName
@@ -39,6 +43,8 @@ export const schemas = {
   ...workerSchemas,
   ...serviceSchemas,
   ...hiringSchemas,
+  ...reviewSchemas,
+  ...chatSchemas,
   ...pushSchemas,
   ...accountSchemas,
   ...authSchemas,

@@ -26,6 +26,16 @@ export function farmerServiceUrl(serviceId: number): string {
   return `produtor/servicos/${serviceId}`;
 }
 
+// Detalhe da vaga para o trabalhador (onde ele acompanha e avalia o serviço).
+export function workerJobUrl(serviceId: number): string {
+  return `trabalhador/vagas/${serviceId}`;
+}
+
+// Conversa do serviço, no painel de quem recebe.
+export function chatUrl(role: UserRole, chatId: number): string {
+  return `${role === 'farmer' ? 'produtor' : 'trabalhador'}/conversas/${chatId}`;
+}
+
 // 'gone': o serviço de push diz que a inscrição não existe mais (o usuário revogou/desinstalou).
 export type PushDelivery = 'sent' | 'gone';
 

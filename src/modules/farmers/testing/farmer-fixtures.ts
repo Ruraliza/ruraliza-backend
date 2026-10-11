@@ -6,6 +6,7 @@ import { createInMemoryPushSubscriptionRepository } from '#modules/notifications
 import { createInMemoryServiceRepository } from '#modules/services';
 import { createInMemoryWorkerRepository } from '#modules/workers';
 import type { ChangeTopic } from '#shared/domain/changes';
+import { NO_PROFILE_CLEANUP } from '#shared/domain/profile-cleanup';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { fixedClock } from '#shared/testing/fixed-clock';
 import { recordingChangeFeed } from '#shared/testing/recorders';
@@ -32,6 +33,7 @@ export function farmersTestbed(): FarmersTestbed {
     images: new InMemoryImageStore(),
     passwords: { hash: (p) => Promise.resolve(`hash(${p})`), verify: (p, h) => Promise.resolve(h === `hash(${p})`) },
     changes,
+    cleanup: NO_PROFILE_CLEANUP,
     published: changes.published
   };
 }
