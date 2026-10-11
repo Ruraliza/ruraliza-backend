@@ -31,12 +31,12 @@ Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe. Cada conta ent
 | Conta | Perfis (ID) | Nome | E-mail | Senha | CPF | Dados |
 |---|---|---|---|---|---|---|
 | 1 | Produtor 1 | João Produtor | `produtor@exemplo.com` | `ruraliza123` | `52998224725` | Fazendas 1 (São José, Três Rios/RJ) e 2 (Boa Vista, Paraíba do Sul/RJ); serviços 1 a 7 |
-| 2 | Trabalhador 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; nenhuma candidatura |
+| 2 | Trabalhador 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; nenhuma candidatura; trilha 1 pela metade |
 | 3 | Produtor 2 e trabalhador 2 | Carlos Produtor e Trabalhador | `ambos@exemplo.com` | `ruraliza123` | `39053344705` | Abre no painel de produtor; sem fazendas nem serviços |
 
 Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha"), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
 
-**Equipe (usuários de sistema):** `admin@exemplo.com`, senha `ruraliza123`, cargo `admin`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Fora do seed, o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env`.
+**Equipe (usuários de sistema):** `admin@exemplo.com` (cargo `admin`) e `tutor@exemplo.com` (cargo `tutor`, dono das trilhas 1 e 2, publicadas, e 3, em rascunho), senha `ruraliza123`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Fora do seed, o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env`.
 
 ### Configuração (`.env`)
 
@@ -90,12 +90,12 @@ src/
   container.ts              # Raiz de composição: escolhe as implementações e monta os casos de uso de cada módulo
   repositories.ts           # Todos os repositórios (Repositories) e a versão em memória
   routes.ts                 # Os grupos de rotas de cada módulo, na ordem de cada prefixo
-  seed.ts                   # Seed de demonstração
+  seed.ts                   # Seed de demonstração (as trilhas ficam em seed-tracks.ts)
   docs/                     # Registro de todos os schemas OpenAPI e montagem do documento
   contracts/                # Barrel do contrato da API (reexporta os *.contract.ts) para o check:contracts
   modules/                  # Uma fatia vertical por contexto de negócio:
                             #   accounts, auth, farmers, workers, farms, services, hiring, media,
-                            #   notifications, system-users, admin, platform
+                            #   notifications, system-users, admin, platform, tracks
     <módulo>/
       index.ts              #   API pública: o único arquivo que outro módulo enxerga (#modules/<módulo>)
       <módulo>.module.ts    #   Monta os casos de uso (container) e as rotas (src/routes.ts)
@@ -112,7 +112,7 @@ src/
     infra/docs/             # Kit do OpenAPI: helpers de schema, operation(), schemas genéricos
     infra/                  # crypto (scrypt, HMAC), images (Sharp + store), documents, memory
     testing/                # unwrap(), fixedClock() e dublês que gravam avisos e pushes (fora do build)
-    utils/                  # Validações (e-mail, CPF, senha) e perfil público (CPF mascarado)
+    utils/                  # Validações (e-mail, CPF, senha), busca sem acento e perfil público (CPF mascarado)
     config.ts               # Variáveis de ambiente
 ```
 
@@ -253,11 +253,17 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category`, `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`); 400 se algum filtro for inválido |
 | GET | `/api/workers/services/:id?worker_id=` | Detalhe da vaga. Com `worker_id` do trabalhador aceito no serviço, inclui `farm.latitude`/`farm.longitude` |
 | POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta, se o prazo terminou ou se já houve candidatura |
+| GET | `/api/workers/tracks?q=&category=&worker_id=` | Trilhas de estudo publicadas (e, com `worker_id`, as descontinuadas em que ele está matriculado), com carga horária, tutores e `progress`; em andamento primeiro |
+| GET | `/api/workers/tracks/:id?worker_id=` | A trilha antes de começar: descrição, tutores, carga e o sumário de módulos e aulas, sem o conteúdo |
+| POST | `/api/workers/tracks/:id/enroll` | `{ worker_id }`; começa a trilha (repetir devolve a matrícula); 409 se descontinuada |
+| GET | `/api/workers/:id/tracks/:trackId` | A trilha completa (aulas com vídeo e texto) e o progresso; 403 se não está matriculado |
+| PUT / DELETE | `/api/workers/:id/tracks/:trackId/lessons/:lessonId/completion` | Conclui / desmarca a aula. A última aula que faltava emite o certificado (`issued_certificate`) |
+| GET | `/api/workers/:id/certificates` | Certificados do trabalhador |
 | PATCH | `/api/workers/services/:id/withdraw` | `{ worker_id }`; desiste e volta uma etapa: candidatura `Pending` é removida; se já aceito, o serviço volta a `Pending` e as candidaturas recusadas pelo aceite voltam a `Pending`; 409 se recusada ou serviço encerrado |
 
 ### Administração (`/api/admin`)
 
-Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe; `tutor` vai gerenciar as trilhas de estudo (ainda sem rotas). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
+Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe; `tutor` cria e edita as trilhas de estudo (permissão `tracks:manage`). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -271,17 +277,28 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 | POST | `/api/admin/system-users` | Cadastra usuário de sistema: `{ email, name, role: "admin" \| "tutor", password }`; 409 se o e-mail já existe na equipe |
 | GET | `/api/admin/system-users/:id` | Um usuário de sistema |
 | PATCH | `/api/admin/system-users/:id` | Edita `name`, `email` e `role` de um membro da equipe; 409 se o e-mail já existe ou se o administrador tentar mudar o próprio cargo (a equipe nunca fica sem administrador) |
+| GET | `/api/admin/tracks` | (tutor) Todas as trilhas, em qualquer status; `is_tutor` diz quais quem pediu pode editar |
+| GET | `/api/admin/tracks/tutors` | (tutor) Usuários de sistema com cargo tutor |
+| POST | `/api/admin/tracks` | (tutor) Cria em rascunho: `{ title, description, categories }`; quem cria vira tutor |
+| GET / PATCH | `/api/admin/tracks/:id` | (tutor) Detalhe / edita `title`, `description`, `categories` e `tutor_ids`. Só os tutores da trilha editam (403 para os outros) |
+| PUT | `/api/admin/tracks/:id/content` | (tutor) Substitui módulos e aulas (`{ modules: [{ id?, title, lessons: [{ id?, title, video_url?, content?, duration_minutes }] }] }`). Com `id` mantém o item; ids nunca são reaproveitados |
+| PATCH | `/api/admin/tracks/:id/status` | (tutor) `{ status: "published" \| "discontinued" }`. Não há remoção nem volta para rascunho; 409 se a transição não vale ou se faltam aulas |
 
 ### Outros
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/categories` | Lista fixa de categorias |
+| GET | `/api/certificates/:code` | Validação pública de um certificado de conclusão (sem token) |
 | GET | `/api/config/push` | Chave pública VAPID das notificações push; 503 se as chaves não estiverem no `.env` |
 | GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 403 se o `Origin` não for do frontend, 503 se a chave não estiver configurada |
 | GET | `/api/images/:id` | Serve uma foto (WebP, cache imutável de 1 ano) |
 | GET | `/api/documents/:id` | Serve um currículo (PDF, cache imutável de 1 ano) |
 
 **Localização da fazenda:** o produtor marca o ponto no mapa (`latitude`/`longitude`, obrigatórias no cadastro; fazendas antigas podem ter `null`). O trabalhador só recebe as coordenadas nos serviços em que foi aceito; nas vagas abertas vê apenas cidade/UF.
+
+### Trilhas de estudo
+
+Cursos para os trabalhadores, divididos em módulos e aulas (vídeo do YouTube/Vimeo e/ou texto em Markdown simples, com a duração em minutos; a carga horária é a soma). Os tutores montam; a trilha nasce em rascunho e segue `draft → published ⇄ discontinued`. Descontinuada some da lista e não aceita alunos novos, mas quem já começou termina. Ao concluir a última aula, o trabalhador recebe um certificado em nome da Ruraliza (nome, trilha, carga horária e data de conclusão, guardados como estavam na emissão) com um código validado em `/api/certificates/:code`.
 
 ### Atualização em tempo real (SSE)
 
@@ -304,5 +321,5 @@ O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`)
 - [ ] Guardar as fotos num bucket (S3/R2) em vez da memória.
 - [ ] Enviar o código de redefinição de senha por e-mail (e parar de devolvê-lo em `POST /api/auth/password-reset`; ver `TODO(email)`).
 - [ ] Encerrar as sessões abertas ao trocar a senha (hoje o token vale até vencer).
-- [ ] Rotas do tutor para cadastrar e editar trilhas de estudo (permissão `tracks:manage`).
-- [ ] Trilhas de qualificação, registro de horas e relatórios em PDF.
+- [x] Trilhas de estudo: rotas do tutor (`tracks:manage`), estudo pelo trabalhador e certificados.
+- [ ] Registro de horas e relatórios em PDF.

@@ -8,6 +8,7 @@ import { type PushSchemaName, pushSchemas } from '#modules/notifications';
 import { type PlatformSchemaName, platformSchemas } from '#modules/platform';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
 import { type SystemUserSchemaName, systemUserSchemas } from '#modules/system-users';
+import { type TrackSchemaName, trackSchemas } from '#modules/tracks';
 import { type WorkerSchemaName, workerSchemas } from '#modules/workers';
 import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
 import type { Schema } from '#shared/infra/docs/schema-kit';
@@ -27,7 +28,8 @@ export type SchemaName =
   | HiringSchemaName
   | PushSchemaName
   | SystemUserSchemaName
-  | AdminSchemaName;
+  | AdminSchemaName
+  | TrackSchemaName;
 
 export const schemas = {
   ...coreSchemas,
@@ -41,5 +43,6 @@ export const schemas = {
   ...accountSchemas,
   ...authSchemas,
   ...systemUserSchemas,
-  ...adminSchemas
+  ...adminSchemas,
+  ...trackSchemas
 } satisfies Record<SchemaName, Schema>;

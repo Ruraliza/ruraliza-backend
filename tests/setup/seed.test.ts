@@ -93,4 +93,19 @@ describe('seed', () => {
     const recent = await c.useCases.services.searchOpenServices.execute({ sort: 'recent' });
     assert.equal(recent[0]?.name, 'Conserto de cerca'); // publicada hoje
   });
+
+  it('tem um tutor com duas trilhas publicadas e uma em rascunho; o trabalhador de teste está no meio da de café', async () => {
+    const c = await seeded();
+    const tutor = await c.useCases.systemUsers.systemLogin.execute({ email: 'tutor@exemplo.com', password: SEED_PASSWORD });
+    assert.equal(tutor.ok && tutor.value.role, 'tutor');
+
+    const managed = await c.useCases.tracks.listManagedTracks.execute({ actorId: tutor.ok ? tutor.value.id : 0 });
+    assert.deepEqual(managed.map((t) => [t.status, t.is_tutor]).sort(), [['draft', true], ['published', true], ['published', true]]);
+
+    const forWorker = await c.useCases.tracks.listTracks.execute({ worker_id: 1 });
+    assert.deepEqual(forWorker.map((t) => [t.title, t.progress?.percent ?? null]), [
+      ['Colheita de café do pé à saca', 50],
+      ['Trator na prática: operação segura', null]
+    ]);
+  });
 });

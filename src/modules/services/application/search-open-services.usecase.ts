@@ -2,6 +2,7 @@ import type { FarmRepository } from '#modules/farms';
 import { APPLICATION_STATUS, type ApplicationRepository } from '#modules/hiring';
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
+import { searchable } from '#shared/utils/search';
 import { SERVICE_STATUS } from '../domain/service-status';
 import type { ServiceRepository } from '../domain/service.repository';
 import { isExpired, toOpenService } from '../domain/service.rules';
@@ -12,11 +13,6 @@ export interface SearchOpenServicesDeps {
   services: ServiceRepository;
   applications: ApplicationRepository;
   clock: Clock;
-}
-
-// Texto para busca: sem acento e em minúsculas ("Colheita de Café" vira "colheita de cafe").
-function searchable(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
 const byRecent = (a: OpenService, b: OpenService): number =>
