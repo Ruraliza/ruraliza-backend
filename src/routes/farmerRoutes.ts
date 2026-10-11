@@ -7,7 +7,7 @@ import type { ServiceController } from '../controllers/ServiceController';
 import { IMAGE_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
 import { ref } from '../docs/schemas';
 import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
-import { type RouteDef, route } from '../http/route';
+import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/farmers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
 

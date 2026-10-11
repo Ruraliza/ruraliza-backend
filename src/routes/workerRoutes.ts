@@ -6,7 +6,7 @@ import type { ResumeController } from '../controllers/ResumeController';
 import type { WorkerController } from '../controllers/WorkerController';
 import { IMAGE_UPLOAD, PDF_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
 import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
-import { type RouteDef, route } from '../http/route';
+import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/workers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
 

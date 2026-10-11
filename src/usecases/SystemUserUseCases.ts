@@ -1,8 +1,8 @@
 import type { AdminSystemUserUpdate, LoginInput, SystemUser, SystemUserInput, SystemUserUpdate } from '../contracts';
-import type { Clock } from '../domain/clock';
-import type { PasswordHasher } from '../domain/passwords';
+import type { Clock } from '#shared/domain/clock';
+import type { PasswordHasher } from '#shared/domain/passwords';
 import type { SystemUserRepository } from '../domain/repositories';
-import { type Result, conflict, notFound, ok, unauthorized } from '../domain/result';
+import { type Result, conflict, notFound, ok, unauthorized } from '#shared/domain/result';
 import { type SystemUserRecord, toSystemUser } from '../domain/system-users';
 
 const NOT_FOUND = 'Usuário de sistema não encontrado.';

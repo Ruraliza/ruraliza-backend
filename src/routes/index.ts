@@ -11,7 +11,7 @@ import { createResumeController } from '../controllers/ResumeController';
 import { createServiceController } from '../controllers/ServiceController';
 import { createWorkerController } from '../controllers/WorkerController';
 import { createAccess } from '../http/access';
-import type { RouteGroup } from '../http/route';
+import type { RouteGroup } from '#shared/infra/http/route';
 import { accountRoutes } from './accountRoutes';
 import { adminRoutes } from './adminRoutes';
 import { authRoutes } from './authRoutes';

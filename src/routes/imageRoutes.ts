@@ -1,7 +1,7 @@
 import type { PhotoController } from '../controllers/PhotoController';
 import { TAGS, operation } from '../docs/operations';
 import { PUBLIC_ROUTE } from '../http/access';
-import { type RouteDef, route } from '../http/route';
+import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/images.
 export function imageRoutes(photos: PhotoController): readonly RouteDef[] {

@@ -1,6 +1,6 @@
-import { sendFailure, toId } from '../http/respond';
-import { APPLICATIONS_CHANGED_EVENT, openEventStream, sendEvent } from '../http/sse';
-import type { Handler, IdParams } from '../http/types';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import { APPLICATIONS_CHANGED_EVENT, openEventStream, sendEvent } from '#shared/infra/http/sse';
+import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { ServiceUseCases } from '../usecases/ServiceUseCases';
 import type { WorkerUseCases } from '../usecases/WorkerUseCases';
 

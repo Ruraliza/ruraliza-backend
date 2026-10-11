@@ -2,8 +2,8 @@ import type { AdminUser } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
 import type { Account } from '../domain/passwords';
 import type { AccountRepository, FarmerRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
-import { type Result, conflict, notFound, ok, requireFound } from '../domain/result';
-import { toPublicProfile } from '../utils/profile';
+import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
+import { toPublicProfile } from '#shared/utils/profile';
 import type { FarmerUseCases } from './FarmerUseCases';
 import type { WorkerUseCases } from './WorkerUseCases';
 

@@ -1,4 +1,4 @@
-import type { Criteria, Repository } from '../../domain/repositories';
+import type { Criteria, Repository } from '../../domain/repository';
 
 // Implementação em memória de Repository<T, K>. Tudo some quando o processo reinicia.
 // Guarda e devolve cópias (structuredClone), para se comportar como um banco:

@@ -1,8 +1,8 @@
 import type { AdminUser, FarmerResponse, MessageResponse, SystemUser, SystemUserResponse, WorkerResponse } from '../contracts';
-import { toBody } from '../http/body';
+import { toBody } from '#shared/infra/http/body';
 import { parseAdminSystemUserUpdate, parseProfileUpdate, parseSystemUserInput, parseWorkerUpdate } from '../http/parsers';
-import { sendFailure, toId } from '../http/respond';
-import type { Handler, IdParams } from '../http/types';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { AdminUseCases } from '../usecases/AdminUseCases';
 import type { FarmerUseCases } from '../usecases/FarmerUseCases';
 import type { PhotoUseCases } from '../usecases/PhotoUseCases';

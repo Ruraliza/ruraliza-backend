@@ -1,8 +1,8 @@
 import type { ApplicationResponse, OpenService, ServiceResponse } from '../contracts';
-import { toBody } from '../http/body';
+import { toBody } from '#shared/infra/http/body';
 import { parseJobFilters, parseWorkerAction, parseWorkerIdQuery } from '../http/parsers';
-import { sendFailure, toId } from '../http/respond';
-import type { Handler, IdParams } from '../http/types';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { HiringUseCases } from '../usecases/HiringUseCases';
 import type { ServiceUseCases } from '../usecases/ServiceUseCases';
 

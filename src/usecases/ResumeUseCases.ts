@@ -1,7 +1,7 @@
 import type { Worker } from '../contracts';
-import { type DocumentStore, PDF_CONTENT_TYPE, type StoredDocument, isPdf } from '../domain/documents';
+import { type DocumentStore, PDF_CONTENT_TYPE, type StoredDocument, isPdf } from '#shared/domain/documents';
 import type { WorkerRepository } from '../domain/repositories';
-import { type Result, invalid, notFound, ok } from '../domain/result';
+import { type Result, invalid, notFound, ok } from '#shared/domain/result';
 
 // Currículo do trabalhador (um PDF; enviar de novo substitui). O PDF é guardado como chegou
 // no DocumentStore; o trabalhador guarda só a URL (`resume_url`).

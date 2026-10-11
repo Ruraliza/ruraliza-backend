@@ -10,10 +10,10 @@ import type {
   ServiceWithFarm
 } from '../contracts';
 import { APPLICATION_STATUS, SERVICE_STATUS } from '../constants/status';
-import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '../domain/changes';
-import type { Clock } from '../domain/clock';
+import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '#shared/domain/changes';
+import type { Clock } from '#shared/domain/clock';
 import { type PushNotifier, WORKER_APPLICATIONS_URL } from '../domain/push';
-import { dayOf, isPastDay } from '../domain/dates';
+import { dayOf, isPastDay } from '#shared/domain/dates';
 import type {
   ApplicationRepository,
   FarmRepository,
@@ -21,8 +21,8 @@ import type {
   ServiceRepository,
   WorkerRepository
 } from '../domain/repositories';
-import { type Result, conflict, invalid, notFound, ok, requireFound } from '../domain/result';
-import { toPublicProfile } from '../utils/profile';
+import { type Result, conflict, invalid, notFound, ok, requireFound } from '#shared/domain/result';
+import { toPublicProfile } from '#shared/utils/profile';
 import { farmOf, findActiveFarm, isExpired, toOpenService } from './shared';
 
 // Texto para busca: sem acento e em minúsculas ("Colheita de Café" vira "colheita de cafe").

@@ -8,11 +8,11 @@ import type {
   SystemUserResponse,
   UserRole
 } from '../contracts';
-import type { SessionTokens } from '../domain/tokens';
-import { toBody } from '../http/body';
+import type { SessionTokens } from '#shared/domain/tokens';
+import { toBody } from '#shared/infra/http/body';
 import { parseLoginInput, parsePasswordChange, parsePasswordReset, parsePasswordResetRequest, parseSystemUserUpdate } from '../http/parsers';
-import { sendFailure, toId } from '../http/respond';
-import type { Handler, IdParams, Principal } from '../http/types';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { Handler, IdParams, Principal } from '#shared/infra/http/types';
 import type { AuthUseCases } from '../usecases/AuthUseCases';
 import type { SystemUserUseCases } from '../usecases/SystemUserUseCases';
 

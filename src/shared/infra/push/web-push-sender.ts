@@ -1,6 +1,6 @@
 import webpush, { WebPushError } from 'web-push';
 import { vapidSettings } from '../../config';
-import type { PushDelivery, PushMessage, PushSender, PushSubscriptionRecord } from '../../domain/push';
+import type { PushDelivery, PushMessage, PushSender, PushSubscriptionRecord } from '../../../domain/push';
 
 // Payload no formato que o service worker do Angular (@angular/service-worker) entende:
 // ele mostra `notification` e, no clique, abre/foca o app na `url` (relativa ao escopo do app).

@@ -3,12 +3,12 @@
 // dias diferentes (filtros from/to e sort=recent) e com todos os casos de prazo (sem prazo, vence em
 // alguns dias, vence hoje e já vencida). As contas de teste entram com a senha SEED_PASSWORD:
 // uma só de produtor, uma só de trabalhador e uma com os dois perfis; e, na equipe, um administrador.
-import { SERVICE_STATUS } from '../constants/status';
-import type { Clock } from '../domain/clock';
-import { dayOf } from '../domain/dates';
-import type { PasswordHasher } from '../domain/passwords';
-import type { Repositories } from '../domain/repositories';
-import { createAccount } from '../usecases/accounts';
+import { SERVICE_STATUS } from './constants/status';
+import type { Clock } from '#shared/domain/clock';
+import { dayOf } from '#shared/domain/dates';
+import type { PasswordHasher } from '#shared/domain/passwords';
+import type { Repositories } from './domain/repositories';
+import { createAccount } from './usecases/accounts';
 
 export const SEED_PASSWORD = 'ruraliza123';
 

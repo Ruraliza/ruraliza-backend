@@ -34,8 +34,8 @@ import type {
   WorkerResponse,
   WorkerSignupResponse
 } from '../src/contracts';
-import { FRONTEND_ORIGIN } from '../src/config';
-import { isRecord } from '../src/http/body';
+import { FRONTEND_ORIGIN } from '#shared/config';
+import { isRecord } from '#shared/infra/http/body';
 import { createOpenApiChecker } from './openapi-check';
 
 // Senha dos perfis cadastrados neste teste.

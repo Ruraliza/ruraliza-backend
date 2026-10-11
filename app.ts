@@ -4,16 +4,16 @@ import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { OpenAPIV3 } from 'openapi-types';
 import swaggerUi from 'swagger-ui-express';
-import { initialAdminSettings, isAllowedOrigin, serverPort } from './src/config';
+import { initialAdminSettings, isAllowedOrigin, serverPort } from '#shared/config';
 import { type Container, createContainer } from './src/container';
 import type { ApiError } from './src/contracts';
-import { SEED_PASSWORD, seed } from './src/data/seed';
-import { PDF_CONTENT_TYPE, RESUME_MAX_UPLOAD_BYTES } from './src/domain/documents';
-import { IMAGE_MAX_UPLOAD_BYTES } from './src/domain/images';
+import { SEED_PASSWORD, seed } from './src/seed';
+import { PDF_CONTENT_TYPE, RESUME_MAX_UPLOAD_BYTES } from '#shared/domain/documents';
+import { IMAGE_MAX_UPLOAD_BYTES } from '#shared/domain/images';
 import { buildOpenApiDocument } from './src/docs/openapi';
-import { isRecord } from './src/http/body';
-import { buildRouter } from './src/http/route';
-import type { Handler } from './src/http/types';
+import { isRecord } from '#shared/infra/http/body';
+import { buildRouter } from '#shared/infra/http/route';
+import type { Handler } from '#shared/infra/http/types';
 import { createRouteGroups } from './src/routes';
 
 export interface ApiOptions {

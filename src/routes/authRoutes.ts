@@ -1,7 +1,7 @@
 import type { AuthController } from '../controllers/AuthController';
 import { TAGS, operation } from '../docs/operations';
 import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
-import { type RouteDef, route } from '../http/route';
+import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/auth. A troca de senha com a conta aberta fica no perfil
 // (PATCH /api/farmers/:id/password e /api/workers/:id/password).

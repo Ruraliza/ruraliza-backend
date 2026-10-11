@@ -2,23 +2,10 @@ import type { Farm, Farmer, Payment, Service, ServiceApplication, Worker } from 
 import type { Account } from './passwords';
 import type { PushSubscriptionRecord } from './push';
 import type { SystemUserRecord } from './system-users';
+import type { Repository } from '#shared/domain/repository';
 
-// Acesso a dados que as regras de negócio enxergam. Tudo é assíncrono desde já:
-// a implementação em memória e a futura em PostgreSQL cumprem a mesma interface.
-//
-// Semântica (igual à de um banco): cada leitura devolve uma cópia; alterar a entidade
-// só tem efeito depois de `update`. `create` recebe os dados sem id e devolve a entidade com id.
-
-// Filtro por igualdade nos campos permitidos (vira WHERE campo = valor no banco).
-export type Criteria<T, K extends keyof T> = Partial<Pick<T, K>>;
-
-export interface Repository<T extends { id: number }, K extends keyof T> {
-  findById(id: number): Promise<T | undefined>;
-  find(criteria?: Criteria<T, K>): Promise<T[]>;
-  create(data: Omit<T, 'id'>): Promise<T>;
-  update(entity: T): Promise<void>;
-  delete(id: number): Promise<void>;
-}
+// Agregado transitório dos repositórios ainda não migrados para src/modules/<módulo>/domain.
+// Some quando o último módulo migrar (cada um passa a declarar o seu).
 
 // TODO(db): e-mail e cpf viram restrições UNIQUE por tabela de perfil.
 export type FarmerRepository = Repository<Farmer, 'email' | 'cpf'>;

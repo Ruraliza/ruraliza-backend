@@ -1,8 +1,8 @@
 import type { MessageResponse, SessionResponse, SessionUser } from '../contracts';
-import { toBody } from '../http/body';
+import { toBody } from '#shared/infra/http/body';
 import { parseActiveRole, parseProfileCreate, parsePushSubscription, parsePushUnsubscribe } from '../http/parsers';
-import { sendFailure, toId } from '../http/respond';
-import type { Handler, IdParams } from '../http/types';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { AccountUseCases } from '../usecases/AccountUseCases';
 import type { PushUseCases } from '../usecases/PushUseCases';
 

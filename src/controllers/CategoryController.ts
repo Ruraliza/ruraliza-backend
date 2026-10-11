@@ -1,5 +1,5 @@
 import { CATEGORIES } from '../constants/categories';
-import type { Handler } from '../http/types';
+import type { Handler } from '#shared/infra/http/types';
 
 // GET /api/categories - Lista fixa de categorias de serviço
 export const listCategories: Handler<readonly string[]> = (_req, res) => {

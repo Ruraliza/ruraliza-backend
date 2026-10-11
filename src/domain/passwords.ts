@@ -16,17 +16,8 @@ export interface Account {
   last_role: UserRole; // painel aberto por último: é o que abre no próximo login
 }
 
-export const PASSWORD_MIN_LENGTH = 8;
-export const PASSWORD_MAX_LENGTH = 128;
-
 // Validade do token de redefinição.
 export const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
-
-// Hash lento e com sal (ex.: scrypt). `verify` compara em tempo constante.
-export interface PasswordHasher {
-  hash(password: string): Promise<string>;
-  verify(password: string, hash: string): Promise<boolean>;
-}
 
 // Tokens de redefinição: aleatórios, e guardados só como resumo (digest).
 export interface ResetTokens {

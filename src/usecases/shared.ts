@@ -1,8 +1,8 @@
 import type { Farm, FarmLocation, OpenService, Service } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
-import { isPastDay } from '../domain/dates';
+import { isPastDay } from '#shared/domain/dates';
 import type { FarmRepository } from '../domain/repositories';
-import { type Result, conflict, ok, requireFound } from '../domain/result';
+import { type Result, conflict, ok, requireFound } from '#shared/domain/result';
 
 // --- Perfis (produtor e trabalhador) ---
 

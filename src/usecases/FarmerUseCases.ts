@@ -1,9 +1,9 @@
 import type { Farmer, FarmerInput, FarmerUpdate, SessionUser } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
-import { type ChangeFeed, workerApplications } from '../domain/changes';
-import type { Clock } from '../domain/clock';
-import type { ImageStore } from '../domain/images';
-import type { PasswordHasher } from '../domain/passwords';
+import { type ChangeFeed, workerApplications } from '#shared/domain/changes';
+import type { Clock } from '#shared/domain/clock';
+import type { ImageStore } from '#shared/domain/images';
+import type { PasswordHasher } from '#shared/domain/passwords';
 import type {
   AccountRepository,
   ApplicationRepository,
@@ -13,8 +13,8 @@ import type {
   ServiceRepository,
   WorkerRepository
 } from '../domain/repositories';
-import { type Result, conflict, notFound, ok } from '../domain/result';
-import { toPublicProfile } from '../utils/profile';
+import { type Result, conflict, notFound, ok } from '#shared/domain/result';
+import { toPublicProfile } from '#shared/utils/profile';
 import { releaseImage } from './PhotoUseCases';
 import { changeAccountEmail, checkNewAccount, createAccount, toSession, unlinkProfile } from './accounts';
 import { checkProfileUnique } from './shared';

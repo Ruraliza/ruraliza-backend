@@ -1,8 +1,8 @@
 import type { PushSubscriptionInput, UserRole } from '../contracts';
-import type { Clock } from '../domain/clock';
+import type { Clock } from '#shared/domain/clock';
 import type { PushMessage, PushNotifier, PushSender } from '../domain/push';
 import type { AccountRepository, PushSubscriptionRepository } from '../domain/repositories';
-import { type Result, notFound, ok } from '../domain/result';
+import { type Result, notFound, ok } from '#shared/domain/result';
 import { findAccountOf } from './accounts';
 
 const ACCOUNT_NOT_FOUND = 'Conta não encontrada.';

@@ -1,10 +1,10 @@
 import type { AnalyzeInput, Payment, Service, ServiceApplication } from '../contracts';
 import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
-import { type ChangeFeed, type ChangeTopic, serviceApplications, workerApplications } from '../domain/changes';
-import type { Clock } from '../domain/clock';
+import { type ChangeFeed, type ChangeTopic, serviceApplications, workerApplications } from '#shared/domain/changes';
+import type { Clock } from '#shared/domain/clock';
 import { type PushMessage, type PushNotifier, WORKER_APPLICATIONS_URL, farmerServiceUrl } from '../domain/push';
 import type { AccountRepository, ApplicationRepository, PaymentRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
-import { type Result, conflict, invalid, notFound, ok, requireFound } from '../domain/result';
+import { type Result, conflict, invalid, notFound, ok, requireFound } from '#shared/domain/result';
 import { findAccountOf } from './accounts';
 import { isExpired } from './shared';
 

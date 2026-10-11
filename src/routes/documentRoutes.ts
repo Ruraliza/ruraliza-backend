@@ -1,7 +1,7 @@
 import type { ResumeController } from '../controllers/ResumeController';
 import { TAGS, operation } from '../docs/operations';
 import { PUBLIC_ROUTE } from '../http/access';
-import { type RouteDef, route } from '../http/route';
+import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/documents.
 export function documentRoutes(resumes: ResumeController): readonly RouteDef[] {

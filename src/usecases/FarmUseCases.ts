@@ -1,8 +1,8 @@
 import type { Farm, FarmInput, FarmUpdate, Farmer, ServiceStatus } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
-import type { Clock } from '../domain/clock';
+import type { Clock } from '#shared/domain/clock';
 import type { FarmRepository, FarmerRepository, ServiceRepository } from '../domain/repositories';
-import { type Result, conflict, notFound, ok } from '../domain/result';
+import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import { findActiveFarm, isActiveFarm } from './shared';
 
 const ACTIVE_SERVICE: readonly ServiceStatus[] = [SERVICE_STATUS.PENDING, SERVICE_STATUS.IN_PROGRESS];

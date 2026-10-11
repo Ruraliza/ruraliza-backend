@@ -1,8 +1,8 @@
 import type { Farm, FarmResponse, MessageResponse } from '../contracts';
-import { toBody } from '../http/body';
+import { toBody } from '#shared/infra/http/body';
 import { parseFarmInput, parseFarmUpdate } from '../http/parsers';
-import { sendFailure, toId } from '../http/respond';
-import type { FarmParams, Handler, IdParams } from '../http/types';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { FarmParams, Handler, IdParams } from '#shared/infra/http/types';
 import type { FarmUseCases } from '../usecases/FarmUseCases';
 
 // HTTP das fazendas do produtor.

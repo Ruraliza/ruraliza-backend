@@ -1,5 +1,5 @@
 import type { ProfileCreateInput, SessionUser, UserRole } from '../contracts';
-import { type Result, conflict, notFound, ok } from '../domain/result';
+import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import { type AccountRepos, ROLE_LABEL, checkCpfForAccount, hasProfile, profileKey, toSession } from './accounts';
 import type { FarmerUseCases } from './FarmerUseCases';
 import type { WorkerUseCases } from './WorkerUseCases';

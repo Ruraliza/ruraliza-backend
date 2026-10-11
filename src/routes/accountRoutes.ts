@@ -1,7 +1,7 @@
 import type { AccountController } from '../controllers/AccountController';
 import { TAGS, operation, pathParam } from '../docs/operations';
 import type { AccessPolicies } from '../http/access';
-import { type RouteDef, route } from '../http/route';
+import { type RouteDef, route } from '#shared/infra/http/route';
 
 const accountId = pathParam('id', 'ID da conta (`account_id` da sessão).');
 

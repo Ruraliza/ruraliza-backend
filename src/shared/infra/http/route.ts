@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { OpenAPIV3 } from 'openapi-types';
-import type { Access } from './access';
+import type { Access } from '../../../http/access';
 import { sendFailure } from './respond';
 import type { Handler } from './types';
 

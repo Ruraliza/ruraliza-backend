@@ -1,9 +1,9 @@
-import { googleMapsSettings, isAllowedOrigin, vapidSettings } from '../config';
+import { googleMapsSettings, isAllowedOrigin, vapidSettings } from '#shared/config';
 import type { HealthResponse, MapsConfig, PushConfig } from '../contracts';
 import { TAGS, operation } from '../docs/operations';
 import { PUBLIC_ROUTE } from '../http/access';
-import { type RouteDef, route } from '../http/route';
-import type { Handler } from '../http/types';
+import { type RouteDef, route } from '#shared/infra/http/route';
+import type { Handler } from '#shared/infra/http/types';
 
 // Health check
 const health: Handler<HealthResponse> = (_req, res) => {

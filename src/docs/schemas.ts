@@ -1,17 +1,17 @@
-import type { OpenAPIV3 } from 'openapi-types';
+import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
+import { type Properties, type RefTo, type Schema, id, input, isoDate, latitude, longitude, object, refTo } from '#shared/infra/docs/schema-kit';
 import { CATEGORIES } from '../constants/categories';
 import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
 
-// Schemas OpenAPI do contrato (src/contracts). Entidades usam additionalProperties: false
-// para que o smoke test acuse qualquer campo não documentado nas respostas.
-type Schema = OpenAPIV3.SchemaObject;
-type Properties = Record<string, Schema | OpenAPIV3.ReferenceObject>;
+// Registro dos schemas OpenAPI do contrato (src/contracts): os genéricos (#shared/infra/docs),
+// os dos módulos já migrados e, aqui mesmo, os das partes ainda não migradas para src/modules.
 
 // Nomes dos schemas. `schemas` abaixo precisa ter exatamente estes (o `satisfies` acusa falta ou sobra),
 // e `ref()` só aceita estes, então um $ref quebrado não compila.
 export type SchemaName =
+  | CoreSchemaName
   | 'ServiceStatus' | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
-  | 'ApiError' | 'MessageResponse' | 'HealthResponse' | 'MapsConfig' | 'PushConfig' | 'CategoryList'
+  | 'HealthResponse' | 'MapsConfig' | 'PushConfig' | 'CategoryList'
   | 'Farmer' | 'Worker' | 'Farm' | 'FarmPhoto' | 'FarmLocation'
   | 'Service' | 'ServiceWithFarm' | 'FarmerServiceItem' | 'OpenService'
   | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
@@ -24,9 +24,7 @@ export type SchemaName =
   | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse'
   | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
-const id: Schema = { type: 'integer', minimum: 1, example: 1 };
 const nullableId: Schema = { type: 'integer', minimum: 1, nullable: true, example: null };
-const isoDate: Schema = { type: 'string', format: 'date-time', example: '2026-09-28T12:00:00.000Z' };
 const photoUrl: Schema = {
   type: 'string',
   nullable: true,
@@ -52,27 +50,9 @@ const sessionToken: Schema = {
   example: 'eyJraW5kIjoiYWNjb3VudCIsImlkIjoxLCJleHAiOjE3OTk5OTk5OTk5OTl9.p0dTqW…',
   description: 'Token de sessão (12 horas). Envie em `Authorization: Bearer <token>`.'
 };
-const ref = (name: SchemaName): OpenAPIV3.ReferenceObject => ({ $ref: `#/components/schemas/${name}` });
-
-function object(properties: Properties, required: readonly string[], description?: string): Schema {
-  return {
-    type: 'object',
-    properties,
-    required: [...required],
-    additionalProperties: false,
-    ...(description === undefined ? {} : { description })
-  };
-}
-
-// Corpos de entrada: campos extras são ignorados ou recusados pela própria rota (ver descrição).
-function input(properties: Properties, required: readonly string[], description: string): Schema {
-  return { type: 'object', properties, required: [...required], description };
-}
+const ref: RefTo<SchemaName> = refTo;
 
 // --- Propriedades reaproveitadas ---
-
-const latitude: Schema = { type: 'number', minimum: -90, maximum: 90, example: -22.1165, description: 'Graus decimais.' };
-const longitude: Schema = { type: 'number', minimum: -180, maximum: 180, example: -43.2092, description: 'Graus decimais.' };
 
 const farmProps: Properties = {
   id,
@@ -190,8 +170,7 @@ export const schemas = {
   AnalyzeAction: { type: 'string', enum: ['Accept', 'Reject'] },
 
   // --- Respostas genéricas ---
-  ApiError: object({ error: { type: 'string', example: 'Serviço não encontrado.' } }, ['error'], 'Formato de todo erro da API.'),
-  MessageResponse: object({ message: { type: 'string', example: 'Farmer deleted successfully!' } }, ['message']),
+  ...coreSchemas,
   HealthResponse: object({ message: { type: 'string' } }, ['message']),
   MapsConfig: object(
     {

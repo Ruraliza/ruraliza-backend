@@ -1,7 +1,7 @@
 import * as CategoryController from '../controllers/CategoryController';
 import { TAGS, operation } from '../docs/operations';
 import { PUBLIC_ROUTE } from '../http/access';
-import { type RouteDef, route } from '../http/route';
+import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/categories.
 export const categoryRoutes: readonly RouteDef[] = [

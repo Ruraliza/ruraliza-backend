@@ -3,9 +3,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { type Container, createContainer } from '../src/container';
-import type { Result } from '../src/domain/result';
-import { createHmacSessionTokens } from '../src/infra/crypto/NodeCrypto';
-import { InMemoryRepository } from '../src/infra/memory/InMemoryRepository';
+import type { Result } from '#shared/domain/result';
+import { createHmacSessionTokens } from '#shared/infra/crypto/node-crypto';
+import { InMemoryRepository } from '#shared/infra/memory/in-memory-repository';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const PASSWORD = 'senha-forte-1';

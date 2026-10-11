@@ -24,15 +24,15 @@ import type {
   WorkerActionInput,
   WorkerUpdate
 } from '../contracts';
-import { isCalendarDate } from '../domain/dates';
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '../domain/passwords';
+import { isCalendarDate } from '#shared/domain/dates';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '#shared/domain/passwords';
 import { SYSTEM_ROLES } from '../domain/system-users';
-import { type Result, invalid, ok } from '../domain/result';
+import { type Result, invalid, ok } from '#shared/domain/result';
 import type { NewWorker } from '../usecases/WorkerUseCases';
-import { normalizeEmail } from '../utils/profile';
-import { isLatitude, isLongitude, isPositiveNumber, isValidCpf, isValidEmail, missingFields, text } from '../utils/validation';
-import { type Body, isRecord, missingMessage } from './body';
-import type { Query } from './types';
+import { normalizeEmail } from '#shared/utils/profile';
+import { isLatitude, isLongitude, isPositiveNumber, isValidCpf, isValidEmail, missingFields, text } from '#shared/utils/validation';
+import { type Body, isRecord, missingMessage } from '#shared/infra/http/body';
+import type { Query } from '#shared/infra/http/types';
 
 // Limites de tamanho dos textos livres (evita perfis e anúncios gigantes).
 const MAX_BIO = 500;

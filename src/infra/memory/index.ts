@@ -1,5 +1,5 @@
 import type { Repositories } from '../../domain/repositories';
-import { InMemoryRepository } from './InMemoryRepository';
+import { InMemoryRepository } from '#shared/infra/memory/in-memory-repository';
 
 // Repositórios em memória (um conjunto novo por chamada, isolado dos outros).
 export function createInMemoryRepositories(): Repositories {

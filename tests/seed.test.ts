@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { CATEGORIES } from '../src/constants/categories';
 import type { SessionUser } from '../src/contracts';
 import { createContainer } from '../src/container';
-import { SEED_PASSWORD, seed } from '../src/data/seed';
+import { SEED_PASSWORD, seed } from '../src/seed';
 
 // Meio-dia em Brasília, para os limites de dia ficarem claros.
 const NOW = '2026-03-15T15:00:00.000Z';

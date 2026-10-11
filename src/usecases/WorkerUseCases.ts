@@ -1,10 +1,10 @@
 import type { ApplicationWithService, OpenService, SessionUser, Worker, WorkerUpdate } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
-import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '../domain/changes';
-import type { Clock } from '../domain/clock';
-import type { DocumentStore } from '../domain/documents';
-import type { ImageStore } from '../domain/images';
-import type { PasswordHasher } from '../domain/passwords';
+import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '#shared/domain/changes';
+import type { Clock } from '#shared/domain/clock';
+import type { DocumentStore } from '#shared/domain/documents';
+import type { ImageStore } from '#shared/domain/images';
+import type { PasswordHasher } from '#shared/domain/passwords';
 import type {
   AccountRepository,
   ApplicationRepository,
@@ -14,8 +14,8 @@ import type {
   ServiceRepository,
   WorkerRepository
 } from '../domain/repositories';
-import { type Result, conflict, notFound, ok, requireFound } from '../domain/result';
-import { toPublicProfile } from '../utils/profile';
+import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
+import { toPublicProfile } from '#shared/utils/profile';
 import { releaseImage } from './PhotoUseCases';
 import { releaseDocument } from './ResumeUseCases';
 import { changeAccountEmail, checkNewAccount, createAccount, toSession, unlinkProfile } from './accounts';

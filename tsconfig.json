@@ -5,6 +5,9 @@
     "lib": ["ES2023"],
     "module": "nodenext",
     "moduleResolution": "nodenext",
+    // Aliases #shared/* e #modules/* (package.json "imports"): em desenvolvimento (tsx --conditions=development)
+    // e no type-check apontam para os .ts; no build (node dist/) caem no "default", os .js compilados.
+    "customConditions": ["development"],
     "types": ["node"],
     "rootDir": ".",
     "outDir": "dist",

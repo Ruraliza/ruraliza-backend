@@ -1,8 +1,9 @@
 import type { LoginInput, PasswordChangeInput, PasswordResetInput, PasswordResetRequestInput, SessionUser, UserRole } from '../contracts';
-import type { Clock } from '../domain/clock';
-import { type Account, type PasswordHasher, RESET_TOKEN_TTL_MS, type ResetTokens } from '../domain/passwords';
+import type { Clock } from '#shared/domain/clock';
+import { type Account, RESET_TOKEN_TTL_MS, type ResetTokens } from '../domain/passwords';
+import type { PasswordHasher } from '#shared/domain/passwords';
 import type { AccountRepository, FarmerRepository, WorkerRepository } from '../domain/repositories';
-import { type Result, invalid, notFound, ok, requireFound, unauthorized } from '../domain/result';
+import { type Result, invalid, notFound, ok, requireFound, unauthorized } from '#shared/domain/result';
 import { ROLE_LABEL, findAccountByEmail, findAccountOf, toSession } from './accounts';
 
 // Mesma mensagem para e-mail desconhecido e senha errada: não revela quem tem cadastro.

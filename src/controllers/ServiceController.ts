@@ -8,11 +8,11 @@ import type {
   ServiceWithFarm
 } from '../contracts';
 import { isServiceStatus, serviceStatusList } from '../constants/status';
-import { invalid } from '../domain/result';
-import { toBody } from '../http/body';
+import { invalid } from '#shared/domain/result';
+import { toBody } from '#shared/infra/http/body';
 import { parseAnalyzeInput, parseServiceInput, parseServiceUpdate } from '../http/parsers';
-import { sendFailure, toId } from '../http/respond';
-import type { Handler, IdParams } from '../http/types';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { HiringUseCases } from '../usecases/HiringUseCases';
 import type { ServiceUseCases } from '../usecases/ServiceUseCases';
 

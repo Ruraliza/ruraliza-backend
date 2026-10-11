@@ -1,7 +1,7 @@
 import type { WorkerResponse } from '../contracts';
-import { type Result, invalid, ok } from '../domain/result';
-import { sendFailure, toId } from '../http/respond';
-import type { DocumentParams, Handler, IdParams } from '../http/types';
+import { type Result, invalid, ok } from '#shared/domain/result';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { DocumentParams, Handler, IdParams } from '#shared/infra/http/types';
 import type { ResumeUseCases } from '../usecases/ResumeUseCases';
 
 // HTTP do currículo do trabalhador. Como nas fotos, o upload chega como o próprio arquivo no

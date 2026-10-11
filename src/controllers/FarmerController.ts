@@ -1,9 +1,9 @@
 import type { Farmer, FarmerResponse, FarmerSignupResponse, MessageResponse } from '../contracts';
-import type { SessionTokens } from '../domain/tokens';
-import { toBody } from '../http/body';
+import type { SessionTokens } from '#shared/domain/tokens';
+import { toBody } from '#shared/infra/http/body';
 import { parseProfileInput, parseProfileUpdate } from '../http/parsers';
-import { sendFailure, toId } from '../http/respond';
-import type { Handler, IdParams } from '../http/types';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { FarmerUseCases } from '../usecases/FarmerUseCases';
 import { accountToken } from './AuthController';
 

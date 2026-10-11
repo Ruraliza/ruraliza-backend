@@ -1,6 +1,6 @@
 import type { Response } from 'express';
-import type { ApiError } from '../contracts';
-import type { Failure, FailureKind } from '../domain/result';
+import type { ApiError } from '../../../contracts';
+import type { Failure, FailureKind } from '../../domain/result';
 import type { ErrorStatus, Locals } from './types';
 
 // Tradução dos erros de negócio para HTTP.
