@@ -12,7 +12,8 @@ export const TAGS = {
   workers: 'Trabalhadores',
   jobs: 'Vagas (trabalhador)',
   images: 'Imagens',
-  documents: 'Documentos'
+  documents: 'Documentos',
+  admin: 'Administração'
 } as const;
 export type Tag = (typeof TAGS)[keyof typeof TAGS];
 

@@ -10,4 +10,5 @@ export type * from './push';
 export type * from './service';
 export type * from './service-application';
 export type * from './status';
+export type * from './system';
 export type * from './worker';

@@ -22,9 +22,11 @@ export interface LoginInput {
   password: string;
 }
 
+// `token` vai em `Authorization: Bearer <token>` nas rotas que exigem a conta aberta.
 export interface LoginResponse {
   message: string;
   user: SessionUser;
+  token: string;
 }
 
 // POST /auth/password-reset (passo 1: informa o e-mail)

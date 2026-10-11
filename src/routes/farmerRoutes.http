@@ -8,10 +8,37 @@
 @serviceId = 1
 @applicationId = 1
 
+### --- SESSÃO ---
+### Rode as duas primeiras: as demais usam o token (Authorization: Bearer).
+
+### Entrar (seed: senha ruraliza123)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "produtor@exemplo.com",
+  "password": "ruraliza123"
+}
+
+### Entrar como administrador (só para a lista de perfis)
+# @name adminLogin
+POST {{baseUrl}}/auth/system/login
+Content-Type: application/json
+
+{
+  "email": "admin@exemplo.com",
+  "password": "ruraliza123"
+}
+
+@token = {{login.response.body.token}}
+@adminToken = {{adminLogin.response.body.token}}
+
 ### --- PRODUTORES ---
 
 ### Listar produtores
 GET {{baseUrl}}/farmers
+Authorization: Bearer {{adminToken}}
 
 ### Cadastrar produtor
 POST {{baseUrl}}/farmers
@@ -27,9 +54,11 @@ Content-Type: application/json
 
 ### Perfil do produtor
 GET {{baseUrl}}/farmers/{{farmerId}}
+Authorization: Bearer {{token}}
 
 ### Editar produtor (id e cpf não podem ser alterados)
 PATCH {{baseUrl}}/farmers/{{farmerId}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -39,6 +68,7 @@ Content-Type: application/json
 
 ### Editar produtor tentando alterar o cpf (deve retornar 400)
 PATCH {{baseUrl}}/farmers/{{farmerId}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -47,12 +77,14 @@ Content-Type: application/json
 
 ### Remover produtor
 DELETE {{baseUrl}}/farmers/{{farmerId}}
+Authorization: Bearer {{token}}
 
 ### --- SENHA E ACESSO ---
 ### Perfil de teste do seed: produtor@exemplo.com, senha ruraliza123.
 
 ### Entrar
 POST {{baseUrl}}/auth/login
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -63,6 +95,7 @@ Content-Type: application/json
 
 ### Trocar a senha com a conta aberta (pede a senha atual)
 PATCH {{baseUrl}}/farmers/{{farmerId}}/password
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -72,6 +105,7 @@ Content-Type: application/json
 
 ### Esqueci a senha, passo 1 (simulação: o token volta na resposta em vez de ir por e-mail)
 POST {{baseUrl}}/auth/password-reset
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -81,6 +115,7 @@ Content-Type: application/json
 
 ### Esqueci a senha, passo 2 (cole o reset_token do passo 1)
 POST {{baseUrl}}/auth/password-reset/confirm
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -92,9 +127,11 @@ Content-Type: application/json
 
 ### Listar fazendas do produtor
 GET {{baseUrl}}/farmers/{{farmerId}}/farms
+Authorization: Bearer {{token}}
 
 ### Cadastrar fazenda para o produtor
 POST {{baseUrl}}/farmers/{{farmerId}}/farms
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -107,6 +144,7 @@ Content-Type: application/json
 
 ### Editar fazenda
 PATCH {{baseUrl}}/farmers/{{farmerId}}/farms/{{farmId}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -117,11 +155,13 @@ Content-Type: application/json
 
 ### Remover fazenda (409 se tiver serviço Pending/In Progress)
 DELETE {{baseUrl}}/farmers/{{farmerId}}/farms/{{farmId}}
+Authorization: Bearer {{token}}
 
 ### --- SERVIÇOS ---
 
 ### Solicitar novo serviço (RF01)
 POST {{baseUrl}}/farmers/services
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -135,15 +175,19 @@ Content-Type: application/json
 
 ### Listar serviços do produtor
 GET {{baseUrl}}/farmers/{{farmerId}}/services
+Authorization: Bearer {{token}}
 
 ### Listar serviços do produtor filtrando por status
 GET {{baseUrl}}/farmers/{{farmerId}}/services?status=Pending
+Authorization: Bearer {{token}}
 
 ### Buscar serviço com a fazenda
 GET {{baseUrl}}/farmers/services/{{serviceId}}
+Authorization: Bearer {{token}}
 
 ### Editar serviço (só enquanto Pending)
 PATCH {{baseUrl}}/farmers/services/{{serviceId}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -154,12 +198,15 @@ Content-Type: application/json
 
 ### Cancelar serviço (só enquanto Pending; recusa as candidaturas pendentes)
 PATCH {{baseUrl}}/farmers/services/{{serviceId}}/cancel
+Authorization: Bearer {{token}}
 
 ### Listar candidaturas do serviço
 GET {{baseUrl}}/farmers/services/{{serviceId}}/applications
+Authorization: Bearer {{token}}
 
 ### Aceitar candidatura (RF03)
 PATCH {{baseUrl}}/farmers/services/{{serviceId}}/analyze
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -169,6 +216,7 @@ Content-Type: application/json
 
 ### Recusar candidatura (RF03)
 PATCH {{baseUrl}}/farmers/services/{{serviceId}}/analyze
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -178,3 +226,4 @@ Content-Type: application/json
 
 ### Liberar pagamento (RF04)
 POST {{baseUrl}}/farmers/services/{{serviceId}}/payment
+Authorization: Bearer {{token}}

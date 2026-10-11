@@ -1,6 +1,6 @@
 import type { SessionUser, UserRole } from '../contracts';
 import type { Account, PasswordHasher } from '../domain/passwords';
-import type { AccountRepository, FarmerRepository, WorkerRepository } from '../domain/repositories';
+import type { AccountRepository, FarmerRepository, PushSubscriptionRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, ok, requireFound } from '../domain/result';
 
 // Regras da conta única: um e-mail e uma senha por pessoa, com até um perfil de cada tipo.
@@ -109,8 +109,13 @@ export async function changeAccountEmail(repos: AccountRepos, role: UserRole, pr
   return ok(null);
 }
 
-// Perfil removido: sai da conta. A conta só some junto com o último perfil.
-export async function unlinkProfile(accounts: AccountRepository, role: UserRole, profileId: number): Promise<void> {
+// Perfil removido: sai da conta. A conta só some junto com o último perfil (e leva as inscrições de push).
+export async function unlinkProfile(
+  repos: { accounts: AccountRepository; pushSubscriptions: PushSubscriptionRepository },
+  role: UserRole,
+  profileId: number
+): Promise<void> {
+  const { accounts, pushSubscriptions } = repos;
   const account = await findAccountOf(accounts, role, profileId);
   if (!account) return;
 
@@ -119,6 +124,8 @@ export async function unlinkProfile(accounts: AccountRepository, role: UserRole,
     account.last_role = otherRole(role);
     await accounts.update(account);
   } else {
+    // TODO(db): ON DELETE CASCADE.
+    for (const sub of await pushSubscriptions.find({ account_id: account.id })) await pushSubscriptions.delete(sub.id);
     await accounts.delete(account.id);
   }
 }

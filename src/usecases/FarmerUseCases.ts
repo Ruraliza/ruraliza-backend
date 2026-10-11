@@ -4,7 +4,15 @@ import { type ChangeFeed, workerApplications } from '../domain/changes';
 import type { Clock } from '../domain/clock';
 import type { ImageStore } from '../domain/images';
 import type { PasswordHasher } from '../domain/passwords';
-import type { AccountRepository, ApplicationRepository, FarmRepository, FarmerRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
+import type {
+  AccountRepository,
+  ApplicationRepository,
+  FarmRepository,
+  FarmerRepository,
+  PushSubscriptionRepository,
+  ServiceRepository,
+  WorkerRepository
+} from '../domain/repositories';
 import { type Result, conflict, notFound, ok } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
 import { releaseImage } from './PhotoUseCases';
@@ -24,6 +32,7 @@ export class FarmerUseCases {
       applications: ApplicationRepository;
       workers: WorkerRepository;
       accounts: AccountRepository;
+      pushSubscriptions: PushSubscriptionRepository;
     },
     private readonly clock: Clock,
     private readonly images: ImageStore,
@@ -84,7 +93,7 @@ export class FarmerUseCases {
   // Remove em cascata: candidaturas → serviços → fazendas → produtor (pagamentos ficam como histórico).
   // Bloqueado enquanto houver serviço em andamento.
   async delete(id: number): Promise<Result<null>> {
-    const { farmers, farms, services, applications, accounts } = this.repos;
+    const { farmers, farms, services, applications } = this.repos;
     const farmer = await farmers.findById(id);
     if (!farmer) return notFound('Produtor não encontrado.');
 
@@ -107,7 +116,7 @@ export class FarmerUseCases {
       await farms.delete(farm.id);
     }
     await releaseImage(this.images, farmer.photo_url);
-    await unlinkProfile(accounts, 'farmer', farmer.id);
+    await unlinkProfile(this.repos, 'farmer', farmer.id);
     await farmers.delete(farmer.id);
     // As candidaturas somem da tela "Candidaturas" de quem se candidatou.
     this.changes.publish([...applicants].map(workerApplications));

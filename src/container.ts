@@ -4,8 +4,10 @@ import type { DocumentStore } from './domain/documents';
 import type { ImageProcessor, ImageStore } from './domain/images';
 import type { PasswordHasher, ResetTokens } from './domain/passwords';
 import type { PushSender } from './domain/push';
+import type { SessionTokens } from './domain/tokens';
 import type { Repositories } from './domain/repositories';
-import { randomResetTokens, scryptPasswordHasher } from './infra/crypto/NodeCrypto';
+import { authTokenSecret } from './config';
+import { createHmacSessionTokens, randomResetTokens, scryptPasswordHasher } from './infra/crypto/NodeCrypto';
 import { SharpImageProcessor } from './infra/images/SharpImageProcessor';
 import { createInMemoryRepositories } from './infra/memory';
 import { InMemoryChangeFeed } from './infra/memory/InMemoryChangeFeed';
@@ -13,6 +15,7 @@ import { InMemoryDocumentStore } from './infra/memory/InMemoryDocumentStore';
 import { InMemoryImageStore } from './infra/memory/InMemoryImageStore';
 import { WebPushSender } from './infra/push/WebPushSender';
 import { AccountUseCases } from './usecases/AccountUseCases';
+import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
 import { FarmUseCases } from './usecases/FarmUseCases';
 import { FarmerUseCases } from './usecases/FarmerUseCases';
@@ -21,6 +24,7 @@ import { PhotoUseCases } from './usecases/PhotoUseCases';
 import { PushUseCases } from './usecases/PushUseCases';
 import { ResumeUseCases } from './usecases/ResumeUseCases';
 import { ServiceUseCases } from './usecases/ServiceUseCases';
+import { SystemUserUseCases } from './usecases/SystemUserUseCases';
 import { WorkerUseCases } from './usecases/WorkerUseCases';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
@@ -30,6 +34,7 @@ import { WorkerUseCases } from './usecases/WorkerUseCases';
 // As senhas usam scrypt (`passwords`); os testes podem passar um hasher mais rápido.
 // Os avisos de mudança para as telas abertas (`changes`, por SSE) ficam em memória;
 // as notificações push saem pelo `push` (Web Push com as chaves VAPID do .env; os testes passam um falso).
+// Os tokens de sessão (`tokens`) são assinados com AUTH_TOKEN_SECRET.
 
 export interface UseCases {
   auth: AuthUseCases;
@@ -42,6 +47,8 @@ export interface UseCases {
   photos: PhotoUseCases;
   resumes: ResumeUseCases;
   push: PushUseCases;
+  systemUsers: SystemUserUseCases;
+  admin: AdminUseCases;
 }
 
 export interface Container {
@@ -51,6 +58,7 @@ export interface Container {
   passwords: PasswordHasher;
   clock: Clock;
   changes: ChangeFeed;
+  tokens: SessionTokens;
   useCases: UseCases;
 }
 
@@ -64,6 +72,7 @@ export interface ContainerOptions {
   clock?: Clock;
   changes?: ChangeFeed;
   push?: PushSender;
+  tokens?: SessionTokens;
 }
 
 export function createContainer(options: ContainerOptions = {}): Container {
@@ -75,10 +84,11 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const resetTokens = options.resetTokens ?? randomResetTokens;
   const clock = options.clock ?? systemClock;
   const changes = options.changes ?? new InMemoryChangeFeed();
-  const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions } = repos;
+  const tokens = options.tokens ?? createHmacSessionTokens(authTokenSecret(), clock);
+  const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers } = repos;
   const pushUseCases = new PushUseCases({ accounts, pushSubscriptions }, clock, options.push ?? new WebPushSender());
-  const farmerUseCases = new FarmerUseCases({ farmers, workers, farms, services, applications, accounts }, clock, images, passwords, changes);
-  const workerUseCases = new WorkerUseCases({ workers, farmers, services, applications, farms, accounts }, clock, { images, documents }, passwords, changes);
+  const farmerUseCases = new FarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions }, clock, images, passwords, changes);
+  const workerUseCases = new WorkerUseCases({ workers, farmers, services, applications, farms, accounts, pushSubscriptions }, clock, { images, documents }, passwords, changes);
 
   return {
     repos,
@@ -87,6 +97,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
     passwords,
     clock,
     changes,
+    tokens,
     useCases: {
       auth: new AuthUseCases({ farmers, workers, accounts }, clock, { hasher: passwords, resetTokens }),
       accounts: new AccountUseCases({ accounts, farmers, workers }, { farmers: farmerUseCases, workers: workerUseCases }),
@@ -97,7 +108,9 @@ export function createContainer(options: ContainerOptions = {}): Container {
       hiring: new HiringUseCases({ services, applications, workers, payments, accounts }, clock, changes, pushUseCases),
       photos: new PhotoUseCases({ farmers, workers, farms }, { processor: imageProcessor, store: images }),
       resumes: new ResumeUseCases({ workers }, documents),
-      push: pushUseCases
+      push: pushUseCases,
+      systemUsers: new SystemUserUseCases({ systemUsers }, clock, passwords),
+      admin: new AdminUseCases({ accounts, farmers, workers, services }, { farmers: farmerUseCases, workers: workerUseCases })
     }
   };
 }

@@ -1,11 +1,12 @@
 // Smoke test do fluxo completo da API (em memória).
 // Sobe o app numa porta livre, sem o seed, e percorre:
 // produtor → fazenda → serviço → trabalhador → candidatura → aceite → pagamento,
-// além dos principais casos 400/404/409.
+// além dos principais casos 400/401/403/404/409 e da administração pelos usuários de sistema.
 // Uso: npm run smoke
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { createApi } from '../app';
+import { createContainer } from '../src/container';
 import type {
   ApplicationResponse,
   ApplicationWithService,
@@ -26,6 +27,10 @@ import type {
   ServiceWithFarm,
   SessionResponse,
   SessionUser,
+  SystemLoginResponse,
+  SystemUser,
+  SystemUserResponse,
+  AdminUser,
   WorkerResponse,
   WorkerSignupResponse
 } from '../src/contracts';
@@ -37,7 +42,8 @@ import { createOpenApiChecker } from './openapi-check';
 const PW = 'senha-do-smoke';
 
 // API nova, sem seed, só para este teste.
-const { app, document } = createApi();
+const container = createContainer();
+const { app, document } = createApi(container);
 const checkAgainstOpenApi = createOpenApiChecker(document);
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -50,6 +56,16 @@ interface CallResult {
 let baseUrl = '';
 let passed = 0;
 
+// Token de quem está agindo, enviado em Authorization por step/upload/openEvents.
+// Troque com `actAs` quando outra pessoa passa a agir (null = sem sessão).
+let currentToken: string | null = null;
+function actAs(token: string | null): void {
+  currentToken = token;
+}
+function authHeader(): Record<string, string> {
+  return currentToken === null ? {} : { Authorization: `Bearer ${currentToken}` };
+}
+
 async function call(
   method: Method,
   path: string,
@@ -59,7 +75,7 @@ async function call(
 ): Promise<CallResult> {
   const res = await fetch(`${baseUrl}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers: { 'Content-Type': 'application/json', ...authHeader(), ...headers },
     body: rawBody ?? (body === undefined ? null : JSON.stringify(body))
   });
   const json: unknown = await res.json();
@@ -102,7 +118,7 @@ async function upload<T = unknown>(
 ): Promise<T> {
   const res = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': contentType },
+    headers: { 'Content-Type': contentType, ...authHeader() },
     body: bytes === null ? null : Buffer.from(bytes)
   });
   const body: unknown = await res.json();
@@ -122,9 +138,11 @@ interface EventStream {
 }
 
 // Abre um stream SSE (a resposta fica aberta até `close`) e espera os eventos um a um, na ordem.
+// O token vai em ?access_token=, como faz o EventSource do navegador (que não envia cabeçalhos).
 async function openEvents(title: string, path: string): Promise<EventStream> {
   const controller = new AbortController();
-  const res = await fetch(`${baseUrl}${path}`, { signal: controller.signal, headers: { Accept: 'text/event-stream' } });
+  const url = `${baseUrl}${path}?access_token=${encodeURIComponent(currentToken ?? '')}`;
+  const res = await fetch(url, { signal: controller.signal, headers: { Accept: 'text/event-stream' } });
   assert.equal(res.status, 200, `${title}: esperado 200, veio ${res.status}`);
   assert.match(res.headers.get('content-type') ?? '', /^text\/event-stream/, `${title}: Content-Type`);
   assert.ok(res.body, `${title}: sem corpo`);
@@ -196,9 +214,10 @@ async function run(): Promise<void> {
   console.log('\nFluxo principal');
   await step<string[]>('categorias', 'GET', '/categories', undefined, 200, (b) => assert.equal(b.length, 7));
 
-  const { farmer, user: farmerSession } = await step<FarmerSignupResponse>('cadastrar produtor', 'POST', '/farmers',
+  const { farmer, user: farmerSession, token: ana } = await step<FarmerSignupResponse>('cadastrar produtor', 'POST', '/farmers',
     { name: 'Ana Produtora', email: 'Ana@Exemplo.com', phone: '24999990000', cpf: '52998224725', password: PW }, 201,
     (b) => assert.equal(b.farmer.email, 'ana@exemplo.com'));
+  actAs(ana);
 
   const { farm } = await step<FarmResponse>('cadastrar fazenda', 'POST', `/farmers/${farmer.id}/farms`,
     { address: 'Estrada Velha, Km 3', city: 'Três Rios', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }, 201,
@@ -208,12 +227,13 @@ async function run(): Promise<void> {
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita de café', category: 'Colheita', duration: 16, price: 900 }, 201,
     (b) => assert.equal(b.service.status, 'Pending'));
 
-  const { worker, user: workerSession } = await step<WorkerSignupResponse>('cadastrar trabalhador', 'POST', '/workers',
+  const { worker, user: workerSession, token: bruno } = await step<WorkerSignupResponse>('cadastrar trabalhador', 'POST', '/workers',
     { name: 'Bruno Tratorista', email: 'bruno@exemplo.com', phone: '24988880000', cpf: '98765432100', password: PW }, 201,
     (b) => assert.deepEqual([b.user.role, b.user.id, b.user.profiles], ['worker', b.worker.id, { farmer: null, worker: b.worker.id }]));
-  const { worker: worker2 } = await step<WorkerResponse>('cadastrar 2º trabalhador', 'POST', '/workers',
+  const { worker: worker2, token: carla } = await step<WorkerSignupResponse>('cadastrar 2º trabalhador', 'POST', '/workers',
     { name: 'Carla Diarista', email: 'carla@exemplo.com', phone: '24977770000', cpf: '12345678909', password: PW }, 201);
 
+  actAs(bruno);
   await step<OpenService[]>('vagas com cidade/UF', 'GET', '/workers/services?category=Colheita', undefined, 200,
     (b) => assert.deepEqual(b[0]?.farm, { city: 'Três Rios', state: 'RJ', photos: [] }));
   await step<OpenService>('detalhe da vaga sem o ponto no mapa', 'GET', `/workers/services/${service.id}?worker_id=${worker.id}`, undefined, 200,
@@ -221,8 +241,10 @@ async function run(): Promise<void> {
 
   const { application } = await step<ApplicationResponse>('candidatar-se', 'POST', `/workers/services/${service.id}/apply`, { worker_id: worker.id }, 201,
     (b) => assert.equal(b.application.status, 'Pending'));
+  actAs(carla);
   const { application: application2 } = await step<ApplicationResponse>('2ª candidatura', 'POST', `/workers/services/${service.id}/apply`, { worker_id: worker2.id }, 201);
 
+  actAs(ana);
   await step<ApplicationWithWorker[]>('listar candidaturas (CPF mascarado)', 'GET', `/farmers/services/${service.id}/applications`, undefined, 200, (b) => {
     assert.equal(b.length, 2);
     assert.equal(b[0]?.worker.cpf, '***.654.321-**');
@@ -234,18 +256,23 @@ async function run(): Promise<void> {
     assert.equal(b.service.status, 'In Progress');
     assert.equal(b.service.worker_id, worker.id);
   });
+  actAs(carla);
   await step<ApplicationWithService[]>('outra candidatura foi recusada', 'GET', `/workers/${worker2.id}/applications`, undefined, 200,
     (b) => assert.equal(b[0]?.status, 'Rejected'));
+  actAs(bruno);
   await step<OpenService[]>('serviços do trabalhador com o ponto no mapa', 'GET', `/workers/${worker.id}/services`, undefined, 200, (b) => {
     assert.equal(b[0]?.id, service.id);
     assert.deepEqual([b[0].farm.latitude, b[0].farm.longitude], [-22.1165, -43.2092]);
   });
   await step<OpenService>('aceito vê o ponto no detalhe', 'GET', `/workers/services/${service.id}?worker_id=${worker.id}`, undefined, 200,
     (b) => assert.equal(b.farm.latitude, -22.1165));
+  await step('worker_id de outro trabalhador', 'GET', `/workers/services/${service.id}?worker_id=${worker2.id}`, undefined, 403);
+  await step('worker_id inválido no detalhe', 'GET', `/workers/services/${service.id}?worker_id=abc`, undefined, 400);
+  actAs(carla);
   await step<OpenService>('outro trabalhador não vê o ponto', 'GET', `/workers/services/${service.id}?worker_id=${worker2.id}`, undefined, 200,
     (b) => assert.equal(b.farm.latitude, undefined));
-  await step('worker_id inválido no detalhe', 'GET', `/workers/services/${service.id}?worker_id=abc`, undefined, 400);
 
+  actAs(ana);
   await step<PaymentResponse>('liberar pagamento', 'POST', `/farmers/services/${service.id}/payment`, undefined, 200, (b) => {
     assert.equal(b.service.status, 'Completed');
     assert.equal(b.payment.value, 900);
@@ -260,29 +287,53 @@ async function run(): Promise<void> {
   await step('campo faltando', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com' }, 400);
   await step('e-mail duplicado', 'POST', '/farmers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '11144477735', password: PW }, 409);
   await step('CPF duplicado', 'POST', '/farmers', { name: 'X', email: 'novo@exemplo.com', phone: '1', cpf: '52998224725', password: PW }, 409);
-  await step('fazenda de produtor inexistente', 'POST', '/farmers/999/farms', { address: 'a', city: 'b', state: 'MG', latitude: -22.1165, longitude: -43.2092 }, 404);
+  await step('fazenda em nome de outro produtor', 'POST', '/farmers/999/farms', { address: 'a', city: 'b', state: 'MG', latitude: -22.1165, longitude: -43.2092 }, 403);
 
   await step('fazenda sem o ponto no mapa', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG' }, 400);
   await step('latitude fora da faixa', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: 91, longitude: 0 }, 400);
   await step('longitude como texto', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: 0, longitude: '-43' }, 400);
 
-  const { farmer: other } = await step<FarmerResponse>('cadastrar outro produtor', 'POST', '/farmers',
+  const { farmer: other, token: outro } = await step<FarmerSignupResponse>('cadastrar outro produtor', 'POST', '/farmers',
     { name: 'Outro', email: 'outro@exemplo.com', phone: '1', cpf: '11144477735', password: PW }, 201);
+  actAs(outro);
   await step('fazenda de outro produtor', 'POST', '/farmers/services',
     { farmer_id: other.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 400);
+  await step('serviço de outro produtor', 'GET', `/farmers/services/${service.id}`, undefined, 403);
+  await step('perfil de outro produtor', 'PATCH', `/farmers/${farmer.id}`, { name: 'Invasor' }, 403);
+  actAs(bruno);
+  await step('trabalhador no painel do produtor', 'GET', `/farmers/${farmer.id}`, undefined, 403);
+  actAs(null);
+  await step('sem token', 'GET', `/farmers/${farmer.id}`, undefined, 401);
+  await step('vagas sem token', 'GET', '/workers/services', undefined, 401);
+  await step('token inválido', 'GET', `/farmers/${farmer.id}`, undefined, 401, undefined, { Authorization: 'Bearer nao-e-um-token' });
+  await step('token no lugar errado', 'GET', `/farmers/${farmer.id}?access_token=${ana}`, undefined, 401);
+  const challenge = await fetch(`${baseUrl}/farmers/${farmer.id}`, { headers: { Origin: FRONTEND_ORIGIN } });
+  assert.equal(challenge.headers.get('www-authenticate'), 'Bearer realm="ruraliza"');
+  assert.match(challenge.headers.get('access-control-expose-headers') ?? '', /WWW-Authenticate/);
+  const wrongPassword = await fetch(`${baseUrl}/auth/login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'ana@exemplo.com', password: 'errada-123' })
+  });
+  assert.equal([wrongPassword.status, wrongPassword.headers.get('www-authenticate')].join(), '401,');
+  passed++;
+  console.log('  ok  401 — só o 401 de sessão traz WWW-Authenticate (exposto no CORS)');
+  actAs(ana);
   await step('valor zero', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 0 }, 400);
-  await step('produtor inexistente', 'POST', '/farmers/services',
-    { farmer_id: 999, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 404);
+  await step('publicar em nome de outro produtor', 'POST', '/farmers/services',
+    { farmer_id: 999, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 403);
   await step('serviço sem campos', 'POST', '/farmers/services', { farmer_id: farmer.id }, 400);
 
   const { service: open } = await step<ServiceResponse>('publicar 2º serviço', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Plantio', category: 'Plantio', duration: 8, price: 300 }, 201);
+  actAs(bruno);
   await step('candidatar em serviço inexistente', 'POST', '/workers/services/999/apply', { worker_id: worker.id }, 404);
-  await step('trabalhador inexistente', 'POST', `/workers/services/${open.id}/apply`, { worker_id: 999 }, 404);
+  await step('candidatar em nome de outro trabalhador', 'POST', `/workers/services/${open.id}/apply`, { worker_id: worker2.id }, 403);
+  actAs(carla);
   const { application: openApp } = await step<ApplicationResponse>('candidatar no 2º serviço', 'POST', `/workers/services/${open.id}/apply`, { worker_id: worker2.id }, 201);
   await step('candidatura duplicada', 'POST', `/workers/services/${open.id}/apply`, { worker_id: worker2.id }, 409);
   await step('candidatar em serviço concluído', 'POST', `/workers/services/${service.id}/apply`, { worker_id: worker2.id }, 409);
+
+  actAs(ana);
 
   await step('ação inválida', 'PATCH', `/farmers/services/${open.id}/analyze`, { application_id: openApp.id, action: 'Maybe' }, 400);
   await step('candidatura inexistente', 'PATCH', `/farmers/services/${open.id}/analyze`, { application_id: 999, action: 'Accept' }, 404);
@@ -309,12 +360,14 @@ async function run(): Promise<void> {
   await step('login sem senha', 'POST', '/auth/login', { email: 'ana@exemplo.com' }, 400);
   await step('editar a senha pelo PATCH do perfil', 'PATCH', `/farmers/${farmer.id}`, { password: 'outra-senha-1' }, 400);
 
+  actAs(bruno);
   await step('trocar senha com a atual errada', 'PATCH', `/workers/${worker.id}/password`, { current_password: 'errada-123', new_password: 'nova-senha-1' }, 401);
   await step('trocar para a mesma senha', 'PATCH', `/workers/${worker.id}/password`, { current_password: PW, new_password: PW }, 400);
-  await step('trocar senha de inexistente', 'PATCH', '/workers/999/password', { current_password: PW, new_password: 'nova-senha-1' }, 404);
+  await step('trocar senha de outro trabalhador', 'PATCH', `/workers/${worker2.id}/password`, { current_password: PW, new_password: 'nova-senha-1' }, 403);
   await step('trocar senha', 'PATCH', `/workers/${worker.id}/password`, { current_password: PW, new_password: 'nova-senha-1' }, 200);
   await step('senha antiga não entra mais', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: PW }, 401);
-  await step('nova senha entra', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: 'nova-senha-1' }, 200);
+  await step<LoginResponse>('nova senha entra', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: 'nova-senha-1' }, 200,
+    (b) => assert.ok(b.token.length > 0));
 
   await step('esqueci a senha: e-mail sem cadastro', 'POST', '/auth/password-reset', { email: 'ninguem@exemplo.com' }, 404);
   await step('esqueci a senha: e-mail inválido', 'POST', '/auth/password-reset', { email: 'bruno@' }, 400);
@@ -330,15 +383,16 @@ async function run(): Promise<void> {
   console.log('\nConta com os dois perfis');
   await step('e-mail de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '45612378955', password: PW }, 409);
   await step('CPF de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'x2@exemplo.com', phone: '1', cpf: '52998224725', password: PW }, 409);
+  actAs(ana);
   const accountUrl = `/accounts/${farmerSession.account_id}`;
   await step<SessionUser>('sessão da conta', 'GET', accountUrl, undefined, 200, (b) => assert.deepEqual(b, farmerSession));
-  await step('conta inexistente', 'GET', '/accounts/999', undefined, 404);
+  await step('conta de outra pessoa', 'GET', `/accounts/${workerSession.account_id}`, undefined, 403);
   const pushSub = { endpoint: 'https://push.exemplo.com/smoke', keys: { p256dh: 'chave', auth: 'segredo' } };
   await step('ativar push', 'POST', `${accountUrl}/push-subscriptions`, pushSub, 201);
   await step('ativar push de novo (mesmo navegador)', 'POST', `${accountUrl}/push-subscriptions`, pushSub, 201);
   await step('push com endpoint http', 'POST', `${accountUrl}/push-subscriptions`, { ...pushSub, endpoint: 'http://push.exemplo.com/x' }, 400);
   await step('push sem keys', 'POST', `${accountUrl}/push-subscriptions`, { endpoint: pushSub.endpoint }, 400);
-  await step('push em conta inexistente', 'POST', '/accounts/999/push-subscriptions', pushSub, 404);
+  await step('push em conta de outra pessoa', 'POST', `/accounts/${workerSession.account_id}/push-subscriptions`, pushSub, 403);
   await step('desativar push', 'DELETE', `${accountUrl}/push-subscriptions`, { endpoint: pushSub.endpoint }, 200);
   await step('desativar push sem endpoint', 'DELETE', `${accountUrl}/push-subscriptions`, {}, 400);
   await step('painel que a conta não tem', 'PATCH', `${accountUrl}/active-role`, { role: 'worker' }, 404);
@@ -355,8 +409,9 @@ async function run(): Promise<void> {
     (b) => assert.deepEqual([b.user.role, b.user.id], ['farmer', farmer.id]));
 
   console.log('\nEdição e remoção');
-  const { farmer: fd } = await step<FarmerResponse>('produtor a remover', 'POST', '/farmers',
+  const { farmer: fd, token: dora } = await step<FarmerSignupResponse>('produtor a remover', 'POST', '/farmers',
     { name: 'Dora', email: 'dora@exemplo.com', phone: '1', cpf: '39053344705', password: PW }, 201);
+  actAs(dora);
   const { farm: fdFarm } = await step<FarmResponse>('fazenda a remover', 'POST', `/farmers/${fd.id}/farms`,
     { address: 'Sítio', city: 'Vassouras', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }, 201);
   await step<Farmer>('farms guarda os IDs', 'GET', `/farmers/${fd.id}`, undefined, 200, (b) => assert.deepEqual(b.farms, [fdFarm.id]));
@@ -366,22 +421,29 @@ async function run(): Promise<void> {
 
   const { service: fdService } = await step<ServiceResponse>('serviço a remover', 'POST', '/farmers/services',
     { farmer_id: fd.id, farm_id: fdFarm.id, name: 'Roçada', category: 'Outros', duration: 4, price: 200 }, 201);
-  const { worker: wd } = await step<WorkerResponse>('trabalhador a remover', 'POST', '/workers',
+  const { worker: wd, token: eli } = await step<WorkerSignupResponse>('trabalhador a remover', 'POST', '/workers',
     { name: 'Eli', email: 'eli@exemplo.com', phone: '1', cpf: '93541134780', password: PW }, 201);
+  actAs(eli);
   const { application: wdApp } = await step<ApplicationResponse>('candidatura a remover', 'POST', `/workers/services/${fdService.id}/apply`, { worker_id: wd.id }, 201);
+  actAs(dora);
   await step('aceitar para ficar em andamento', 'PATCH', `/farmers/services/${fdService.id}/analyze`, { application_id: wdApp.id, action: 'Accept' }, 200);
   await step('remover produtor com serviço em andamento', 'DELETE', `/farmers/${fd.id}`, undefined, 409);
+  actAs(eli);
   await step('remover trabalhador com serviço em andamento', 'DELETE', `/workers/${wd.id}`, undefined, 409);
+  actAs(dora);
   await step('pagar para concluir', 'POST', `/farmers/services/${fdService.id}/payment`, undefined, 200);
 
+  actAs(eli);
   await step('remover trabalhador', 'DELETE', `/workers/${wd.id}`, undefined, 200);
+  await step('token de conta removida não vale mais', 'DELETE', `/workers/${wd.id}`, undefined, 401);
+  actAs(dora);
   await step<ApplicationWithWorker[]>('candidaturas do removido somem', 'GET', `/farmers/services/${fdService.id}/applications`, undefined, 200,
     (b) => assert.equal(b.length, 0));
   await step('remover produtor', 'DELETE', `/farmers/${fd.id}`, undefined, 200);
   await step('removido não entra mais', 'POST', '/auth/login', { email: 'dora@exemplo.com', password: PW }, 401);
-  await step('produtor removido', 'GET', `/farmers/${fd.id}`, undefined, 404);
+  await step('sessão do produtor removido cai', 'GET', `/farmers/${fd.id}`, undefined, 401);
+  actAs(ana);
   await step('serviço removido junto', 'GET', `/farmers/services/${fdService.id}`, undefined, 404);
-  await step('remover inexistente', 'DELETE', `/workers/${wd.id}`, undefined, 404);
 
   console.log('\nEdição e cancelamento de serviço');
   const { service: editable } = await step<ServiceResponse>('serviço a editar', 'POST', '/farmers/services',
@@ -393,62 +455,81 @@ async function run(): Promise<void> {
   });
   await step('editar com valor inválido', 'PATCH', `/farmers/services/${editable.id}`, { price: -1 }, 400);
   await step('editar status direto', 'PATCH', `/farmers/services/${editable.id}`, { status: 'Completed' }, 400);
+  actAs(outro);
   const { farm: otherFarm } = await step<FarmResponse>('fazenda de outro produtor', 'POST', `/farmers/${other.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: -22.1165, longitude: -43.2092 }, 201);
+  actAs(ana);
   await step('editar para fazenda de outro', 'PATCH', `/farmers/services/${editable.id}`, { farm_id: otherFarm.id }, 400);
   await step('editar para fazenda inexistente', 'PATCH', `/farmers/services/${editable.id}`, { farm_id: 999 }, 404);
   await step('editar serviço concluído', 'PATCH', `/farmers/services/${service.id}`, { name: 'X' }, 409);
   await step('editar serviço inexistente', 'PATCH', '/farmers/services/999', { name: 'X' }, 404);
 
+  actAs(carla);
   const { application: editableApp } = await step<ApplicationResponse>('candidatura no serviço a cancelar', 'POST', `/workers/services/${editable.id}/apply`, { worker_id: worker2.id }, 201);
+  actAs(ana);
   await step<ServiceResponse>('cancelar serviço', 'PATCH', `/farmers/services/${editable.id}/cancel`, undefined, 200,
     (b) => assert.equal(b.service.status, 'Cancelled'));
   await step<ApplicationWithWorker[]>('candidatura pendente foi recusada', 'GET', `/farmers/services/${editable.id}/applications`, undefined, 200,
     (b) => assert.equal(b.find((a) => a.id === editableApp.id)?.status, 'Rejected'));
+  actAs(bruno);
   await step<OpenService[]>('cancelado some das vagas', 'GET', '/workers/services', undefined, 200,
     (b) => assert.ok(!b.some((s) => s.id === editable.id)));
+  actAs(ana);
   await step('cancelar de novo', 'PATCH', `/farmers/services/${editable.id}/cancel`, undefined, 409);
   await step('editar cancelado', 'PATCH', `/farmers/services/${editable.id}`, { name: 'X' }, 409);
 
   console.log('\nDesistência do trabalhador');
   const { service: ws } = await step<ServiceResponse>('serviço para desistência', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Capina', category: 'Manutenção', duration: 5, price: 150 }, 201);
-  const { worker: worker3 } = await step<WorkerResponse>('cadastrar 3º trabalhador', 'POST', '/workers',
+  const { worker: worker3, token: davi } = await step<WorkerSignupResponse>('cadastrar 3º trabalhador', 'POST', '/workers',
     { name: 'Davi', email: 'davi@exemplo.com', phone: '1', cpf: '71428793860', password: PW }, 201);
   const farmerEvents = await openEvents('produtor acompanha as candidaturas (SSE)', `/farmers/services/${ws.id}/events`);
+  actAs(bruno);
   await step('candidatar para desistir', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker.id }, 201);
   await farmerEvents.expectEvent('produtor avisado da candidatura', 'applications');
   await step<ServiceResponse>('desistir da candidatura', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 200,
     (b) => assert.equal(b.service.status, 'Pending'));
   await farmerEvents.expectEvent('produtor avisado da desistência', 'applications');
   farmerEvents.close();
+  await step('acompanhar candidaturas de outro trabalhador', 'GET', `/workers/${worker2.id}/events`, undefined, 403);
+  actAs(ana);
   await step('acompanhar serviço inexistente', 'GET', '/farmers/services/999/events', undefined, 404);
-  await step('acompanhar trabalhador inexistente', 'GET', '/workers/999/events', undefined, 404);
   await step<ApplicationWithWorker[]>('candidatura removida', 'GET', `/farmers/services/${ws.id}/applications`, undefined, 200, (b) => assert.equal(b.length, 0));
+  actAs(bruno);
   const { application: wa1 } = await step<ApplicationResponse>('candidatar de novo', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker.id }, 201);
+  actAs(carla);
   const { application: wa2 } = await step<ApplicationResponse>('2º candidato', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker2.id }, 201);
+  actAs(davi);
   const { application: wa3 } = await step<ApplicationResponse>('3º candidato', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker3.id }, 201);
+  actAs(carla);
   const worker2Events = await openEvents('2º candidato acompanha as candidaturas (SSE)', `/workers/${worker2.id}/events`);
+  actAs(ana);
   await step('produtor recusa o 3º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa3.id, action: 'Reject' }, 200);
   await step('produtor aceita o 1º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa1.id, action: 'Accept' }, 200);
   await worker2Events.expectEvent('2º candidato avisado da recusa pelo aceite', 'applications');
+  actAs(bruno);
   await step<ServiceResponse>('desistir do serviço aceito', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 200, (b) => {
     assert.equal(b.service.status, 'Pending');
     assert.equal(b.service.worker_id, null);
   });
   await worker2Events.expectEvent('2º candidato avisado da candidatura de volta a Pending', 'applications');
   worker2Events.close();
+  actAs(ana);
   await step<ApplicationWithWorker[]>('volta à etapa anterior', 'GET', `/farmers/services/${ws.id}/applications`, undefined, 200, (b) => {
     assert.equal(b.length, 2);
     assert.equal(b.find((a) => a.id === wa2.id)?.status, 'Pending'); // recusada pelo aceite: volta
     assert.equal(b.find((a) => a.id === wa3.id)?.status, 'Rejected'); // recusada pelo produtor: continua
   });
+  actAs(bruno);
   await step<OpenService[]>('vaga reaberta', 'GET', '/workers/services', undefined, 200, (b) => assert.ok(b.some((s) => s.id === ws.id)));
   await step('desistir sem candidatura', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 404);
+  actAs(davi);
   await step('desistir de candidatura recusada', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker3.id }, 409);
+  actAs(bruno);
   await step('desistir de serviço concluído', 'PATCH', `/workers/services/${service.id}/withdraw`, { worker_id: worker.id }, 409);
   await step('desistir sem worker_id', 'PATCH', `/workers/services/${ws.id}/withdraw`, {}, 400);
 
   console.log('\nEdição e remoção de fazenda');
+  actAs(ana);
   const { farm: f2 } = await step<FarmResponse>('2ª fazenda', 'POST', `/farmers/${farmer.id}/farms`, { address: 'Sítio Novo', city: 'Paty', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }, 201);
   await step<FarmResponse>('editar fazenda', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { address: 'Sítio Novo, Km 5', city: '  Paty do Alferes ' }, 200, (b) => {
     assert.equal(b.farm.address, 'Sítio Novo, Km 5');
@@ -483,6 +564,7 @@ async function run(): Promise<void> {
   const bigPhoto = new Uint8Array(await sharp({ create: { width: 2400, height: 1600, channels: 3, background: '#3a7d24' } }).jpeg().toBuffer());
   const smallPhoto = new Uint8Array(await sharp({ create: { width: 400, height: 300, channels: 3, background: '#ee8a14' } }).png().toBuffer());
 
+  actAs(bruno);
   const { worker: wPhoto } = await upload<WorkerResponse>('foto de perfil do trabalhador', `/workers/${worker.id}/photo`, bigPhoto, 'image/jpeg', 200,
     (b) => assert.match(b.worker.photo_url ?? '', /^\/api\/images\/.+\.webp$/));
   const firstUrl = wPhoto.photo_url ?? '';
@@ -494,9 +576,10 @@ async function run(): Promise<void> {
   await upload('arquivo que não é imagem', `/workers/${worker.id}/photo`, new TextEncoder().encode('não sou uma foto'), 'image/jpeg', 400);
   await upload('sem Content-Type de imagem', `/workers/${worker.id}/photo`, bigPhoto, 'application/octet-stream', 400);
   await upload('foto maior que 10 MB', `/workers/${worker.id}/photo`, new Uint8Array(11 * 1024 * 1024), 'image/jpeg', 413);
-  await upload('foto de trabalhador inexistente', '/workers/999/photo', smallPhoto, 'image/png', 404);
+  await upload('foto no perfil de outro trabalhador', `/workers/${worker2.id}/photo`, smallPhoto, 'image/png', 403);
   await step<WorkerResponse>('remover foto do trabalhador', 'DELETE', `/workers/${worker.id}/photo`, undefined, 200, (b) => assert.equal(b.worker.photo_url, null));
 
+  actAs(ana);
   await upload<FarmerResponse>('foto de perfil do produtor', `/farmers/${farmer.id}/photo`, smallPhoto, 'image/png', 200,
     (b) => assert.ok(b.farmer.photo_url));
   await step<FarmerResponse>('remover foto do produtor', 'DELETE', `/farmers/${farmer.id}/photo`, undefined, 200, (b) => assert.equal(b.farmer.photo_url, null));
@@ -516,6 +599,7 @@ async function run(): Promise<void> {
   await download('foto removida não é mais servida', firstFarmPhoto.url, 404);
 
   console.log('\nCurrículo');
+  actAs(bruno);
   const resumePdf = new TextEncoder().encode('%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n');
   const { worker: wResume } = await upload<WorkerResponse>('currículo do trabalhador', `/workers/${worker.id}/resume`, resumePdf, 'application/pdf', 200,
     (b) => assert.match(b.worker.resume_url ?? '', /^\/api\/documents\/.+\.pdf$/));
@@ -527,7 +611,7 @@ async function run(): Promise<void> {
   await upload('arquivo que não é PDF', `/workers/${worker.id}/resume`, new TextEncoder().encode('não sou um PDF'), 'application/pdf', 400);
   await upload('sem Content-Type de PDF', `/workers/${worker.id}/resume`, resumePdf, 'application/octet-stream', 400);
   await upload('currículo maior que 5 MB', `/workers/${worker.id}/resume`, new Uint8Array(6 * 1024 * 1024), 'application/pdf', 413);
-  await upload('currículo de trabalhador inexistente', '/workers/999/resume', resumePdf, 'application/pdf', 404);
+  await upload('currículo no perfil de outro trabalhador', `/workers/${worker2.id}/resume`, resumePdf, 'application/pdf', 403);
   await step<WorkerResponse>('remover currículo', 'DELETE', `/workers/${worker.id}/resume`, undefined, 200, (b) => assert.equal(b.worker.resume_url, null));
 
   console.log('\nPerfil do trabalhador');
@@ -541,6 +625,7 @@ async function run(): Promise<void> {
   await step<WorkerResponse>('limpar os cursos', 'PATCH', `/workers/${worker.id}`, { courses: null }, 200, (b) => assert.equal(b.worker.courses, null));
 
   console.log('\nDescrição, validade e exclusão');
+  actAs(ana);
   const { service: described } = await step<ServiceResponse>('serviço com descrição e validade', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Roçada de pasto', description: '  Roçar 2 ha com roçadeira costal.  ', category: 'Manutenção', duration: 12, price: 600, expires_at: brDay(10) }, 201,
     (b) => {
@@ -553,14 +638,18 @@ async function run(): Promise<void> {
     { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1, expires_at: '31/10/2026' }, 400);
   await step('data que não existe', 'PATCH', `/farmers/services/${described.id}`, { expires_at: '2026-02-30' }, 400);
   await step<ServiceResponse>('validade vence hoje ainda vale', 'PATCH', `/farmers/services/${described.id}`, { expires_at: brDay(0) }, 200);
+  actAs(bruno);
   await step<OpenService[]>('vaga com validade hoje aparece', 'GET', '/workers/services?q=rocada', undefined, 200,
     (b) => assert.ok(b.some((j) => j.id === described.id)));
+  actAs(ana);
   await step<ServiceResponse>('remover prazo e descrição', 'PATCH', `/farmers/services/${described.id}`, { expires_at: null, description: '' }, 200, (b) => {
     assert.equal(b.service.expires_at, null);
     assert.equal(b.service.description, null);
   });
+  actAs(bruno);
   await step<OpenService>('vaga mostra fotos da fazenda', 'GET', `/workers/services/${described.id}`, undefined, 200,
     (b) => assert.equal(b.farm.photos.length, 5));
+  actAs(ana);
   // Não existe exclusão de serviço: o caminho é cancelar (PATCH /cancel), que mantém o histórico.
   await step('rota de exclusão de serviço não existe', 'DELETE', `/farmers/services/${described.id}`, undefined, 404);
 
@@ -571,6 +660,7 @@ async function run(): Promise<void> {
   const ordenha = (await post('Ordenha', 'Ordenha mecânica às 5h', 'Manejo de gado', 6, 300)).service;
   const trator = (await post('Gradear área', 'Trator próprio da fazenda, precisa de CNH', 'Operação de máquinas', 16, 900)).service;
   const ids = (b: OpenService[]): number[] => b.map((j) => j.id);
+  actAs(bruno);
 
   await step<OpenService[]>('busca sem acento acha "Café"', 'GET', '/workers/services?q=cafe', undefined, 200,
     (b) => assert.ok(ids(b).includes(cafe.id)));
@@ -598,7 +688,10 @@ async function run(): Promise<void> {
   passed++;
   console.log('  ok  400 POST   /farmers  — JSON inválido');
 
+  await administration({ ana, outro, carla, farmer, other, worker, worker2, farmId: farm.id });
+
   console.log('\nDocumentação');
+  actAs(null);
   await step('health check', 'GET', '/health', undefined, 200);
 
   const savedKey = process.env['GOOGLE_MAPS_API_KEY'];
@@ -671,6 +764,164 @@ async function run(): Promise<void> {
   assert.match(html, /swagger-ui/i, 'Swagger UI não foi servido');
   passed++;
   console.log('  ok  200 GET    /docs/  — Swagger UI');
+}
+
+interface AdminScenario {
+  ana: string; // conta com os dois perfis
+  outro: string;
+  carla: string;
+  farmer: Farmer;
+  other: Farmer;
+  worker: { id: number };
+  worker2: { id: number };
+  farmId: number;
+}
+
+async function administration({ ana, outro, carla, farmer, other, worker, worker2, farmId }: AdminScenario): Promise<void> {
+  console.log('\nAdministração (usuários de sistema)');
+  // Sem cadastro público: o primeiro administrador vem do servidor (ADMIN_EMAIL/ADMIN_PASSWORD ou seed).
+  assert.equal(await container.useCases.systemUsers.ensureInitialAdmin({ email: 'admin@exemplo.com', password: PW, name: 'Ana Admin' }), 'created');
+  assert.equal(await container.useCases.systemUsers.ensureInitialAdmin({ email: 'admin@exemplo.com', password: 'outra-senha', name: 'X' }), 'exists');
+
+  actAs(null);
+  await step('login de sistema com senha errada', 'POST', '/auth/system/login', { email: 'admin@exemplo.com', password: 'errada-123' }, 401);
+  await step('conta do app não entra como sistema', 'POST', '/auth/system/login', { email: 'ana@exemplo.com', password: PW }, 401);
+  await step('usuário de sistema não entra pelo login do app', 'POST', '/auth/login', { email: 'admin@exemplo.com', password: PW }, 401);
+  const { token: admin } = await step<SystemLoginResponse>('entrar como administrador', 'POST', '/auth/system/login',
+    { email: 'ADMIN@exemplo.com', password: PW }, 200, (b) => assert.equal(b.user.role, 'admin'));
+
+  actAs(ana);
+  await step('conta do app na administração', 'GET', '/admin/users', undefined, 403);
+  await step('conta do app na sessão de sistema', 'GET', '/auth/system/me', undefined, 403);
+  await step('conta do app lista produtores', 'GET', '/farmers', undefined, 403);
+
+  actAs(admin);
+  await step<SystemUser>('sessão de sistema', 'GET', '/auth/system/me', undefined, 200, (b) => assert.equal(b.email, 'admin@exemplo.com'));
+  await step('administrador não usa o painel do produtor', 'GET', `/farmers/${farmer.id}`, undefined, 403);
+  await step<Farmer[]>('lista de produtores (administração)', 'GET', '/farmers', undefined, 200, (b) => assert.ok(b.length >= 2));
+  await step('lista de trabalhadores (administração)', 'GET', '/workers', undefined, 200);
+  const users = await step<AdminUser[]>('listar contas', 'GET', '/admin/users', undefined, 200, (b) => {
+    const both = b.find((u) => u.email === 'ana@exemplo.com');
+    assert.equal(both?.farmer?.cpf, '***.982.247-**');
+    assert.ok(both.worker);
+  });
+  const account = (email: string): AdminUser => {
+    const found = users.find((u) => u.email === email);
+    assert.ok(found, `conta ${email} na lista`);
+    return found;
+  };
+  const both = account('ana@exemplo.com');
+  await step<AdminUser>('detalhe da conta (CPF completo)', 'GET', `/admin/users/${both.account_id}`, undefined, 200,
+    (b) => assert.equal(b.farmer?.cpf, '52998224725'));
+  await step('detalhe de conta inexistente', 'GET', '/admin/users/999', undefined, 404);
+
+  await step<FarmerResponse>('editar produtor', 'PATCH', `/admin/farmers/${farmer.id}`, { name: 'Ana Souza' }, 200,
+    (b) => assert.equal(b.farmer.name, 'Ana Souza'));
+  await step('editar CPF', 'PATCH', `/admin/farmers/${farmer.id}`, { cpf: '11144477735' }, 400);
+  await step('editar para e-mail de outra conta', 'PATCH', `/admin/farmers/${farmer.id}`, { email: 'outro@exemplo.com' }, 409);
+  await step<WorkerResponse>('editar trabalhador', 'PATCH', `/admin/workers/${worker.id}`, { phone: '24900001111', bio: null }, 200,
+    (b) => assert.equal(b.worker.phone, '24900001111'));
+  await step('editar trabalhador inexistente', 'PATCH', '/admin/workers/999', { name: 'X' }, 404);
+
+  // Foto imprópria: o administrador remove a foto de perfil de qualquer usuário.
+  const photo = new Uint8Array(await sharp({ create: { width: 200, height: 200, channels: 3, background: '#c0392b' } }).png().toBuffer());
+  actAs(ana);
+  const { farmer: withPhoto } = await upload<FarmerResponse>('produtor envia foto', `/farmers/${farmer.id}/photo`, photo, 'image/png', 200);
+  actAs(carla);
+  const { worker: workerWithPhoto } = await upload<WorkerResponse>('trabalhador envia foto', `/workers/${worker2.id}/photo`, photo, 'image/png', 200);
+  actAs(ana);
+  await step('conta do app não remove foto pela administração', 'DELETE', `/admin/workers/${worker2.id}/photo`, undefined, 403);
+  actAs(admin);
+  await step<FarmerResponse>('remover foto do produtor', 'DELETE', `/admin/farmers/${farmer.id}/photo`, undefined, 200,
+    (b) => assert.equal(b.farmer.photo_url, null));
+  await download('foto do produtor não é mais servida', withPhoto.photo_url ?? '', 404);
+  await step<WorkerResponse>('remover foto do trabalhador', 'DELETE', `/admin/workers/${worker2.id}/photo`, undefined, 200,
+    (b) => assert.equal(b.worker.photo_url, null));
+  await download('foto do trabalhador não é mais servida', workerWithPhoto.photo_url ?? '', 404);
+  await step('remover foto de quem não tem foto', 'DELETE', `/admin/farmers/${farmer.id}/photo`, undefined, 200);
+  await step('foto de trabalhador inexistente', 'DELETE', '/admin/workers/999/photo', undefined, 404);
+
+  // Serviço em andamento bloqueia a remoção (de um perfil e da conta inteira).
+  actAs(ana);
+  const { service: busy } = await step<ServiceResponse>('serviço em andamento para a administração', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farmId, name: 'Adubação', category: 'Outros', duration: 4, price: 200 }, 201);
+  actAs(carla);
+  const { application: busyApp } = await step<ApplicationResponse>('candidata ao serviço', 'POST', `/workers/services/${busy.id}/apply`, { worker_id: worker2.id }, 201);
+  actAs(ana);
+  await step('aceita a candidata', 'PATCH', `/farmers/services/${busy.id}/analyze`, { application_id: busyApp.id, action: 'Accept' }, 200);
+  actAs(admin);
+  const carlaAccount = account('carla@exemplo.com');
+  await step('remover conta com serviço em andamento', 'DELETE', `/admin/users/${carlaAccount.account_id}`, undefined, 409);
+  await step('remover perfil com serviço em andamento', 'DELETE', `/admin/workers/${worker2.id}`, undefined, 409);
+  await step<AdminUser>('nada foi removido', 'GET', `/admin/users/${carlaAccount.account_id}`, undefined, 200, (b) => assert.ok(b.worker));
+
+  const bothWorker = both.worker;
+  assert.ok(bothWorker);
+  await step('remover perfil de trabalhador', 'DELETE', `/admin/workers/${bothWorker.id}`, undefined, 200);
+  await step<AdminUser>('a conta fica com o produtor', 'GET', `/admin/users/${both.account_id}`, undefined, 200, (b) => {
+    assert.equal(b.worker, null);
+    assert.equal(b.farmer?.id, farmer.id);
+  });
+  await step('remover perfil inexistente', 'DELETE', `/admin/workers/${bothWorker.id}`, undefined, 404);
+  actAs(ana);
+  await step<SessionUser>('a sessão da conta perde o perfil', 'GET', `/accounts/${both.account_id}`, undefined, 200,
+    (b) => assert.deepEqual([b.role, b.profiles.worker], ['farmer', null]));
+
+  actAs(admin);
+  const outroAccount = account('outro@exemplo.com');
+  await step('remover conta', 'DELETE', `/admin/users/${outroAccount.account_id}`, undefined, 200);
+  await step('conta removida', 'GET', `/admin/users/${outroAccount.account_id}`, undefined, 404);
+  await step('remover conta de novo', 'DELETE', `/admin/users/${outroAccount.account_id}`, undefined, 404);
+  await step('o produtor saiu junto', 'DELETE', `/admin/farmers/${other.id}`, undefined, 404);
+  actAs(outro);
+  await step('sessão da conta removida cai', 'GET', `/farmers/${other.id}`, undefined, 401);
+
+  console.log('\nEquipe');
+  actAs(admin);
+  const { system_user: tutorUser } = await step<SystemUserResponse>('cadastrar tutor', 'POST', '/admin/system-users',
+    { email: 'Tutor@Exemplo.com', name: ' Tiago Tutor ', role: 'tutor', password: PW }, 201,
+    (b) => assert.deepEqual([b.system_user.email, b.system_user.name, b.system_user.role], ['tutor@exemplo.com', 'Tiago Tutor', 'tutor']));
+  await step('e-mail repetido na equipe', 'POST', '/admin/system-users', { email: 'tutor@exemplo.com', name: 'X', role: 'admin', password: PW }, 409);
+  await step('cargo inválido', 'POST', '/admin/system-users', { email: 'x@exemplo.com', name: 'X', role: 'gerente', password: PW }, 400);
+  await step('senha curta', 'POST', '/admin/system-users', { email: 'x@exemplo.com', name: 'X', role: 'admin', password: '123' }, 400);
+  await step('sem nome', 'POST', '/admin/system-users', { email: 'x@exemplo.com', role: 'admin', password: PW }, 400);
+  await step<SystemUser[]>('listar equipe (sem senha)', 'GET', '/admin/system-users', undefined, 200,
+    (b) => assert.deepEqual(b.map((u) => u.role), ['admin', 'tutor']));
+
+  const { token: tutor } = await step<SystemLoginResponse>('tutor entra', 'POST', '/auth/system/login', { email: 'tutor@exemplo.com', password: PW }, 200);
+  actAs(tutor);
+  await step<SystemUser>('sessão do tutor', 'GET', '/auth/system/me', undefined, 200, (b) => assert.equal(b.role, 'tutor'));
+  await step('tutor não gerencia contas', 'GET', '/admin/users', undefined, 403);
+  await step('tutor não cadastra equipe', 'POST', '/admin/system-users', { email: 'y@exemplo.com', name: 'Y', role: 'admin', password: PW }, 403);
+
+  console.log('\nPerfil dos usuários de sistema');
+  await step<SystemUserResponse>('tutor edita o próprio perfil', 'PATCH', '/auth/system/me', { name: ' Tiago Souza ', email: 'Tiago@Exemplo.com' }, 200,
+    (b) => assert.deepEqual([b.system_user.name, b.system_user.email, b.system_user.role], ['Tiago Souza', 'tiago@exemplo.com', 'tutor']));
+  await step<SystemUser>('a sessão já mostra os dados novos', 'GET', '/auth/system/me', undefined, 200, (b) => assert.equal(b.name, 'Tiago Souza'));
+  await step('tutor não muda o próprio cargo', 'PATCH', '/auth/system/me', { role: 'admin' }, 400);
+  await step('senha não muda pelo perfil', 'PATCH', '/auth/system/me', { password: 'outra-senha-1' }, 400);
+  await step('nome vazio', 'PATCH', '/auth/system/me', { name: '  ' }, 400);
+  await step('e-mail de outro membro', 'PATCH', '/auth/system/me', { email: 'admin@exemplo.com' }, 409);
+  await step('tutor não edita outro membro', 'PATCH', `/admin/system-users/${tutorUser.id}`, { name: 'X' }, 403);
+  await step('tutor entra com o e-mail novo', 'POST', '/auth/system/login', { email: 'tiago@exemplo.com', password: PW }, 200);
+  actAs(ana);
+  await step('conta do app não edita perfil de sistema', 'PATCH', '/auth/system/me', { name: 'X' }, 403);
+
+  actAs(admin);
+  const adminUser = await step<SystemUser>('sessão do administrador', 'GET', '/auth/system/me', undefined, 200);
+  await step<SystemUser>('detalhe de um membro', 'GET', `/admin/system-users/${tutorUser.id}`, undefined, 200,
+    (b) => assert.equal(b.email, 'tiago@exemplo.com'));
+  await step('detalhe de membro inexistente', 'GET', '/admin/system-users/999', undefined, 404);
+  await step<SystemUserResponse>('administrador promove o tutor', 'PATCH', `/admin/system-users/${tutorUser.id}`, { role: 'admin', name: 'Tiago Admin' }, 200,
+    (b) => assert.deepEqual([b.system_user.role, b.system_user.name], ['admin', 'Tiago Admin']));
+  await step('e-mail de outro membro na edição', 'PATCH', `/admin/system-users/${tutorUser.id}`, { email: 'admin@exemplo.com' }, 409);
+  await step('cargo inválido na edição', 'PATCH', `/admin/system-users/${tutorUser.id}`, { role: 'gerente' }, 400);
+  await step('editar membro inexistente', 'PATCH', '/admin/system-users/999', { name: 'X' }, 404);
+  await step('administrador não muda o próprio cargo', 'PATCH', `/admin/system-users/${adminUser.id}`, { role: 'tutor' }, 409);
+  await step<SystemUserResponse>('administrador edita o próprio nome pela equipe', 'PATCH', `/admin/system-users/${adminUser.id}`, { name: 'Ana Admin', role: 'admin' }, 200,
+    (b) => assert.equal(b.system_user.name, 'Ana Admin'));
+  actAs(tutor);
+  await step<SystemUser[]>('o tutor promovido já gerencia a equipe', 'GET', '/admin/system-users', undefined, 200);
 }
 
 function errorMessage(error: unknown): string {

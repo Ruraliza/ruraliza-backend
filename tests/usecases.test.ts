@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { type Container, createContainer } from '../src/container';
 import type { Result } from '../src/domain/result';
+import { createHmacSessionTokens } from '../src/infra/crypto/NodeCrypto';
 import { InMemoryRepository } from '../src/infra/memory/InMemoryRepository';
 
 const NOW = '2026-01-01T00:00:00.000Z';
@@ -693,5 +694,130 @@ describe('Notificações push', () => {
     } finally {
       console.error = original;
     }
+  });
+});
+
+describe('Token de sessão', () => {
+  it('confere a assinatura e a validade', () => {
+    let now = NOW;
+    const tokens = createHmacSessionTokens('segredo', { now: () => now }, 60_000);
+    const token = tokens.issue({ kind: 'system', id: 7 });
+    assert.deepEqual(tokens.verify(token), { kind: 'system', id: 7 });
+
+    // Trocar o payload (ex.: virar outra conta) invalida a assinatura.
+    const [, signature] = token.split('.');
+    const forged = `${Buffer.from(JSON.stringify({ kind: 'system', id: 1, exp: Date.parse(NOW) + 60_000 })).toString('base64url')}.${signature ?? ''}`;
+    assert.equal(tokens.verify(forged), null);
+    assert.equal(createHmacSessionTokens('outro-segredo', { now: () => now }).verify(token), null);
+    assert.equal(tokens.verify('lixo'), null);
+
+    now = new Date(Date.parse(NOW) + 60_000).toISOString();
+    assert.equal(tokens.verify(token), null);
+  });
+});
+
+describe('SystemUserUseCases', () => {
+  it('cadastra, entra e não repete e-mail', async () => {
+    const c = setup();
+    const tutor = unwrap(await c.useCases.systemUsers.create({ email: 'tutor@exemplo.com', name: 'Tiago', role: 'tutor', password: PASSWORD }));
+    assert.equal('password_hash' in tutor, false);
+
+    const login = unwrap(await c.useCases.systemUsers.login({ email: 'tutor@exemplo.com', password: PASSWORD }));
+    assert.deepEqual([login.id, login.role], [tutor.id, 'tutor']);
+    const wrong = await c.useCases.systemUsers.login({ email: 'tutor@exemplo.com', password: 'errada-123' });
+    assert.equal(wrong.ok ? '' : wrong.kind, 'unauthorized');
+
+    const again = await c.useCases.systemUsers.create({ email: 'tutor@exemplo.com', name: 'X', role: 'admin', password: PASSWORD });
+    assert.equal(again.ok ? '' : again.kind, 'conflict');
+  });
+
+  it('edita o perfil; e-mail repetido dá conflito; o administrador não muda o próprio cargo', async () => {
+    const c = setup();
+    const admin = unwrap(await c.useCases.systemUsers.create({ email: 'admin@exemplo.com', name: 'Ana', role: 'admin', password: PASSWORD }));
+    const tutor = unwrap(await c.useCases.systemUsers.create({ email: 'tutor@exemplo.com', name: 'Tiago', role: 'tutor', password: PASSWORD }));
+
+    const own = unwrap(await c.useCases.systemUsers.updateOwn(tutor.id, { name: 'Tiago Souza', email: 'tiago@exemplo.com' }));
+    assert.deepEqual([own.name, own.email, own.role], ['Tiago Souza', 'tiago@exemplo.com', 'tutor']);
+    assert.ok((await c.useCases.systemUsers.login({ email: 'tiago@exemplo.com', password: PASSWORD })).ok);
+
+    const taken = await c.useCases.systemUsers.updateOwn(tutor.id, { email: 'admin@exemplo.com' });
+    assert.equal(taken.ok ? '' : taken.kind, 'conflict');
+
+    const ownRole = await c.useCases.systemUsers.updateByAdmin(admin.id, admin.id, { role: 'tutor' });
+    assert.equal(ownRole.ok ? '' : ownRole.kind, 'conflict');
+    assert.equal(unwrap(await c.useCases.systemUsers.get(admin.id)).role, 'admin');
+
+    const promoted = unwrap(await c.useCases.systemUsers.updateByAdmin(admin.id, tutor.id, { role: 'admin' }));
+    assert.equal(promoted.role, 'admin');
+  });
+
+  it('o administrador inicial é criado uma vez só', async () => {
+    const c = setup();
+    const input = { email: 'admin@exemplo.com', password: PASSWORD, name: 'Admin' };
+    assert.equal(await c.useCases.systemUsers.ensureInitialAdmin(input), 'created');
+    assert.equal(await c.useCases.systemUsers.ensureInitialAdmin({ ...input, password: 'outra-senha-1' }), 'exists');
+    assert.ok((await c.useCases.systemUsers.login(input)).ok); // a senha original continua valendo
+  });
+});
+
+describe('AdminUseCases', () => {
+  async function accountId(c: Container, filter: { farmer_id: number } | { worker_id: number }): Promise<number> {
+    const [account] = await c.repos.accounts.find(filter);
+    assert.ok(account);
+    return account.id;
+  }
+
+  it('remover um perfil mantém a conta com o outro', async () => {
+    const c = setup();
+    const { farmerId } = await farmerWithFarm(c);
+    const id = await accountId(c, { farmer_id: farmerId });
+    const session = unwrap(await c.useCases.accounts.addProfile(id, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
+
+    unwrap(await c.useCases.workers.delete(session.profiles.worker ?? 0));
+    const user = unwrap(await c.useCases.admin.getUser(id));
+    assert.deepEqual([user.farmer?.id, user.worker], [farmerId, null]);
+  });
+
+  it('remover a conta leva os dois perfis e as inscrições de push', async () => {
+    const c = setup();
+    const { farmerId } = await farmerWithFarm(c);
+    const id = await accountId(c, { farmer_id: farmerId });
+    unwrap(await c.useCases.accounts.addProfile(id, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
+    unwrap(await c.useCases.push.subscribe(id, { endpoint: 'https://push.exemplo.com/ana', keys: { p256dh: 'p', auth: 'a' } }));
+
+    unwrap(await c.useCases.admin.deleteUser(id));
+    assert.equal((await c.repos.accounts.find()).length, 0);
+    assert.equal((await c.repos.farmers.find()).length, 0);
+    assert.equal((await c.repos.workers.find()).length, 0);
+    assert.equal((await c.repos.pushSubscriptions.find()).length, 0);
+  });
+
+  it('serviço em andamento bloqueia a remoção da conta sem apagar nada', async () => {
+    const c = setup();
+    const { farmerId, farmId } = await farmerWithFarm(c);
+    const id = await accountId(c, { farmer_id: farmerId });
+    // A conta também é trabalhadora (perfil sem bloqueio): não pode sumir sozinha.
+    unwrap(await c.useCases.accounts.addProfile(id, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
+    const serviceId = await openService(c, farmerId, farmId);
+    const w = await worker(c, 'w@exemplo.com', '11144477735');
+    const application = unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: application.id, action: 'Accept' }));
+
+    const blocked = await c.useCases.admin.deleteUser(id);
+    assert.equal(blocked.ok ? '' : blocked.kind, 'conflict');
+    const user = unwrap(await c.useCases.admin.getUser(id));
+    assert.ok(user.farmer && user.worker);
+
+    const workerAccount = await c.useCases.admin.deleteUser(await accountId(c, { worker_id: w }));
+    assert.equal(workerAccount.ok ? '' : workerAccount.kind, 'conflict');
+  });
+
+  it('a lista mascara o CPF e o detalhe não', async () => {
+    const c = setup();
+    const { farmerId } = await farmerWithFarm(c);
+    const id = await accountId(c, { farmer_id: farmerId });
+    const [listed] = await c.useCases.admin.listUsers();
+    assert.equal(listed?.farmer?.cpf, '***.982.247-**');
+    assert.equal(unwrap(await c.useCases.admin.getUser(id)).farmer?.cpf, '52998224725');
   });
 });

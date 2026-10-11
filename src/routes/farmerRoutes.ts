@@ -6,6 +6,7 @@ import type { PhotoController } from '../controllers/PhotoController';
 import type { ServiceController } from '../controllers/ServiceController';
 import { IMAGE_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
 import { ref } from '../docs/schemas';
+import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
 import { type RouteDef, route } from '../http/route';
 
 // Montadas em /api/farmers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
@@ -28,7 +29,10 @@ export interface FarmerRouteControllers {
   events: EventController;
 }
 
-export function farmerRoutes({ farmers, farms, services, photos, auth, events }: FarmerRouteControllers): readonly RouteDef[] {
+export function farmerRoutes(
+  { farmers, farms, services, photos, auth, events }: FarmerRouteControllers,
+  access: AccessPolicies
+): readonly RouteDef[] {
   return [
     // --- SERVIÇOS ---
 
@@ -42,7 +46,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         400: 'Campo obrigatório faltando; `duration` ou `price` não é número maior que zero; fazenda de outro produtor.',
         404: 'Produtor não encontrado; fazenda não encontrada ou removida.'
       }
-    })),
+    }), access.farmerInBody()),
 
     route('get', '/services/:id', services.getService, operation({
       tag: TAGS.farmerServices,
@@ -50,7 +54,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [serviceId],
       success: { status: 200, description: 'Serviço com a fazenda completa (mesmo que removida).', schema: 'ServiceWithFarm' },
       errors: { 404: 'Serviço não encontrado.' }
-    })),
+    }), access.farmerOfService()),
 
     route('patch', '/services/:id', services.updateService, operation({
       tag: TAGS.farmerServices,
@@ -64,7 +68,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         404: 'Serviço não encontrado; fazenda não encontrada ou removida.',
         409: 'O serviço não está mais `Pending`.'
       }
-    })),
+    }), access.farmerOfService()),
 
     route('patch', '/services/:id/cancel', services.cancelService, operation({
       tag: TAGS.farmerServices,
@@ -73,7 +77,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [serviceId],
       success: { status: 200, description: 'Serviço cancelado.', schema: 'ServiceResponse' },
       errors: { 404: 'Serviço não encontrado.', 409: 'O serviço não está mais `Pending`.' }
-    })),
+    }), access.farmerOfService()),
 
     route('get', '/services/:id/applications', services.listServiceApplications, operation({
       tag: TAGS.farmerServices,
@@ -81,7 +85,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [serviceId],
       success: { status: 200, description: 'Candidaturas com o trabalhador embutido (CPF mascarado).', schema: { listOf: 'ApplicationWithWorker' } },
       errors: { 404: 'Serviço não encontrado.' }
-    })),
+    }), access.farmerOfService()),
 
     route('get', '/services/:id/events', events.serviceApplicationEvents, operation({
       tag: TAGS.farmerServices,
@@ -94,7 +98,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [serviceId],
       success: { status: 200, description: 'Stream de eventos aberto.', eventStream: true },
       errors: { 404: 'Serviço não encontrado.' }
-    })),
+    }), access.farmerOfService('id', { tokenInQuery: true })),
 
     route('patch', '/services/:id/analyze', services.analyzeOffer, operation({
       tag: TAGS.farmerServices,
@@ -110,7 +114,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         404: 'Serviço ou candidatura não encontrados.',
         409: 'O serviço não está mais `Pending`; a candidatura já foi analisada.'
       }
-    })),
+    }), access.farmerOfService()),
 
     route('post', '/services/:id/payment', services.processPayment, operation({
       tag: TAGS.farmerServices,
@@ -119,7 +123,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [serviceId],
       success: { status: 200, description: 'Pagamento registrado e serviço concluído.', schema: 'PaymentResponse' },
       errors: { 404: 'Serviço não encontrado.', 409: 'O serviço não está `In Progress`.' }
-    })),
+    }), access.farmerOfService()),
 
     // --- PRODUTORES ---
 
@@ -127,7 +131,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       tag: TAGS.farmers,
       summary: 'Listar produtores',
       success: { status: 200, description: 'Produtores com CPF mascarado.', schema: { listOf: 'Farmer' } }
-    })),
+    }), access.system('users:manage')),
 
     route('post', '/', farmers.createFarmer, operation({
       tag: TAGS.farmers,
@@ -138,7 +142,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         400: 'Campo obrigatório faltando; e-mail inválido; CPF inválido; senha fora do tamanho (8 a 128).',
         409: 'Já existe uma conta com este e-mail ou CPF (para ter os dois perfis, use POST /api/accounts/:id/profiles).'
       }
-    })),
+    }), PUBLIC_ROUTE),
 
     route('get', '/:id', farmers.getFarmer, operation({
       tag: TAGS.farmers,
@@ -146,7 +150,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [farmerId],
       success: { status: 200, description: 'Perfil completo (CPF sem máscara).', schema: 'Farmer' },
       errors: { 404: 'Produtor não encontrado.' }
-    })),
+    }), access.ownFarmer()),
 
     route('patch', '/:id', farmers.updateFarmer, operation({
       tag: TAGS.farmers,
@@ -160,7 +164,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         404: 'Produtor não encontrado.',
         409: 'E-mail já usado por outra conta.'
       }
-    })),
+    }), access.ownFarmer()),
 
     route('delete', '/:id', farmers.deleteFarmer, operation({
       tag: TAGS.farmers,
@@ -169,7 +173,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [farmerId],
       success: { status: 200, description: 'Produtor removido.', schema: 'MessageResponse' },
       errors: { 404: 'Produtor não encontrado.', 409: 'O produtor tem serviço `In Progress`.' }
-    })),
+    }), access.ownFarmer()),
 
     route('patch', '/:id/password', auth.changeFarmerPassword, operation({
       tag: TAGS.farmers,
@@ -183,7 +187,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         401: 'A senha atual está incorreta.',
         404: 'Produtor não encontrado.'
       }
-    })),
+    }), access.ownFarmer()),
 
     route('post', '/:id/photo', photos.uploadFarmerPhoto, operation({
       tag: TAGS.farmers,
@@ -195,7 +199,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       body: IMAGE_UPLOAD,
       success: { status: 200, description: 'Foto salva; `photo_url` atualizado.', schema: 'FarmerResponse' },
       errors: { ...uploadErrors, 404: 'Produtor não encontrado.' }
-    })),
+    }), access.ownFarmer()),
 
     route('delete', '/:id/photo', photos.deleteFarmerPhoto, operation({
       tag: TAGS.farmers,
@@ -203,7 +207,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [farmerId],
       success: { status: 200, description: 'Foto removida (`photo_url` = null).', schema: 'FarmerResponse' },
       errors: { 404: 'Produtor não encontrado.' }
-    })),
+    }), access.ownFarmer()),
 
     // --- FAZENDAS ---
 
@@ -214,7 +218,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [farmerId],
       success: { status: 200, description: 'Fazendas ativas.', schema: { listOf: 'Farm' } },
       errors: { 404: 'Produtor não encontrado.' }
-    })),
+    }), access.ownFarmer()),
 
     route('post', '/:id/farms', farms.createFarm, operation({
       tag: TAGS.farms,
@@ -223,7 +227,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       body: 'FarmInput',
       success: { status: 201, description: 'Fazenda cadastrada e adicionada a `farmer.farms`.', schema: 'FarmResponse' },
       errors: { 400: 'Campo obrigatório faltando; latitude/longitude fora da faixa ou não numéricas.', 404: 'Produtor não encontrado.' }
-    })),
+    }), access.ownFarmer()),
 
     route('patch', '/:id/farms/:farmId', farms.updateFarm, operation({
       tag: TAGS.farms,
@@ -235,7 +239,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         400: 'Tentou alterar `id` ou `farmer_id`; campo enviado vazio; latitude sem longitude (ou o contrário); coordenadas inválidas.',
         404: 'Produtor não encontrado; fazenda não encontrada, removida ou de outro produtor.'
       }
-    })),
+    }), access.ownFarmer()),
 
     route('delete', '/:id/farms/:farmId', farms.deleteFarm, operation({
       tag: TAGS.farms,
@@ -249,7 +253,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         404: 'Produtor não encontrado; fazenda não encontrada, já removida ou de outro produtor.',
         409: 'A fazenda tem serviço `Pending` ou `In Progress`.'
       }
-    })),
+    }), access.ownFarmer()),
 
     route('post', '/:id/farms/:farmId/photos', photos.addFarmPhoto, operation({
       tag: TAGS.farms,
@@ -263,7 +267,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         404: 'Produtor não encontrado; fazenda não encontrada, removida ou de outro produtor.',
         409: 'A fazenda já tem 6 fotos.'
       }
-    })),
+    }), access.ownFarmer()),
 
     route('delete', '/:id/farms/:farmId/photos/:photoId', photos.deleteFarmPhoto, operation({
       tag: TAGS.farms,
@@ -271,7 +275,7 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
       params: [farmerId, farmId, photoId],
       success: { status: 200, description: 'Foto removida.', schema: 'FarmResponse' },
       errors: { 404: 'Produtor, fazenda ou foto não encontrados.' }
-    })),
+    }), access.ownFarmer()),
 
     // --- SERVIÇOS DO PRODUTOR ---
 
@@ -285,6 +289,6 @@ export function farmerRoutes({ farmers, farms, services, photos, auth, events }:
         schema: { listOf: 'FarmerServiceItem' }
       },
       errors: { 400: '`status` inválido.', 404: 'Produtor não encontrado.' }
-    }))
+    }), access.ownFarmer())
   ];
 }

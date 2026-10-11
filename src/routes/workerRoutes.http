@@ -6,10 +6,37 @@
 @workerId = 1
 @serviceId = 1
 
+### --- SESSÃO ---
+### Rode as duas primeiras: as demais usam o token (Authorization: Bearer).
+
+### Entrar (seed: senha ruraliza123)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "trabalhador@exemplo.com",
+  "password": "ruraliza123"
+}
+
+### Entrar como administrador (só para a lista de perfis)
+# @name adminLogin
+POST {{baseUrl}}/auth/system/login
+Content-Type: application/json
+
+{
+  "email": "admin@exemplo.com",
+  "password": "ruraliza123"
+}
+
+@token = {{login.response.body.token}}
+@adminToken = {{adminLogin.response.body.token}}
+
 ### --- TRABALHADORES ---
 
 ### Listar trabalhadores
 GET {{baseUrl}}/workers
+Authorization: Bearer {{adminToken}}
 
 ### Cadastrar trabalhador
 POST {{baseUrl}}/workers
@@ -27,9 +54,11 @@ Content-Type: application/json
 
 ### Perfil do trabalhador
 GET {{baseUrl}}/workers/{{workerId}}
+Authorization: Bearer {{token}}
 
 ### Editar trabalhador (id e cpf não podem ser alterados)
 PATCH {{baseUrl}}/workers/{{workerId}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -39,6 +68,7 @@ Content-Type: application/json
 
 ### Editar trabalhador tentando alterar o cpf (deve retornar 400)
 PATCH {{baseUrl}}/workers/{{workerId}}
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -47,12 +77,14 @@ Content-Type: application/json
 
 ### Remover trabalhador
 DELETE {{baseUrl}}/workers/{{workerId}}
+Authorization: Bearer {{token}}
 
 ### --- SENHA E ACESSO ---
 ### Perfil de teste do seed: trabalhador@exemplo.com, senha ruraliza123.
 
 ### Entrar
 POST {{baseUrl}}/auth/login
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -63,6 +95,7 @@ Content-Type: application/json
 
 ### Trocar a senha com a conta aberta (pede a senha atual)
 PATCH {{baseUrl}}/workers/{{workerId}}/password
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -72,6 +105,7 @@ Content-Type: application/json
 
 ### Esqueci a senha, passo 1 (simulação: o token volta na resposta em vez de ir por e-mail)
 POST {{baseUrl}}/auth/password-reset
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -81,6 +115,7 @@ Content-Type: application/json
 
 ### Esqueci a senha, passo 2 (cole o reset_token do passo 1)
 POST {{baseUrl}}/auth/password-reset/confirm
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -92,15 +127,19 @@ Content-Type: application/json
 
 ### Buscar vagas abertas (RF02)
 GET {{baseUrl}}/workers/services
+Authorization: Bearer {{token}}
 
 ### Buscar vagas abertas filtrando por categoria
 GET {{baseUrl}}/workers/services?category=Colheita
+Authorization: Bearer {{token}}
 
 ### Detalhe de uma vaga
 GET {{baseUrl}}/workers/services/{{serviceId}}
+Authorization: Bearer {{token}}
 
 ### Candidatar-se a uma vaga (RF02)
 POST {{baseUrl}}/workers/services/{{serviceId}}/apply
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -109,6 +148,7 @@ Content-Type: application/json
 
 ### Candidatar-se novamente (deve retornar 409 - já candidatado)
 POST {{baseUrl}}/workers/services/{{serviceId}}/apply
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -117,6 +157,7 @@ Content-Type: application/json
 
 ### Desistir (candidatura pendente é removida; se já aceito, o serviço volta a Pending)
 PATCH {{baseUrl}}/workers/services/{{serviceId}}/withdraw
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -127,6 +168,8 @@ Content-Type: application/json
 
 ### Listar candidaturas do trabalhador
 GET {{baseUrl}}/workers/{{workerId}}/applications
+Authorization: Bearer {{token}}
 
 ### Listar serviços atribuídos ao trabalhador
 GET {{baseUrl}}/workers/{{workerId}}/services
+Authorization: Bearer {{token}}
