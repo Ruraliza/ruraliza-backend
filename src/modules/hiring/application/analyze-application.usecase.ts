@@ -1,10 +1,10 @@
+import { type PushNotifier, WORKER_APPLICATIONS_URL } from '#modules/notifications';
 import { SERVICE_STATUS, type Service, type ServiceRepository } from '#modules/services';
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Result, conflict, invalid, notFound, ok } from '#shared/domain/result';
-import { type PushNotifier, WORKER_APPLICATIONS_URL } from '../../../domain/push';
-import type { AnalyzeInput, ServiceApplication } from '../hiring.contract';
 import type { ApplicationRepository } from '../domain/application.repository';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
+import type { AnalyzeInput, ServiceApplication } from '../hiring.contract';
 import { publishApplicationChanges, rejectedMessage } from './hiring-notifications';
 
 export interface AnalyzeApplicationDeps {

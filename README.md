@@ -88,7 +88,7 @@ contract-check/             # Verificação de paridade de tipos com o frontend
 src/
   container.ts              # Raiz de composição: escolhe os repositórios e monta os casos de uso
   seed.ts                   # Seed de demonstração
-  modules/<módulo>/         # Fatia vertical por contexto de negócio (migrados: farms, services, hiring)
+  modules/<módulo>/         # Fatia vertical por contexto de negócio (migrados: farms, services, hiring, notifications)
     index.ts                #   API pública: o único arquivo que outro módulo enxerga (#modules/<módulo>)
     <módulo>.module.ts      #   Monta os casos de uso (container) e as rotas (src/routes)
     <nome>.contract.ts      #   Contrato da API do módulo (reexportado por src/contracts)
@@ -101,7 +101,7 @@ src/
     domain/                 # Result, Clock, datas, Repository<T, K> e portas transversais (imagens, documentos, senhas, tokens, avisos)
     infra/http/             # route(), tipos dos handlers, leitura do corpo, tradução de erros, SSE
     infra/docs/             # Kit do OpenAPI: helpers de schema, operation(), schemas genéricos
-    infra/                  # crypto (scrypt, HMAC), images (Sharp + store), documents, push (Web Push), memory
+    infra/                  # crypto (scrypt, HMAC), images (Sharp + store), documents, memory
     testing/                # unwrap() e fixedClock() para os testes (fora do build)
     utils/                  # Validações (e-mail, CPF) e perfil público (CPF mascarado)
     config.ts               # Variáveis de ambiente
@@ -282,7 +282,7 @@ Os casos de uso publicam os avisos (`ChangeFeed`, `src/shared/domain/changes.ts`
 
 Com o app fechado, quem precisa agir recebe uma notificação (**Web Push**, chaves VAPID do `.env`): o produtor quando alguém se candidata ou desiste; o trabalhador quando é aceito, recusado (inclusive pelo aceite de outro), quando o serviço é cancelado e quando o pagamento é liberado. A mensagem segue o formato do service worker do Angular (`notification.data.onActionClick`), e o clique abre o app na tela certa.
 
-O envio (`PushUseCases`, `src/shared/infra/push/web-push-sender.ts`) roda em segundo plano: falha no serviço de push só vai para o log, nunca para a resposta. Inscrições que o navegador revogou (404/410) são apagadas no primeiro envio. Como o resto dos dados, as inscrições ficam em memória; o frontend reenvia a dele a cada abertura do app.
+O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`) roda em segundo plano: falha no serviço de push só vai para o log, nunca para a resposta. Inscrições que o navegador revogou (404/410) são apagadas no primeiro envio. Como o resto dos dados, as inscrições ficam em memória; o frontend reenvia a dele a cada abertura do app.
 
 **Prazo das vagas (`expires_at`):** dia do calendário. A vaga aceita candidaturas até o fim desse dia no horário de Brasília. Depois disso continua `Pending` para o produtor, mas some da busca e recusa candidaturas (409) até o produtor renovar a data. Não dá para publicar ou editar com data no passado (400).
 

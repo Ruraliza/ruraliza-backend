@@ -1,8 +1,9 @@
+import type { PushSubscriptionRepository } from '#modules/notifications';
+import type { PasswordHasher } from '#shared/domain/passwords';
+import { type Result, conflict, ok, requireFound } from '#shared/domain/result';
 import type { SessionUser, UserRole } from '../contracts';
 import type { Account } from '../domain/passwords';
-import type { PasswordHasher } from '#shared/domain/passwords';
-import type { AccountRepository, FarmerRepository, PushSubscriptionRepository, WorkerRepository } from '../domain/repositories';
-import { type Result, conflict, ok, requireFound } from '#shared/domain/result';
+import type { AccountRepository, FarmerRepository, WorkerRepository } from '../domain/repositories';
 
 // Regras da conta única: um e-mail e uma senha por pessoa, com até um perfil de cada tipo.
 // Funções soltas (como em ./shared) porque cadastro, edição e remoção dos perfis também mexem na conta.

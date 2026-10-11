@@ -1,21 +1,18 @@
-import type { MessageResponse, SessionResponse, SessionUser } from '../contracts';
+import type { SessionResponse, SessionUser } from '../contracts';
 import { toBody } from '#shared/infra/http/body';
-import { parseActiveRole, parseProfileCreate, parsePushSubscription, parsePushUnsubscribe } from '../http/parsers';
+import { parseActiveRole, parseProfileCreate } from '../http/parsers';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { AccountUseCases } from '../usecases/AccountUseCases';
-import type { PushUseCases } from '../usecases/PushUseCases';
 
-// HTTP da conta: sessão atual, segundo perfil, troca de painel e inscrições de push.
+// HTTP da conta: sessão atual, segundo perfil e troca de painel. As inscrições de push ficam em src/modules/notifications.
 export interface AccountController {
   getAccount: Handler<SessionUser, IdParams>;
   createAccountProfile: Handler<SessionResponse, IdParams>;
   setActiveRole: Handler<SessionResponse, IdParams>;
-  subscribePush: Handler<MessageResponse, IdParams>;
-  unsubscribePush: Handler<MessageResponse, IdParams>;
 }
 
-export function createAccountController(accounts: AccountUseCases, push: PushUseCases): AccountController {
+export function createAccountController(accounts: AccountUseCases): AccountController {
   // GET /api/accounts/:id - Sessão da conta (perfis e painel aberto)
   const getAccount: Handler<SessionUser, IdParams> = async (req, res) => {
     const result = await accounts.get(toId(req.params.id));
@@ -43,25 +40,5 @@ export function createAccountController(accounts: AccountUseCases, push: PushUse
     res.status(200).json({ message: 'Active profile changed successfully!', user: result.value });
   };
 
-  // POST /api/accounts/:id/push-subscriptions - Inscreve este navegador nas notificações da conta
-  const subscribePush: Handler<MessageResponse, IdParams> = async (req, res) => {
-    const input = parsePushSubscription(toBody(req.body));
-    if (!input.ok) { sendFailure(res, input); return; }
-
-    const result = await push.subscribe(toId(req.params.id), input.value);
-    if (!result.ok) { sendFailure(res, result); return; }
-    res.status(201).json({ message: 'Push subscription saved successfully!' });
-  };
-
-  // DELETE /api/accounts/:id/push-subscriptions - Para de enviar notificações a este navegador
-  const unsubscribePush: Handler<MessageResponse, IdParams> = async (req, res) => {
-    const input = parsePushUnsubscribe(toBody(req.body));
-    if (!input.ok) { sendFailure(res, input); return; }
-
-    const result = await push.unsubscribe(toId(req.params.id), input.value.endpoint);
-    if (!result.ok) { sendFailure(res, result); return; }
-    res.status(200).json({ message: 'Push subscription removed successfully!' });
-  };
-
-  return { getAccount, createAccountProfile, setActiveRole, subscribePush, unsubscribePush };
+  return { getAccount, createAccountProfile, setActiveRole };
 }

@@ -1,5 +1,6 @@
 import { createFarmRoutes } from '#modules/farms';
 import { createHiringRoutes } from '#modules/hiring';
+import { createPushRoutes } from '#modules/notifications';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
 import type { RouteGroup } from '#shared/infra/http/route';
 import type { Container } from '../container';
@@ -26,7 +27,8 @@ import { workerRoutes } from './workerRoutes';
 export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, 'useCases' | 'repos' | 'tokens'>): readonly RouteGroup[] {
   const access = createAccess({ repos, tokens });
   const auth = createAuthController(useCases.auth, useCases.systemUsers, tokens);
-  const accounts = createAccountController(useCases.accounts, useCases.push);
+  const accounts = createAccountController(useCases.accounts);
+  const push = createPushRoutes(useCases.push, access);
   const farmers = createFarmerController(useCases.farmers, tokens);
   const workers = createWorkerController(useCases.workers, tokens);
   const photos = createPhotoController(useCases.photos);
@@ -38,13 +40,13 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
 
   return [
     { prefix: '/api/auth', routes: authRoutes(auth, access) },
-    { prefix: '/api/accounts', routes: accountRoutes(accounts, access) },
+    { prefix: '/api/accounts', routes: accountRoutes(accounts, push.account, access) },
     { prefix: '/api/farmers', routes: farmerRoutes({ farmers, photos, auth }, { farms: createFarmRoutes(useCases.farms, access), services, hiring }, access) },
     { prefix: '/api/workers', routes: workerRoutes({ workers, photos, resumes, auth, events }, { services, hiring }, access) },
     { prefix: '/api/admin', routes: adminRoutes(admin, access) },
     { prefix: '/api/images', routes: imageRoutes(photos) },
     { prefix: '/api/documents', routes: documentRoutes(resumes) },
     { prefix: '/api/categories', routes: categoryRoutes },
-    { prefix: '/api', routes: systemRoutes }
+    { prefix: '/api', routes: [...systemRoutes, ...push.config] }
   ];
 }

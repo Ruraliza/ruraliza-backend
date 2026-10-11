@@ -605,13 +605,13 @@ describe('Notificações push', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const [w1, w2] = [await worker(c, 'w1@exemplo.com', '11144477735'), await worker(c, 'w2@exemplo.com', '39053344705')];
-    unwrap(await c.useCases.push.subscribe(await accountOf(c, { farmer_id: farmerId }), { endpoint: 'https://push.exemplo.com/produtor', keys: KEYS }));
-    unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w1 }), { endpoint: 'https://push.exemplo.com/w1', keys: KEYS }));
-    unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w2 }), { endpoint: 'https://push.exemplo.com/w2', keys: KEYS }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: await accountOf(c, { farmer_id: farmerId }), input: { endpoint: 'https://push.exemplo.com/produtor', keys: KEYS } }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: await accountOf(c, { worker_id: w1 }), input: { endpoint: 'https://push.exemplo.com/w1', keys: KEYS } }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: await accountOf(c, { worker_id: w2 }), input: { endpoint: 'https://push.exemplo.com/w2', keys: KEYS } }));
 
     const a1 = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w1 }));
     unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w2 }));
-    await c.useCases.push.idle();
+    await c.notifier.idle();
     assert.deepEqual(sent.map((s) => [s.endpoint, s.url]), [
       ['https://push.exemplo.com/produtor', `produtor/servicos/${serviceId}`],
       ['https://push.exemplo.com/produtor', `produtor/servicos/${serviceId}`]
@@ -619,7 +619,7 @@ describe('Notificações push', () => {
 
     sent.length = 0;
     unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a1.id, action: 'Accept' }));
-    await c.useCases.push.idle();
+    await c.notifier.idle();
     assert.deepEqual(sent.map((s) => [s.endpoint, s.title]), [
       ['https://push.exemplo.com/w1', 'Você foi aceito!'],
       ['https://push.exemplo.com/w2', 'Candidatura recusada']
@@ -633,13 +633,13 @@ describe('Notificações push', () => {
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     const farmerAccount = await accountOf(c, { farmer_id: farmerId });
 
-    unwrap(await c.useCases.push.subscribe(farmerAccount, { endpoint: ENDPOINT, keys: KEYS }));
-    unwrap(await c.useCases.push.subscribe(farmerAccount, { endpoint: ENDPOINT, keys: KEYS }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: farmerAccount, input: { endpoint: ENDPOINT, keys: KEYS } }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: farmerAccount, input: { endpoint: ENDPOINT, keys: KEYS } }));
     assert.equal((await c.repos.pushSubscriptions.find()).length, 1);
 
-    unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w }), { endpoint: ENDPOINT, keys: KEYS }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: await accountOf(c, { worker_id: w }), input: { endpoint: ENDPOINT, keys: KEYS } }));
     unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
-    await c.useCases.push.idle();
+    await c.notifier.idle();
     assert.equal(sent.length, 0); // o aparelho agora é do trabalhador, não do produtor
   });
 
@@ -648,10 +648,10 @@ describe('Notificações push', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    unwrap(await c.useCases.push.subscribe(await accountOf(c, { farmer_id: farmerId }), { endpoint: ENDPOINT, keys: KEYS }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: await accountOf(c, { farmer_id: farmerId }), input: { endpoint: ENDPOINT, keys: KEYS } }));
 
     unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
-    await c.useCases.push.idle();
+    await c.notifier.idle();
     assert.equal((await c.repos.pushSubscriptions.find()).length, 0);
   });
 
@@ -661,14 +661,14 @@ describe('Notificações push', () => {
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     const farmerAccount = await accountOf(c, { farmer_id: farmerId });
-    unwrap(await c.useCases.push.subscribe(farmerAccount, { endpoint: ENDPOINT, keys: KEYS }));
-    unwrap(await c.useCases.push.unsubscribe(farmerAccount, ENDPOINT));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: farmerAccount, input: { endpoint: ENDPOINT, keys: KEYS } }));
+    unwrap(await c.useCases.push.unsubscribe.execute({ accountId: farmerAccount, endpoint: ENDPOINT }));
 
     unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
-    await c.useCases.push.idle();
+    await c.notifier.idle();
     assert.equal(sent.length, 0);
 
-    const missing = await c.useCases.push.subscribe(999, { endpoint: ENDPOINT, keys: KEYS });
+    const missing = await c.useCases.push.subscribe.execute({ accountId: 999, input: { endpoint: ENDPOINT, keys: KEYS } });
     assert.equal(missing.ok ? '' : missing.kind, 'not_found');
   });
 
@@ -677,13 +677,13 @@ describe('Notificações push', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    unwrap(await c.useCases.push.subscribe(await accountOf(c, { farmer_id: farmerId }), { endpoint: ENDPOINT, keys: KEYS }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: await accountOf(c, { farmer_id: farmerId }), input: { endpoint: ENDPOINT, keys: KEYS } }));
 
     const original = console.error;
     console.error = () => {};
     try {
       unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
-      await c.useCases.push.idle();
+      await c.notifier.idle();
     } finally {
       console.error = original;
     }
@@ -776,7 +776,7 @@ describe('AdminUseCases', () => {
     const { farmerId } = await farmerWithFarm(c);
     const id = await accountId(c, { farmer_id: farmerId });
     unwrap(await c.useCases.accounts.addProfile(id, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
-    unwrap(await c.useCases.push.subscribe(id, { endpoint: 'https://push.exemplo.com/ana', keys: { p256dh: 'p', auth: 'a' } }));
+    unwrap(await c.useCases.push.subscribe.execute({ accountId: id, input: { endpoint: 'https://push.exemplo.com/ana', keys: { p256dh: 'p', auth: 'a' } } }));
 
     unwrap(await c.useCases.admin.deleteUser(id));
     assert.equal((await c.repos.accounts.find()).length, 0);

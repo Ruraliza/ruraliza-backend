@@ -1,8 +1,8 @@
 import type { FarmRepository } from '#modules/farms';
 import type { ApplicationRepository } from '#modules/hiring';
+import type { PushNotifier } from '#modules/notifications';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
-import type { PushNotifier } from '../../domain/push';
 import type { FarmerRepository } from '../../domain/repositories';
 import type { AccessPolicies } from '../../http/access';
 import { CancelServiceUseCase } from './application/cancel-service.usecase';

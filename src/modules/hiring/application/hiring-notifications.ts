@@ -1,6 +1,6 @@
+import { type PushMessage, type PushNotifier, WORKER_APPLICATIONS_URL, farmerServiceUrl } from '#modules/notifications';
 import type { Service } from '#modules/services';
 import { type ChangeFeed, serviceApplications, workerApplications } from '#shared/domain/changes';
-import { type PushMessage, type PushNotifier, WORKER_APPLICATIONS_URL, farmerServiceUrl } from '../../../domain/push';
 
 // Avisa a tela de candidaturas do serviço e a de cada trabalhador afetado.
 export function publishApplicationChanges(changes: ChangeFeed, serviceId: number, workerIds: readonly number[]): void {

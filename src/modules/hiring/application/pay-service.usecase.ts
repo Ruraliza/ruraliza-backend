@@ -1,11 +1,11 @@
+import { type PushNotifier, WORKER_APPLICATIONS_URL } from '#modules/notifications';
 import { SERVICE_STATUS, type Service, type ServiceRepository } from '#modules/services';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
-import { type PushNotifier, WORKER_APPLICATIONS_URL } from '../../../domain/push';
-import type { Payment } from '../hiring.contract';
 import { PAYMENT_STATUS } from '../domain/hiring-status';
 import type { PaymentRepository } from '../domain/payment.repository';
+import type { Payment } from '../hiring.contract';
 import { publishApplicationChanges } from './hiring-notifications';
 
 export interface PayServiceDeps {

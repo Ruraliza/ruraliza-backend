@@ -1,13 +1,13 @@
+import { type PushNotifier, farmerServiceUrl } from '#modules/notifications';
 import { SERVICE_STATUS, type ServiceRepository, isExpired } from '#modules/services';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
-import { type PushNotifier, farmerServiceUrl } from '../../../domain/push';
 import type { AccountRepository, WorkerRepository } from '../../../domain/repositories';
 import { findAccountOf } from '../../../usecases/accounts';
-import type { ServiceApplication } from '../hiring.contract';
 import type { ApplicationRepository } from '../domain/application.repository';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
+import type { ServiceApplication } from '../hiring.contract';
 import { publishApplicationChanges } from './hiring-notifications';
 
 export interface ApplyForServiceDeps {

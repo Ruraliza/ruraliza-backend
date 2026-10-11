@@ -1,4 +1,4 @@
-import type { UserRole } from '../contracts';
+import type { UserRole } from '../../../contracts';
 
 // Inscrição de um navegador/aparelho para receber push, ligada à conta (vale para os dois perfis).
 // TODO(db): restrição UNIQUE (endpoint).

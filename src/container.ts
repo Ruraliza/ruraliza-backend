@@ -1,5 +1,6 @@
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
+import { type PushDispatcher, type PushSender, type PushUseCases, WebPushSender, createPushDispatcher, createPushUseCases } from '#modules/notifications';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { authTokenSecret } from '#shared/config';
 import type { ChangeFeed } from '#shared/domain/changes';
@@ -13,9 +14,7 @@ import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-documen
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { SharpImageProcessor } from '#shared/infra/images/sharp-image-processor';
 import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
-import { WebPushSender } from '#shared/infra/push/web-push-sender';
 import type { ResetTokens } from './domain/passwords';
-import type { PushSender } from './domain/push';
 import type { Repositories } from './domain/repositories';
 import { createInMemoryRepositories } from './infra/memory';
 import { AccountUseCases } from './usecases/AccountUseCases';
@@ -23,7 +22,6 @@ import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
 import { FarmerUseCases } from './usecases/FarmerUseCases';
 import { PhotoUseCases } from './usecases/PhotoUseCases';
-import { PushUseCases } from './usecases/PushUseCases';
 import { ResumeUseCases } from './usecases/ResumeUseCases';
 import { SystemUserUseCases } from './usecases/SystemUserUseCases';
 import { WorkerUseCases } from './usecases/WorkerUseCases';
@@ -60,6 +58,8 @@ export interface Container {
   clock: Clock;
   changes: ChangeFeed;
   tokens: SessionTokens;
+  // Envia os pushes dos casos de uso; `idle()` espera os envios em andamento (testes).
+  notifier: PushDispatcher;
   useCases: UseCases;
 }
 
@@ -87,7 +87,8 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const changes = options.changes ?? new InMemoryChangeFeed();
   const tokens = options.tokens ?? createHmacSessionTokens(authTokenSecret(), clock);
   const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers } = repos;
-  const pushUseCases = new PushUseCases({ accounts, pushSubscriptions }, clock, options.push ?? new WebPushSender());
+  const pushDeps = { accounts, pushSubscriptions, clock, sender: options.push ?? new WebPushSender() };
+  const notifier = createPushDispatcher(pushDeps);
   const farmerUseCases = new FarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions }, clock, images, passwords, changes);
   const workerUseCases = new WorkerUseCases({ workers, farmers, services, applications, farms, accounts, pushSubscriptions }, clock, { images, documents }, passwords, changes);
 
@@ -99,17 +100,18 @@ export function createContainer(options: ContainerOptions = {}): Container {
     clock,
     changes,
     tokens,
+    notifier,
     useCases: {
       auth: new AuthUseCases({ farmers, workers, accounts }, clock, { hasher: passwords, resetTokens }),
       accounts: new AccountUseCases({ accounts, farmers, workers }, { farmers: farmerUseCases, workers: workerUseCases }),
       farmers: farmerUseCases,
       workers: workerUseCases,
       farms: createFarmUseCases({ farmers, farms, services, clock }),
-      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: pushUseCases }),
-      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: pushUseCases }),
+      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier }),
+      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier }),
       photos: new PhotoUseCases({ farmers, workers, farms }, { processor: imageProcessor, store: images }),
       resumes: new ResumeUseCases({ workers }, documents),
-      push: pushUseCases,
+      push: createPushUseCases(pushDeps),
       systemUsers: new SystemUserUseCases({ systemUsers }, clock, passwords),
       admin: new AdminUseCases({ accounts, farmers, workers, services }, { farmers: farmerUseCases, workers: workerUseCases })
     }

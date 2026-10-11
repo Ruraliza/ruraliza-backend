@@ -6,7 +6,7 @@ import { type RouteDef, route } from '#shared/infra/http/route';
 const accountId = pathParam('id', 'ID da conta (`account_id` da sessão).');
 
 // Montadas em /api/accounts. Uma conta tem um e-mail, uma senha e até um perfil de cada tipo.
-export function accountRoutes(accounts: AccountController, access: AccessPolicies): readonly RouteDef[] {
+export function accountRoutes(accounts: AccountController, pushRoutes: readonly RouteDef[], access: AccessPolicies): readonly RouteDef[] {
   return [
     route('get', '/:id', accounts.getAccount, operation({
       tag: TAGS.auth,
@@ -43,26 +43,7 @@ export function accountRoutes(accounts: AccountController, access: AccessPolicie
       errors: { 400: '`role` faltando ou inválido.', 404: 'Conta não encontrada, ou ela ainda não tem esse perfil.' }
     }), access.ownAccount()),
 
-    route('post', '/:id/push-subscriptions', accounts.subscribePush, operation({
-      tag: TAGS.auth,
-      summary: 'Ativar notificações push neste navegador',
-      description:
-        'Guarda a inscrição de `PushManager.subscribe()` (com a chave de GET /api/config/push). ' +
-        'Vale para os dois perfis da conta. Pode ser reenviada: o `endpoint` identifica o navegador.',
-      params: [accountId],
-      body: 'PushSubscriptionInput',
-      success: { status: 201, description: 'Inscrição guardada.', schema: 'MessageResponse' },
-      errors: { 400: '`endpoint` não é uma URL https; `keys.p256dh` ou `keys.auth` faltando.', 404: 'Conta não encontrada.' }
-    }), access.ownAccount()),
-
-    route('delete', '/:id/push-subscriptions', accounts.unsubscribePush, operation({
-      tag: TAGS.auth,
-      summary: 'Desativar notificações push neste navegador',
-      description: 'Remove a inscrição com esse `endpoint` (se não existir, nada muda).',
-      params: [accountId],
-      body: 'PushUnsubscribeInput',
-      success: { status: 200, description: 'Inscrição removida.', schema: 'MessageResponse' },
-      errors: { 400: '`endpoint` não é uma URL https.', 404: 'Conta não encontrada.' }
-    }), access.ownAccount())
+    // Inscrições de push (src/modules/notifications).
+    ...pushRoutes
   ];
 }

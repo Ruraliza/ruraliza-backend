@@ -1,7 +1,7 @@
 import { APPLICATION_STATUS, type ApplicationRepository } from '#modules/hiring';
+import { type PushNotifier, WORKER_APPLICATIONS_URL } from '#modules/notifications';
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
-import { type PushNotifier, WORKER_APPLICATIONS_URL } from '../../../domain/push';
 import { SERVICE_STATUS } from '../domain/service-status';
 import type { ServiceRepository } from '../domain/service.repository';
 import type { Service } from '../service.contract';

@@ -1,5 +1,6 @@
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
+import { type PushSchemaName, pushSchemas } from '#modules/notifications';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
 import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
 import { type Properties, type RefTo, type Schema, id, input, isoDate, nullableId, object, refTo } from '#shared/infra/docs/schema-kit';
@@ -13,12 +14,13 @@ export type SchemaName =
   | CoreSchemaName
   | ServiceSchemaName
   | HiringSchemaName
-  | 'HealthResponse' | 'MapsConfig' | 'PushConfig'
+  | 'HealthResponse' | 'MapsConfig'
+  | PushSchemaName
   | FarmSchemaName
   | 'Farmer' | 'Worker'
   | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate'
   | 'UserRole' | 'SessionUser' | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
-  | 'ProfileCreateInput' | 'ActiveRoleInput' | 'PushSubscriptionInput' | 'PushUnsubscribeInput'
+  | 'ProfileCreateInput' | 'ActiveRoleInput'
   | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
   | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse'
   | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
@@ -126,18 +128,13 @@ export const schemas = {
     ['api_key', 'map_id'],
     'Configuração do Google Maps para o frontend.'
   ),
-  PushConfig: object(
-    { public_key: { type: 'string', example: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' } },
-    ['public_key'],
-    'Chave pública VAPID (base64url) para o PushManager.subscribe().'
-  ),
-
   // --- Entidades ---
   Farmer: farmerSchema,
   Worker: workerSchema,
   ...farmSchemas,
   ...serviceSchemas,
   ...hiringSchemas,
+  ...pushSchemas,
   // --- Entradas ---
   FarmerInput: input(profileInputProps, ['email', 'name', 'phone', 'cpf', 'password'], 'Cadastro de produtor.'),
   FarmerUpdate: input(
@@ -209,22 +206,6 @@ export const schemas = {
     },
     ['role', 'name', 'phone', 'cpf'],
     'Segundo perfil na mesma conta: o e-mail e a senha são os da conta. `bio`, `certificates`, `courses` e `experience` só valem para trabalhador.'
-  ),
-  PushSubscriptionInput: input(
-    {
-      endpoint: { type: 'string', format: 'uri', example: 'https://fcm.googleapis.com/fcm/send/abc123' },
-      keys: object(
-        { p256dh: { type: 'string', example: 'BNcRdreALRFX…' }, auth: { type: 'string', example: 'tBHItJI5svbpez7KI4CCXg' } },
-        ['p256dh', 'auth']
-      )
-    },
-    ['endpoint', 'keys'],
-    'O `PushSubscription.toJSON()` do navegador (`expirationTime` é ignorado).'
-  ),
-  PushUnsubscribeInput: input(
-    { endpoint: { type: 'string', format: 'uri', example: 'https://fcm.googleapis.com/fcm/send/abc123' } },
-    ['endpoint'],
-    'Inscrição (navegador) a remover.'
   ),
   ActiveRoleInput: input({ role: ref('UserRole') }, ['role'], 'Painel a abrir. A conta precisa ter esse perfil.'),
   LoginResponse: object(

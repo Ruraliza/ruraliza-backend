@@ -8,8 +8,6 @@ import type {
   PasswordResetInput,
   PasswordResetRequestInput,
   ProfileCreateInput,
-  PushSubscriptionInput,
-  PushUnsubscribeInput,
   SystemUserInput,
   SystemUserUpdate,
   UserRole,
@@ -21,7 +19,7 @@ import { type Result, invalid, ok } from '#shared/domain/result';
 import type { NewWorker } from '../usecases/WorkerUseCases';
 import { normalizeEmail } from '#shared/utils/profile';
 import { isValidCpf, isValidEmail, missingFields, text, tooLong } from '#shared/utils/validation';
-import { type Body, isRecord, missingMessage } from '#shared/infra/http/body';
+import { type Body, missingMessage } from '#shared/infra/http/body';
 
 // Limites de tamanho dos textos livres (evita perfis e anúncios gigantes).
 const MAX_BIO = 500;
@@ -270,32 +268,4 @@ export function parsePasswordChange(body: Body): Result<PasswordChangeInput> {
   const next = parseNewPassword(body['new_password'], 'A nova senha');
   if (!next.ok) return next;
   return ok({ current_password: current, new_password: next.value });
-}
-
-// --- Notificações push ---
-
-// Endpoint do serviço de push do navegador (FCM, Mozilla, Apple...): sempre https.
-function parsePushEndpoint(value: unknown): Result<string> {
-  if (typeof value !== 'string' || !URL.canParse(value) || new URL(value).protocol !== 'https:') {
-    return invalid('endpoint deve ser a URL https da inscrição de push.');
-  }
-  return ok(value);
-}
-
-export function parsePushSubscription(body: Body): Result<PushSubscriptionInput> {
-  const endpoint = parsePushEndpoint(body['endpoint']);
-  if (!endpoint.ok) return endpoint;
-
-  const keys = body['keys'];
-  const p256dh = isRecord(keys) ? keys['p256dh'] : undefined;
-  const auth = isRecord(keys) ? keys['auth'] : undefined;
-  if (typeof p256dh !== 'string' || !p256dh || typeof auth !== 'string' || !auth) {
-    return invalid('Envie keys.p256dh e keys.auth da inscrição de push.');
-  }
-  return ok({ endpoint: endpoint.value, keys: { p256dh, auth } });
-}
-
-export function parsePushUnsubscribe(body: Body): Result<PushUnsubscribeInput> {
-  const endpoint = parsePushEndpoint(body['endpoint']);
-  return endpoint.ok ? ok({ endpoint: endpoint.value }) : endpoint;
 }

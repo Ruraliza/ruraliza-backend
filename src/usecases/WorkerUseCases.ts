@@ -1,5 +1,6 @@
 import type { FarmRepository } from '#modules/farms';
 import type { ApplicationRepository } from '#modules/hiring';
+import type { PushSubscriptionRepository } from '#modules/notifications';
 import { SERVICE_STATUS, type ServiceRepository, toOpenService } from '#modules/services';
 import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
@@ -12,7 +13,6 @@ import type { ApplicationWithService, OpenService, SessionUser, Worker, WorkerUp
 import type {
   AccountRepository,
   FarmerRepository,
-  PushSubscriptionRepository,
   WorkerRepository
 } from '../domain/repositories';
 import { releaseImage } from './PhotoUseCases';
