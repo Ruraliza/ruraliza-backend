@@ -15,10 +15,10 @@ cp .env.example .env     # configuração local (porta, chave do Google Maps)
 npm install
 npm run dev              # sobe em http://localhost:3000/api (tsx) e reinicia ao salvar
 npm start                # compila para dist/ e sobe o JavaScript gerado
-npm test                 # typecheck + lint + testes unitários + smoke
-npm run test:unit        # testes unitários colocados (src/**/*.spec.ts), um por caso de uso
-npm run test:integration # fluxos entre módulos pelo container, sem HTTP (tests/)
-npm run smoke            # percorre o fluxo completo e os casos de erro principais
+npm test                 # typecheck + lint + unitários + integração + e2e
+npm run test:unit        # unitários colocados (src/**/*.spec.ts): cada caso de uso com repositórios em memória
+npm run test:integration # fluxos entre módulos pelo container, sem HTTP (tests/integration) e o seed (tests/setup)
+npm run test:e2e         # HTTP de verdade: percorre o fluxo completo e os casos de erro (tests/e2e)
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
@@ -62,9 +62,9 @@ Com o servidor rodando:
 - **Swagger UI**: http://localhost:3000/api/docs (dá para testar as rotas pelo "Try it out")
 - **OpenAPI 3.0 (JSON)**: http://localhost:3000/api/docs/openapi.json
 
-A documentação é gerada do mesmo lugar em que as rotas são declaradas (`src/routes/*` e `src/modules/*/presentation/*.routes.ts`, com `route(método, caminho, handler, operation({...}))`), então não existe rota sem documentação. Cada módulo declara os seus schemas (`presentation/*.schemas.ts`) e `src/docs/schemas.ts` registra todos.
+A documentação é gerada do mesmo lugar em que as rotas são declaradas (`src/modules/*/presentation/*.routes.ts`, com `route(método, caminho, handler, operation({...}))`), então não existe rota sem documentação. Cada módulo declara os seus schemas (`presentation/*.schemas.ts`) e `src/docs/schemas.ts` registra todos.
 
-O `npm run smoke` confere **toda resposta** contra o documento: a rota e o status precisam estar documentados e o corpo precisa bater com o schema (campos a mais também falham). Ao mudar uma resposta, atualize o schema, senão o smoke acusa.
+O `npm run test:e2e` confere **toda resposta** contra o documento: a rota e o status precisam estar documentados e o corpo precisa bater com o schema (campos a mais também falham). Ao mudar uma resposta, atualize o schema, senão o e2e acusa.
 
 ---
 
@@ -81,35 +81,39 @@ O `npm run smoke` confere **toda resposta** contra o documento: a rota e o statu
 
 ```text
 app.ts                      # createApi(container): middlewares, docs, rotas, erros; e o start do servidor
-scripts/smoke.ts            # Smoke test do fluxo completo (HTTP)
-scripts/openapi-check.ts    # Confere cada resposta do smoke contra o OpenAPI
-tests/                      # Testes de integração: fluxos entre módulos pelo container (sem HTTP)
 contract-check/             # Verificação de paridade de tipos com o frontend
+tests/
+  integration/              # Fluxos entre módulos pelo container (sem HTTP); support.ts tem os atalhos
+  setup/                    # O seed de demonstração
+  e2e/                      # smoke.e2e.ts (HTTP de verdade) + support/openapi-check.ts; http/ com requisições manuais
 src/
-  container.ts              # Raiz de composição: escolhe os repositórios e monta os casos de uso
+  container.ts              # Raiz de composição: escolhe as implementações e monta os casos de uso de cada módulo
+  repositories.ts           # Todos os repositórios (Repositories) e a versão em memória
+  routes.ts                 # Os grupos de rotas de cada módulo, na ordem de cada prefixo
   seed.ts                   # Seed de demonstração
-  modules/<módulo>/         # Fatia vertical por contexto de negócio (migrados: farms, services, hiring, notifications, media, accounts, farmers, workers, system-users, auth, admin)
-    index.ts                #   API pública: o único arquivo que outro módulo enxerga (#modules/<módulo>)
-    <módulo>.module.ts      #   Monta os casos de uso (container) e as rotas (src/routes)
-    <nome>.contract.ts      #   Contrato da API do módulo (reexportado por src/contracts)
-    domain/                 #   Porta do repositório e regras puras
-    application/            #   Um caso de uso por arquivo (*.usecase.ts) com o teste ao lado (*.spec.ts)
-    infra/                  #   Implementações (repositório em memória)
-    presentation/           #   Controller, rotas, parsers do corpo e schemas OpenAPI
-    testing/                #   Fixtures dos testes (fora do build)
+  docs/                     # Registro de todos os schemas OpenAPI e montagem do documento
+  contracts/                # Barrel do contrato da API (reexporta os *.contract.ts) para o check:contracts
+  modules/                  # Uma fatia vertical por contexto de negócio:
+                            #   accounts, auth, farmers, workers, farms, services, hiring, media,
+                            #   notifications, system-users, admin, platform
+    <módulo>/
+      index.ts              #   API pública: o único arquivo que outro módulo enxerga (#modules/<módulo>)
+      <módulo>.module.ts    #   Monta os casos de uso (container) e as rotas (src/routes.ts)
+      <nome>.contract.ts    #   Contrato da API do módulo
+      domain/               #   Porta do repositório e regras puras
+      application/          #   Um caso de uso por arquivo (*.usecase.ts), com o teste ao lado (*.spec.ts)
+      infra/                #   Implementações (repositório em memória; Web Push em notifications)
+      presentation/         #   Controller, rotas, parsers do corpo e schemas OpenAPI
+      testing/              #   Fixtures dos testes (fora do build)
   shared/
+    contracts/              # ApiError e MessageResponse
     domain/                 # Result, Clock, datas, Repository<T, K> e portas transversais (imagens, documentos, senhas, tokens, avisos)
-    infra/http/             # route(), tipos dos handlers, leitura do corpo, tradução de erros, SSE
+    infra/http/             # route(), contrato de acesso (Access), tipos dos handlers, corpo, erros, SSE
     infra/docs/             # Kit do OpenAPI: helpers de schema, operation(), schemas genéricos
     infra/                  # crypto (scrypt, HMAC), images (Sharp + store), documents, memory
-    testing/                # unwrap() e fixedClock() para os testes (fora do build)
-    utils/                  # Validações (e-mail, CPF) e perfil público (CPF mascarado)
+    testing/                # unwrap(), fixedClock() e dublês que gravam avisos e pushes (fora do build)
+    utils/                  # Validações (e-mail, CPF, senha) e perfil público (CPF mascarado)
     config.ts               # Variáveis de ambiente
-  docs/                     # Registro de todos os schemas e montagem do documento OpenAPI
-  contracts/                # Contrato da API (só tipos) das partes ainda não migradas + reexporta os dos módulos
-  # Ainda não migrados para src/modules (saem a cada módulo migrado):
-  usecases/  controllers/  routes/  http/ (access, parsers)  domain/ (agregado de repositórios, contas, push, equipe)
-  infra/memory/             # Agregado dos repositórios em memória
 ```
 
 ### Camadas e módulos
@@ -117,6 +121,13 @@ src/
 Dentro de um módulo: `presentation → application → domain ← infra`. Os casos de uso dependem só das portas (ex.: `FarmRepository`), nunca da implementação; para trocar a persistência (ex.: PostgreSQL), escreva repositórios que cumpram essas portas e passe-os em `createContainer({ repos })`. Os repositórios devolvem cópias (como um banco): alterar uma entidade só vale depois de `update`.
 
 Imports: dentro do módulo, relativos; entre módulos, só `#modules/<módulo>` (o alias resolve apenas o `index.ts`, então import profundo em outro módulo não compila); infraestrutura comum, `#shared/...`. Os aliases ficam em `"imports"` do `package.json`: com a condição `development` (`tsx --conditions=development`, usada por todos os scripts, e o type-check) apontam para os `.ts`; o `node dist/` usa os `.js` compilados.
+
+Regras de fronteira:
+
+- `src/shared` não importa módulos. A única exceção é o tipo `Principal` (quem está logado: uma `Account` ou um usuário de sistema), que o HTTP compartilhado carrega em `res.locals`.
+- Alguns módulos se importam nos dois sentidos (ex.: `farms` ↔ `services`, `services` ↔ `hiring`). Por isso, valor de outro módulo só é lido dentro de funções, nunca no carregamento do arquivo (nada de `const X = [OUTRO_MODULO.Y]` no topo).
+- Quando um módulo precisaria chamar outro que já depende dele, ele declara uma porta e o container liga (ex.: `ProfileFactory` em `accounts`, implementada com os casos de uso de `farmers` e `workers`).
+- Cada schema OpenAPI fica no módulo dono; um módulo só cita os nomes que declara ou importa (`operation<NomesDoMódulo>`), e `src/docs/schemas.ts` confere que todos existem.
 
 ---
 
@@ -129,7 +140,7 @@ Imports: dentro do módulo, relativos; entre módulos, só `#modules/<módulo>` 
 | Produtores, trabalhadores, fazendas, serviços, candidaturas, pagamentos | Array em memória, um por entidade, com id sequencial | `InMemoryRepository` (`src/shared/infra/memory/`) |
 | Fotos (perfil do produtor, perfil do trabalhador, fazendas) | `Map` em memória de id para bytes WebP | `InMemoryImageStore` (`src/shared/infra/images/in-memory-image-store.ts`) |
 | Tratamento das fotos | Processado no upload, não é guardado | `SharpImageProcessor` (`src/shared/infra/images/`) |
-| Senhas (hash) e pedidos de redefinição | Array em memória, separado dos perfis | `InMemoryRepository` de `Credential` (`src/domain/passwords.ts`) |
+| Senhas (hash) e pedidos de redefinição | Array em memória, separado dos perfis | `InMemoryRepository` de `Account` (`src/modules/accounts/domain/account.ts`) |
 | Currículos dos trabalhadores (PDF) | `Map` em memória de id para bytes do PDF | `InMemoryDocumentStore` (`src/shared/infra/documents/in-memory-document-store.ts`) |
 
 - Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
@@ -142,7 +153,7 @@ Imports: dentro do módulo, relativos; entre módulos, só `#modules/<módulo>` 
 ### Como ligar o PostgreSQL
 
 1. **Repositórios.** Em cada módulo, crie `infra/pg-<entidade>.repository.ts` (com `pg` ou Sequelize, que já estão nas dependências) ao lado do de memória, implementando a porta do módulo (ex.: `FarmRepository` em `src/modules/farms/domain/`, um `Repository<T, K>` de `src/shared/domain/repository.ts`: `findById`, `find(criteria)`, `create`, `update`, `delete`). `find(criteria)` é só igualdade de campos (`WHERE campo = $1 AND ...`). Monte um `createPostgresRepositories(conexão)` que devolva o objeto `Repositories`.
-2. **Container.** Em `app.ts` (no bloco que sobe o servidor), troque `createContainer()` por `createContainer({ repos: createPostgresRepositories(conexão) })`. Rotas, controllers e regras não mudam.
+2. **Container.** Em `app.ts` (no bloco que sobe o servidor), troque `createContainer()` por `createContainer({ repos: createPostgresRepositories(conexão) })`, montando o `Repositories` de `src/repositories.ts` com os repositórios de cada módulo. Rotas, controllers e regras não mudam.
 3. **Tabelas.** Os campos são exatamente os de `src/contracts/` (e dos `*.contract.ts` dos módulos). Pontos de atenção:
    - `farm.photos` → tabela `farm_photos (id text, farm_id int references farms, url text, position int)`, ou coluna `jsonb`.
    - `expires_at` → `date` (dia do calendário, sem hora). A vaga vale até o fim desse dia **no horário de Brasília** (`src/shared/domain/dates.ts`).
@@ -154,7 +165,7 @@ Imports: dentro do módulo, relativos; entre módulos, só `#modules/<módulo>` 
 5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/shared/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar). Os currículos fazem o mesmo com `DocumentStore` (`src/shared/domain/documents.ts`), passado em `createContainer({ documents })`.
 6. **Seed.** `src/seed.ts` só roda na memória. No banco, vire um script de seed ou migração.
 
-Os testes continuam valendo: `npm run test:unit` e `npm run test:integration` usam repositórios em memória, e o `npm run smoke` pode rodar contra o banco para validar a troca.
+Os testes continuam valendo: `npm run test:unit` e `npm run test:integration` usam repositórios em memória, e o `npm run test:e2e` pode rodar contra o banco para validar a troca.
 
 ---
 
@@ -170,7 +181,7 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 
 Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres enviada no cadastro em `password`. A conta começa com o perfil escolhido no cadastro (`POST /api/farmers` ou `POST /api/workers`, que já devolvem a sessão em `user`) e pode ganhar o outro perfil depois (`/api/accounts`). A mesma senha vale para os dois. A sessão (`user`) é `{ account_id, role, id, profiles: { farmer, worker } }`: `role`/`id` são o painel aberto.
 
-**Token de sessão.** Login, redefinição de senha e cadastro devolvem `token` (assinado com HMAC-SHA256 e `AUTH_TOKEN_SECRET`, válido por 12 horas). Toda rota que não é pública exige `Authorization: Bearer <token>` e confere o dono: uma conta só mexe nos próprios perfis, fazendas, serviços e candidaturas (`farmer_id`/`worker_id` no corpo ou na query precisam ser os dela). Sem token ou com token inválido/vencido: **401**; token de outra pessoa ou de outro tipo de usuário: **403**. O token diz só quem entrou; conta e perfis são relidos a cada requisição, então uma conta removida perde o acesso na hora. As regras ficam em `src/http/access.ts` e cada rota declara a sua em `route()` (a documentação mostra o cadeado e quem pode).
+**Token de sessão.** Login, redefinição de senha e cadastro devolvem `token` (assinado com HMAC-SHA256 e `AUTH_TOKEN_SECRET`, válido por 12 horas). Toda rota que não é pública exige `Authorization: Bearer <token>` e confere o dono: uma conta só mexe nos próprios perfis, fazendas, serviços e candidaturas (`farmer_id`/`worker_id` no corpo ou na query precisam ser os dela). Sem token ou com token inválido/vencido: **401**; token de outra pessoa ou de outro tipo de usuário: **403**. O token diz só quem entrou; conta e perfis são relidos a cada requisição, então uma conta removida perde o acesso na hora. As regras ficam em `src/modules/auth/presentation/access.ts` e cada rota declara a sua em `route()` (a documentação mostra o cadeado e quem pode).
 
 Rotas públicas: login e redefinição de senha, cadastro (`POST /api/farmers` e `POST /api/workers`), categorias, configuração, health, imagens e currículos (`/api/images/:id` e `/api/documents/:id`, lidos por `<img>` e links, com ids aleatórios). Nas duas rotas SSE o token também vale em `?access_token=`, porque o `EventSource` do navegador não envia cabeçalhos.
 
@@ -246,7 +257,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 
 ### Administração (`/api/admin`)
 
-Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe; `tutor` vai gerenciar as trilhas de estudo (ainda sem rotas). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/domain/system-users.ts`.
+Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe; `tutor` vai gerenciar as trilhas de estudo (ainda sem rotas). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
 
 | Método | Rota | Descrição |
 |---|---|---|

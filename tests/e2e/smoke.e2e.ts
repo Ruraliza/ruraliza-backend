@@ -2,11 +2,11 @@
 // Sobe o app numa porta livre, sem o seed, e percorre:
 // produtor → fazenda → serviço → trabalhador → candidatura → aceite → pagamento,
 // além dos principais casos 400/401/403/404/409 e da administração pelos usuários de sistema.
-// Uso: npm run smoke
+// Uso: npm run test:e2e
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { createApi } from '../app';
-import { createContainer } from '../src/container';
+import { createApi } from '../../app';
+import { createContainer } from '../../src/container';
 import type {
   ApplicationResponse,
   ApplicationWithService,
@@ -33,10 +33,10 @@ import type {
   AdminUser,
   WorkerResponse,
   WorkerSignupResponse
-} from '../src/contracts';
+} from '../../src/contracts';
 import { FRONTEND_ORIGIN } from '#shared/config';
 import { isRecord } from '#shared/infra/http/body';
-import { createOpenApiChecker } from './openapi-check';
+import { createOpenApiChecker } from './support/openapi-check';
 
 // Senha dos perfis cadastrados neste teste.
 const PW = 'senha-do-smoke';
