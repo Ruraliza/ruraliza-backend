@@ -1,11 +1,10 @@
 import type { IncomingHttpHeaders } from 'node:http';
 import type { Account, AccountRepository } from '#modules/accounts';
 import type { ServiceRepository } from '#modules/services';
+import { type SystemPermission, type SystemUserRepository, canDo } from '#modules/system-users';
 import { type Result, forbidden, ok, unauthorized } from '#shared/domain/result';
 import type { SessionTokens } from '#shared/domain/tokens';
 import type { Principal, Query } from '#shared/infra/http/types';
-import type { SystemUserRepository } from '../domain/repositories';
-import { type SystemPermission, canDo } from '../domain/system-users';
 
 // Quem pode chamar cada rota. Toda rota declara um `Access` (ver route() em ./route.ts), que vira a
 // checagem antes do handler e a seção de segurança da documentação.

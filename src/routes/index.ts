@@ -5,6 +5,7 @@ import { createHiringRoutes } from '#modules/hiring';
 import { createPhotoRoutes } from '#modules/media';
 import { createPushRoutes } from '#modules/notifications';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
+import { createSystemUserRoutes } from '#modules/system-users';
 import { createWorkerRoutes } from '#modules/workers';
 import type { RouteGroup } from '#shared/infra/http/route';
 import type { Container } from '../container';
@@ -21,20 +22,21 @@ import { workerRoutes } from './workerRoutes';
 // então rota e documentação não têm como divergir.
 export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, 'useCases' | 'repos' | 'tokens'>): readonly RouteGroup[] {
   const access = createAccess({ repos, tokens });
-  const auth = createAuthController(useCases.auth, useCases.systemUsers, tokens);
+  const auth = createAuthController(useCases.auth, tokens);
+  const systemUsers = createSystemUserRoutes(useCases.systemUsers, tokens, access);
   const push = createPushRoutes(useCases.push, access);
   const workers = createWorkerRoutes(useCases.workers, tokens, access);
   const photos = createPhotoRoutes(useCases.photos, access);
   const hiring = createHiringRoutes(useCases.hiring, access);
   const services = createServiceRoutes(useCases.services, access);
-  const admin = createAdminController({ admin: useCases.admin, farmers: useCases.farmers, workers: useCases.workers, photos: useCases.photos, systemUsers: useCases.systemUsers });
+  const admin = createAdminController({ admin: useCases.admin, farmers: useCases.farmers, workers: useCases.workers, photos: useCases.photos });
 
   return [
-    { prefix: '/api/auth', routes: authRoutes(auth, access) },
+    { prefix: '/api/auth', routes: authRoutes(auth, systemUsers.auth) },
     { prefix: '/api/accounts', routes: createAccountRoutes(useCases.accounts, push.account, access) },
     { prefix: '/api/farmers', routes: farmerRoutes({ auth }, { farmers: createFarmerRoutes(useCases.farmers, tokens, access), farms: createFarmRoutes(useCases.farms, access), services, hiring, photos }, access) },
     { prefix: '/api/workers', routes: workerRoutes({ auth }, { services, hiring, photos, workers }, access) },
-    { prefix: '/api/admin', routes: adminRoutes(admin, access) },
+    { prefix: '/api/admin', routes: adminRoutes(admin, systemUsers.admin, access) },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },
     { prefix: '/api/categories', routes: categoryRoutes },

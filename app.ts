@@ -119,7 +119,7 @@ async function main(): Promise<void> {
   const container = createContainer();
   await seed(container.repos, container.clock, container.passwords);
   const initialAdmin = initialAdminSettings();
-  const adminStatus = initialAdmin && (await container.useCases.systemUsers.ensureInitialAdmin(initialAdmin));
+  const adminStatus = initialAdmin && (await container.useCases.systemUsers.ensureInitialAdmin.execute(initialAdmin));
   const { app } = createApi(container, { devMode });
 
   const PORT = serverPort();

@@ -780,8 +780,8 @@ interface AdminScenario {
 async function administration({ ana, outro, carla, farmer, other, worker, worker2, farmId }: AdminScenario): Promise<void> {
   console.log('\nAdministração (usuários de sistema)');
   // Sem cadastro público: o primeiro administrador vem do servidor (ADMIN_EMAIL/ADMIN_PASSWORD ou seed).
-  assert.equal(await container.useCases.systemUsers.ensureInitialAdmin({ email: 'admin@exemplo.com', password: PW, name: 'Ana Admin' }), 'created');
-  assert.equal(await container.useCases.systemUsers.ensureInitialAdmin({ email: 'admin@exemplo.com', password: 'outra-senha', name: 'X' }), 'exists');
+  assert.equal(await container.useCases.systemUsers.ensureInitialAdmin.execute({ email: 'admin@exemplo.com', password: PW, name: 'Ana Admin' }), 'created');
+  assert.equal(await container.useCases.systemUsers.ensureInitialAdmin.execute({ email: 'admin@exemplo.com', password: 'outra-senha', name: 'X' }), 'exists');
 
   actAs(null);
   await step('login de sistema com senha errada', 'POST', '/auth/system/login', { email: 'admin@exemplo.com', password: 'errada-123' }, 401);

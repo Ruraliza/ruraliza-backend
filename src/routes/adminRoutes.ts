@@ -6,14 +6,12 @@ import { type RouteDef, route } from '#shared/infra/http/route';
 const accountId = pathParam('id', 'ID da conta (`account_id`).');
 const farmerId = pathParam('id', 'ID do produtor.');
 const workerId = pathParam('id', 'ID do trabalhador.');
-const systemUserIdParam = pathParam('id', 'ID do usuário de sistema.');
 const inProgress = 'Há serviço em andamento (o pagamento precisa ser concluído antes).';
 
 // Montadas em /api/admin. Só usuários de sistema com cargo que tenha a permissão (hoje, o admin).
 // Editar e remover perfis seguem as mesmas regras de quando o próprio usuário faz.
-export function adminRoutes(admin: AdminController, access: AccessPolicies): readonly RouteDef[] {
+export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteDef[], access: AccessPolicies): readonly RouteDef[] {
   const manageUsers = access.system('users:manage');
-  const manageStaff = access.system('system-users:manage');
 
   return [
     // --- CONTAS DO APP ---
@@ -109,48 +107,8 @@ export function adminRoutes(admin: AdminController, access: AccessPolicies): rea
       errors: { 404: 'Trabalhador não encontrado.' }
     }), manageUsers),
 
-    // --- EQUIPE (USUÁRIOS DE SISTEMA) ---
+    // --- EQUIPE (USUÁRIOS DE SISTEMA, src/modules/system-users) ---
 
-    route('get', '/system-users', admin.listSystemUsers, operation({
-      tag: TAGS.admin,
-      summary: 'Listar usuários de sistema',
-      success: { status: 200, description: 'Administradores e tutores.', schema: { listOf: 'SystemUser' } }
-    }), manageStaff),
-
-    route('post', '/system-users', admin.createSystemUser, operation({
-      tag: TAGS.admin,
-      summary: 'Cadastrar usuário de sistema',
-      description: 'Único jeito de criar um usuário de sistema (não há cadastro público). Ele entra por `POST /api/auth/system/login`.',
-      body: 'SystemUserInput',
-      success: { status: 201, description: 'Usuário de sistema criado.', schema: 'SystemUserResponse' },
-      errors: {
-        400: 'Campo obrigatório faltando; e-mail inválido; `role` diferente de admin e tutor; senha fora do tamanho (8 a 128).',
-        409: 'Já existe um usuário de sistema com este e-mail.'
-      }
-    }), manageStaff),
-
-    route('get', '/system-users/:id', admin.getSystemUser, operation({
-      tag: TAGS.admin,
-      summary: 'Detalhe de um usuário de sistema',
-      params: [systemUserIdParam],
-      success: { status: 200, description: 'Usuário de sistema.', schema: 'SystemUser' },
-      errors: { 404: 'Usuário de sistema não encontrado.' }
-    }), manageStaff),
-
-    route('patch', '/system-users/:id', admin.updateSystemUser, operation({
-      tag: TAGS.admin,
-      summary: 'Editar usuário de sistema',
-      description:
-        'Edição parcial de nome, e-mail e cargo. O administrador não muda o próprio cargo (a equipe não pode ficar sem ' +
-        'administrador); a senha não muda por aqui.',
-      params: [systemUserIdParam],
-      body: 'AdminSystemUserUpdate',
-      success: { status: 200, description: 'Usuário de sistema atualizado.', schema: 'SystemUserResponse' },
-      errors: {
-        400: 'Enviou `id` ou `password`; e-mail inválido; nome vazio ou longo demais; `role` diferente de admin e tutor.',
-        404: 'Usuário de sistema não encontrado.',
-        409: 'E-mail já usado por outro usuário de sistema; tentou mudar o próprio cargo.'
-      }
-    }), manageStaff)
+    ...staffRoutes
   ];
 }

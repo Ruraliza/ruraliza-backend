@@ -5,13 +5,10 @@ import { type WorkerUseCases, parseWorkerUpdate } from '#modules/workers';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { AdminUser, FarmerResponse, MessageResponse, SystemUser, SystemUserResponse, WorkerResponse } from '../contracts';
-import { parseAdminSystemUserUpdate, parseSystemUserInput } from '../http/parsers';
+import type { AdminUser, FarmerResponse, MessageResponse, WorkerResponse } from '../contracts';
 import type { AdminUseCases } from '../usecases/AdminUseCases';
-import type { SystemUserUseCases } from '../usecases/SystemUserUseCases';
-import { systemUserId } from './AuthController';
 
-// HTTP da administração: contas do app (lista, edição, remoção) e equipe (usuários de sistema).
+// HTTP da administração das contas do app (lista, edição, remoção). A equipe fica em src/modules/system-users.
 export interface AdminController {
   listUsers: Handler<AdminUser[]>;
   getUser: Handler<AdminUser, IdParams>;
@@ -22,10 +19,6 @@ export interface AdminController {
   adminUpdateWorker: Handler<WorkerResponse, IdParams>;
   adminDeleteWorker: Handler<MessageResponse, IdParams>;
   adminDeleteWorkerPhoto: Handler<WorkerResponse, IdParams>;
-  listSystemUsers: Handler<SystemUser[]>;
-  createSystemUser: Handler<SystemUserResponse>;
-  getSystemUser: Handler<SystemUser, IdParams>;
-  updateSystemUser: Handler<SystemUserResponse, IdParams>;
 }
 
 export interface AdminControllerUseCases {
@@ -33,10 +26,9 @@ export interface AdminControllerUseCases {
   farmers: FarmerUseCases;
   workers: WorkerUseCases;
   photos: PhotoUseCases;
-  systemUsers: SystemUserUseCases;
 }
 
-export function createAdminController({ admin, farmers, workers, photos, systemUsers }: AdminControllerUseCases): AdminController {
+export function createAdminController({ admin, farmers, workers, photos }: AdminControllerUseCases): AdminController {
   // GET /api/admin/users - Todas as contas com os perfis (CPF mascarado)
   const listUsers: Handler<AdminUser[]> = async (_req, res) => {
     res.status(200).json(await admin.listUsers());
@@ -104,38 +96,6 @@ export function createAdminController({ admin, farmers, workers, photos, systemU
     res.status(200).json({ message: 'Worker photo removed successfully!', worker: result.value });
   };
 
-  // GET /api/admin/system-users - A equipe (administradores e tutores)
-  const listSystemUsers: Handler<SystemUser[]> = async (_req, res) => {
-    res.status(200).json(await systemUsers.list());
-  };
-
-  // POST /api/admin/system-users - Cadastra um usuário de sistema
-  const createSystemUser: Handler<SystemUserResponse> = async (req, res) => {
-    const input = parseSystemUserInput(toBody(req.body));
-    if (!input.ok) { sendFailure(res, input); return; }
-
-    const result = await systemUsers.create(input.value);
-    if (!result.ok) { sendFailure(res, result); return; }
-    res.status(201).json({ message: 'System user created successfully!', system_user: result.value });
-  };
-
-  // GET /api/admin/system-users/:id - Um usuário de sistema
-  const getSystemUser: Handler<SystemUser, IdParams> = async (req, res) => {
-    const result = await systemUsers.get(toId(req.params.id));
-    if (!result.ok) { sendFailure(res, result); return; }
-    res.status(200).json(result.value);
-  };
-
-  // PATCH /api/admin/system-users/:id - Edita nome, e-mail e cargo (o próprio cargo não)
-  const updateSystemUser: Handler<SystemUserResponse, IdParams> = async (req, res) => {
-    const changes = parseAdminSystemUserUpdate(toBody(req.body));
-    if (!changes.ok) { sendFailure(res, changes); return; }
-
-    const result = await systemUsers.updateByAdmin(systemUserId(res.locals.principal), toId(req.params.id), changes.value);
-    if (!result.ok) { sendFailure(res, result); return; }
-    res.status(200).json({ message: 'System user updated successfully!', system_user: result.value });
-  };
-
   return {
     listUsers,
     getUser,
@@ -145,10 +105,6 @@ export function createAdminController({ admin, farmers, workers, photos, systemU
     adminDeleteFarmerPhoto,
     adminUpdateWorker,
     adminDeleteWorker,
-    adminDeleteWorkerPhoto,
-    listSystemUsers,
-    createSystemUser,
-    getSystemUser,
-    updateSystemUser
+    adminDeleteWorkerPhoto
   };
 }

@@ -44,7 +44,7 @@ describe('seed', () => {
 
   it('tem um administrador, que entra só pelo login de sistema', async () => {
     const c = await seeded();
-    const admin = await c.useCases.systemUsers.login({ email: 'admin@exemplo.com', password: SEED_PASSWORD });
+    const admin = await c.useCases.systemUsers.systemLogin.execute({ email: 'admin@exemplo.com', password: SEED_PASSWORD });
     assert.equal(admin.ok && admin.value.role, 'admin');
     const asApp = await c.useCases.auth.login({ email: 'admin@exemplo.com', password: SEED_PASSWORD });
     assert.equal(asApp.ok, false);

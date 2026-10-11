@@ -1,12 +1,12 @@
 import type { AuthController } from '../controllers/AuthController';
 import { TAGS, operation } from '../docs/operations';
-import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
+import { PUBLIC_ROUTE } from '../http/access';
 import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/auth. A troca de senha com a conta aberta fica no perfil
 // (PATCH /api/farmers/:id/password e /api/workers/:id/password).
 // O login da equipe (usuários de sistema) é separado: /api/auth/system/*.
-export function authRoutes(auth: AuthController, access: AccessPolicies): readonly RouteDef[] {
+export function authRoutes(auth: AuthController, systemRoutes: readonly RouteDef[]): readonly RouteDef[] {
   return [
     route('post', '/login', auth.login, operation({
       tag: TAGS.auth,
@@ -47,37 +47,7 @@ export function authRoutes(auth: AuthController, access: AccessPolicies): readon
       errors: { 400: 'Campo obrigatório faltando; senha fora do tamanho (8 a 128); token inválido, já usado ou expirado.' }
     }), PUBLIC_ROUTE),
 
-    route('post', '/system/login', auth.systemLogin, operation({
-      tag: TAGS.auth,
-      summary: 'Entrar como usuário de sistema',
-      description:
-        'Login da equipe do Ruraliza (administradores e tutores), separado das contas do app. Não há cadastro público: ' +
-        'quem cria usuários de sistema é um administrador. O `token` vale 12 horas.',
-      body: 'LoginInput',
-      success: { status: 200, description: 'E-mail e senha conferem.', schema: 'SystemLoginResponse' },
-      errors: {
-        400: 'Campo obrigatório faltando.',
-        401: 'E-mail ou senha incorretos (a mesma mensagem nos dois casos).'
-      }
-    }), PUBLIC_ROUTE),
-
-    route('get', '/system/me', auth.getSystemSession, operation({
-      tag: TAGS.auth,
-      summary: 'Sessão do usuário de sistema',
-      description: 'Quem é o dono do token, com o cargo atual.',
-      success: { status: 200, description: 'Usuário de sistema.', schema: 'SystemUser' }
-    }), access.anySystemUser),
-
-    route('patch', '/system/me', auth.updateSystemProfile, operation({
-      tag: TAGS.auth,
-      summary: 'Editar o próprio perfil de usuário de sistema',
-      description: 'Nome e e-mail. O cargo só um administrador muda (PATCH /api/admin/system-users/:id); a senha não muda por aqui.',
-      body: 'SystemUserUpdate',
-      success: { status: 200, description: 'Perfil atualizado.', schema: 'SystemUserResponse' },
-      errors: {
-        400: 'Enviou `id`, `role` ou `password`; e-mail inválido; nome vazio ou longo demais.',
-        409: 'Já existe um usuário de sistema com este e-mail.'
-      }
-    }), access.anySystemUser)
+    // Login e perfil da equipe (src/modules/system-users).
+    ...systemRoutes
   ];
 }

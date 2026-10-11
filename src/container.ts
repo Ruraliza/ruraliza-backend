@@ -5,6 +5,7 @@ import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import { type PushDispatcher, type PushSender, type PushUseCases, WebPushSender, createPushDispatcher, createPushUseCases } from '#modules/notifications';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
+import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
 import { type WorkerUseCases, createWorkerUseCases } from '#modules/workers';
 import { authTokenSecret } from '#shared/config';
 import type { ChangeFeed } from '#shared/domain/changes';
@@ -23,7 +24,6 @@ import type { Repositories } from './domain/repositories';
 import { createInMemoryRepositories } from './infra/memory';
 import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
-import { SystemUserUseCases } from './usecases/SystemUserUseCases';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
 // Para trocar a persistência (ex.: PostgreSQL), passe outros `repos` aqui; para guardar as
@@ -115,7 +115,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier }),
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
       push: createPushUseCases(pushDeps),
-      systemUsers: new SystemUserUseCases({ systemUsers }, clock, passwords),
+      systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),
       admin: new AdminUseCases({ accounts, farmers, workers, services }, { farmers: farmerUseCases, workers: workerUseCases })
     }
   };
