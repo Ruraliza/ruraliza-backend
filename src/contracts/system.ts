@@ -1,5 +1,5 @@
 import type { Farmer } from '#modules/farmers';
-import type { Worker } from './worker';
+import type { Worker } from '#modules/workers';
 
 // Usuários de sistema: a equipe do Ruraliza. Não se cadastram pela tela pública; quem cria é
 // um administrador (ou o seed / as variáveis ADMIN_* do servidor). Entram por POST /auth/system/login.

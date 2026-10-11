@@ -1,3 +1,6 @@
+import type { SessionUser } from '#modules/accounts';
+import type { MessageResponse } from '../../contracts/api';
+
 export interface Worker {
   id: number;
   email: string;
@@ -28,3 +31,13 @@ export interface WorkerInput {
 
 // PATCH /workers/:id (id e cpf não podem ser alterados; a senha muda em PATCH /workers/:id/password)
 export type WorkerUpdate = Partial<Omit<WorkerInput, 'cpf' | 'password'>>;
+
+export interface WorkerResponse extends MessageResponse {
+  worker: Worker;
+}
+
+// POST /farmers e POST /workers: o cadastro já abre a sessão da conta nova (com o token, como no login).
+export interface WorkerSignupResponse extends WorkerResponse {
+  user: SessionUser;
+  token: string;
+}

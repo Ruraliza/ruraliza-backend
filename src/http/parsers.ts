@@ -1,4 +1,3 @@
-import { WORKER_TEXTS, nullableText, optionalText, parseProfileInput, parseProfileUpdate, workerTextProblem } from '#modules/accounts';
 import { type Result, invalid, ok } from '#shared/domain/result';
 import { type Body, missingMessage } from '#shared/infra/http/body';
 import { normalizeEmail } from '#shared/utils/profile';
@@ -10,40 +9,12 @@ import type {
   PasswordResetInput,
   PasswordResetRequestInput,
   SystemUserInput,
-  SystemUserUpdate,
-  WorkerUpdate
+  SystemUserUpdate
 } from '../contracts';
 import { SYSTEM_ROLES } from '../domain/system-users';
-import type { NewWorker } from '../usecases/WorkerUseCases';
 
 // Validação do formato dos corpos (400). Regras que dependem dos dados (unicidade, existência,
 // estado do serviço) ficam nos casos de uso.
-
-export function parseWorkerInput(body: Body): Result<NewWorker> {
-  const profile = parseProfileInput(body);
-  if (!profile.ok) return profile;
-  const worker: NewWorker = {
-    ...profile.value,
-    bio: optionalText(body['bio']),
-    certificates: optionalText(body['certificates']),
-    courses: optionalText(body['courses']),
-    experience: optionalText(body['experience'])
-  };
-  const problem = workerTextProblem(worker);
-  return problem ? invalid(problem) : ok(worker);
-}
-
-export function parseWorkerUpdate(body: Body): Result<WorkerUpdate> {
-  const profile = parseProfileUpdate(body);
-  if (!profile.ok) return profile;
-
-  const update: WorkerUpdate = { ...profile.value };
-  for (const [field] of WORKER_TEXTS) {
-    if (body[field] !== undefined) update[field] = nullableText(body[field]);
-  }
-  const problem = workerTextProblem(update);
-  return problem ? invalid(problem) : ok(update);
-}
 
 // --- Acesso ---
 

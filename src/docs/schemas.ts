@@ -1,18 +1,10 @@
-import {
-  type AccountSchemaName,
-  accountSchemas,
-  cpf,
-  optionalTextSchema,
-  photoUrl,
-  profileEditableProps,
-  profileInputProps,
-  workerTextProps
-} from '#modules/accounts';
+import { type AccountSchemaName, accountSchemas } from '#modules/accounts';
 import { type FarmerSchemaName, farmerSchema, farmerSchemas } from '#modules/farmers';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
 import { type PushSchemaName, pushSchemas } from '#modules/notifications';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
+import { type WorkerSchemaName, workerSchema, workerSchemas } from '#modules/workers';
 import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
 import { type RefTo, type Schema, id, input, isoDate, newPassword, object, refTo, sessionToken } from '#shared/infra/docs/schema-kit';
 
@@ -29,43 +21,17 @@ export type SchemaName =
   | PushSchemaName
   | FarmSchemaName
   | FarmerSchemaName
-  | 'Worker'
-  | 'WorkerInput' | 'WorkerUpdate'
+  | WorkerSchemaName
   | AccountSchemaName
   | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
   | 'LoginResponse' | 'PasswordResetRequestResponse'
-  | 'WorkerResponse' | 'WorkerSignupResponse'
   | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
-const resumeUrl: Schema = {
-  type: 'string',
-  nullable: true,
-  example: '/api/documents/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.pdf',
-  description: 'Currículo em PDF. null quando não há currículo. Relativa à API.'
-};
 const ref: RefTo<SchemaName> = refTo;
 
 // --- Propriedades reaproveitadas ---
 
 
-
-const workerSchema: Schema = object(
-  {
-    id,
-    email: { type: 'string', format: 'email', example: 'trabalhador@exemplo.com' },
-    name: { type: 'string', example: 'Maria Trabalhadora' },
-    bio: { ...optionalTextSchema, maxLength: 500, example: 'Trabalho com colheita de café há 5 anos. Disponível nos fins de semana.' },
-    certificates: { ...optionalTextSchema, example: 'Certificado de Tratorista' },
-    courses: { ...optionalTextSchema, example: 'NR-31 (SENAR, 2024)' },
-    experience: { ...optionalTextSchema, example: '5 anos' },
-    phone: { type: 'string', example: '24988888888' },
-    cpf,
-    photo_url: photoUrl,
-    resume_url: resumeUrl,
-    insertion_date: isoDate
-  },
-  ['id', 'email', 'name', 'bio', 'certificates', 'courses', 'experience', 'phone', 'cpf', 'photo_url', 'resume_url', 'insertion_date']
-);
 
 export const schemas = {
   // --- Status ---
@@ -81,32 +47,13 @@ export const schemas = {
     'Configuração do Google Maps para o frontend.'
   ),
   // --- Entidades ---
-  Worker: workerSchema,
   ...farmerSchemas,
   ...farmSchemas,
+  ...workerSchemas,
   ...serviceSchemas,
   ...hiringSchemas,
   ...pushSchemas,
   // --- Entradas ---
-  WorkerInput: input(
-    {
-      ...profileInputProps,
-      ...workerTextProps
-    },
-    ['email', 'name', 'phone', 'cpf', 'password'],
-    'Cadastro de trabalhador.'
-  ),
-  WorkerUpdate: input(
-    {
-      ...profileEditableProps,
-      bio: { ...optionalTextSchema, maxLength: 500, description: 'null limpa o campo.' },
-      certificates: { ...optionalTextSchema, maxLength: 1000, description: 'null limpa o campo.' },
-      courses: { ...optionalTextSchema, maxLength: 1000, description: 'null limpa o campo.' },
-      experience: { ...optionalTextSchema, maxLength: 1000, description: 'null limpa o campo.' }
-    },
-    [],
-    'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
-  ),
   // --- Acesso ---
   ...accountSchemas,
   LoginInput: input(
@@ -149,12 +96,6 @@ export const schemas = {
   ),
 
   // --- Respostas das escritas ---
-  WorkerResponse: object({ message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker') }, ['message', 'worker']),
-  WorkerSignupResponse: object(
-    { message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker'), user: ref('SessionUser'), token: sessionToken },
-    ['message', 'worker', 'user', 'token'],
-    'Cadastro concluído: a conta foi criada e já está aberta (`user`, `token`).'
-  ),
   // --- Usuários de sistema e administração ---
   SystemRole: {
     type: 'string',

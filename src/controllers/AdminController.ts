@@ -1,14 +1,14 @@
 import { parseProfileUpdate } from '#modules/accounts';
 import type { FarmerUseCases } from '#modules/farmers';
 import type { PhotoUseCases } from '#modules/media';
+import { type WorkerUseCases, parseWorkerUpdate } from '#modules/workers';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { AdminUser, FarmerResponse, MessageResponse, SystemUser, SystemUserResponse, WorkerResponse } from '../contracts';
-import { parseAdminSystemUserUpdate, parseSystemUserInput, parseWorkerUpdate } from '../http/parsers';
+import { parseAdminSystemUserUpdate, parseSystemUserInput } from '../http/parsers';
 import type { AdminUseCases } from '../usecases/AdminUseCases';
 import type { SystemUserUseCases } from '../usecases/SystemUserUseCases';
-import type { WorkerUseCases } from '../usecases/WorkerUseCases';
 import { systemUserId } from './AuthController';
 
 // HTTP da administração: contas do app (lista, edição, remoção) e equipe (usuários de sistema).
@@ -85,14 +85,14 @@ export function createAdminController({ admin, farmers, workers, photos, systemU
     const changes = parseWorkerUpdate(toBody(req.body));
     if (!changes.ok) { sendFailure(res, changes); return; }
 
-    const result = await workers.update(toId(req.params.id), changes.value);
+    const result = await workers.updateWorker.execute({ workerId: toId(req.params.id), changes: changes.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Worker updated successfully!', worker: result.value });
   };
 
   // DELETE /api/admin/workers/:id - Remove o perfil de trabalhador (a conta fica se tiver o outro perfil)
   const adminDeleteWorker: Handler<MessageResponse, IdParams> = async (req, res) => {
-    const result = await workers.delete(toId(req.params.id));
+    const result = await workers.deleteWorker.execute({ workerId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Worker deleted successfully!' });
   };

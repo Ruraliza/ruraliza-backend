@@ -1,8 +1,8 @@
 import type { FarmerRepository } from '#modules/farmers';
 import type { PushSubscriptionRepository } from '#modules/notifications';
+import type { WorkerRepository } from '#modules/workers';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import { type Result, conflict, ok, requireFound } from '#shared/domain/result';
-import type { WorkerRepository } from '../../../domain/repositories';
 import type { UserRole } from '../accounts.contract';
 import type { Account, AccountRepository } from '../domain/account';
 import { CPF_TAKEN, EMAIL_TAKEN, ROLE_LABEL, findAccountByEmail, findAccountOf, hasProfile, otherRole, profileKey } from '../domain/account.rules';

@@ -1,6 +1,6 @@
 import type { OpenService, ServiceResponse } from '#modules/services';
+import type { Worker } from '#modules/workers';
 import type { MessageResponse } from '../../contracts/api';
-import type { Worker } from '../../contracts/worker';
 
 // Status em inglês na API; a tradução acontece só na UI.
 export type ApplicationStatus = 'Pending' | 'Accepted' | 'Rejected';

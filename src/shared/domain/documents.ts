@@ -33,3 +33,10 @@ export interface DocumentStore {
   // Id a partir de uma URL gerada por este store (para remover o documento antigo).
   idFromUrl(url: string): string | undefined;
 }
+
+// Apaga do store o documento de uma URL gerada por ele (sem erro se não houver, ou se for de outro lugar).
+export async function releaseDocument(store: DocumentStore, url: string | null): Promise<void> {
+  if (url === null) return;
+  const id = store.idFromUrl(url);
+  if (id !== undefined) await store.delete(id);
+}

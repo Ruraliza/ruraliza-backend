@@ -5,6 +5,7 @@ import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import { type PushDispatcher, type PushSender, type PushUseCases, WebPushSender, createPushDispatcher, createPushUseCases } from '#modules/notifications';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
+import { type WorkerUseCases, createWorkerUseCases } from '#modules/workers';
 import { authTokenSecret } from '#shared/config';
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Clock, systemClock } from '#shared/domain/clock';
@@ -22,9 +23,7 @@ import type { Repositories } from './domain/repositories';
 import { createInMemoryRepositories } from './infra/memory';
 import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
-import { ResumeUseCases } from './usecases/ResumeUseCases';
 import { SystemUserUseCases } from './usecases/SystemUserUseCases';
-import { WorkerUseCases } from './usecases/WorkerUseCases';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
 // Para trocar a persistência (ex.: PostgreSQL), passe outros `repos` aqui; para guardar as
@@ -44,7 +43,6 @@ export interface UseCases {
   services: ServiceUseCases;
   hiring: HiringUseCases;
   photos: PhotoUseCases;
-  resumes: ResumeUseCases;
   push: PushUseCases;
   systemUsers: SystemUserUseCases;
   admin: AdminUseCases;
@@ -90,12 +88,12 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const pushDeps = { accounts, pushSubscriptions, clock, sender: options.push ?? new WebPushSender() };
   const notifier = createPushDispatcher(pushDeps);
   const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes });
-  const workerUseCases = new WorkerUseCases({ workers, farmers, services, applications, farms, accounts, pushSubscriptions }, clock, { images, documents }, passwords, changes);
+  const workerUseCases = createWorkerUseCases({ workers, farmers, farms, services, applications, accounts, pushSubscriptions, clock, images, documents, passwords, changes });
   // O segundo perfil de uma conta (src/modules/accounts) é criado pelos casos de uso dos perfis.
   const profiles: ProfileFactory = {
     create: (role, { bio, certificates, courses, experience, ...base }) => role === 'farmer'
       ? farmerUseCases.createFarmerProfile.execute(base)
-      : workerUseCases.createProfile({ ...base, bio, certificates, courses, experience })
+      : workerUseCases.createWorkerProfile.execute({ ...base, bio, certificates, courses, experience })
   };
 
   return {
@@ -116,7 +114,6 @@ export function createContainer(options: ContainerOptions = {}): Container {
       services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier }),
       hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier }),
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
-      resumes: new ResumeUseCases({ workers }, documents),
       push: createPushUseCases(pushDeps),
       systemUsers: new SystemUserUseCases({ systemUsers }, clock, passwords),
       admin: new AdminUseCases({ accounts, farmers, workers, services }, { farmers: farmerUseCases, workers: workerUseCases })

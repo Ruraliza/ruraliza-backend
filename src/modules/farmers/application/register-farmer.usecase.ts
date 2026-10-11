@@ -1,9 +1,9 @@
 import { type AccountRepository, type SessionUser, checkNewAccount, createAccount, toSession } from '#modules/accounts';
+import type { WorkerRepository } from '#modules/workers';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import { type Result, ok } from '#shared/domain/result';
-import type { WorkerRepository } from '../../../domain/repositories';
-import type { Farmer, FarmerInput } from '../farmer.contract';
 import type { FarmerRepository } from '../domain/farmer.repository';
+import type { Farmer, FarmerInput } from '../farmer.contract';
 import type { CreateFarmerProfileUseCase } from './create-farmer-profile.usecase';
 
 export interface RegisterFarmerDeps {

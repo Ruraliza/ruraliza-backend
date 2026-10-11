@@ -1,8 +1,8 @@
 import { type AccountRepository, changeAccountEmail, checkProfileUnique } from '#modules/accounts';
+import type { WorkerRepository } from '#modules/workers';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { WorkerRepository } from '../../../domain/repositories';
-import type { Farmer, FarmerUpdate } from '../farmer.contract';
 import type { FarmerRepository } from '../domain/farmer.repository';
+import type { Farmer, FarmerUpdate } from '../farmer.contract';
 
 export interface UpdateFarmerDeps {
   farmers: FarmerRepository;

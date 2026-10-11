@@ -27,7 +27,7 @@ async function farmerWithFarm(c: Container): Promise<{ farmerId: number; farmId:
 }
 
 async function worker(c: Container, email: string, cpf: string): Promise<number> {
-  const { worker: w } = unwrap(await c.useCases.workers.create({ email, name: email, phone: '1', cpf, password: PASSWORD, bio: null, certificates: null, courses: null, experience: null }));
+  const { worker: w } = unwrap(await c.useCases.workers.registerWorker.execute({ email, name: email, phone: '1', cpf, password: PASSWORD, bio: null, certificates: null, courses: null, experience: null }));
   return w.id;
 }
 
@@ -158,9 +158,9 @@ describe('Localização da fazenda para o trabalhador', () => {
     assert.equal(unwrap(await c.useCases.services.getOpenService.execute({ serviceId: serviceId })).farm.latitude, undefined);
     assert.equal(unwrap(await c.useCases.services.getOpenService.execute({ serviceId: serviceId, viewerWorkerId: other })).farm.latitude, undefined);
 
-    const [assigned] = unwrap(await c.useCases.workers.listServices(accepted));
+    const [assigned] = unwrap(await c.useCases.workers.listWorkerServices.execute({ workerId: accepted }));
     assert.equal(assigned?.farm.longitude, -43.2092);
-    const applications = unwrap(await c.useCases.workers.listApplications(other));
+    const applications = unwrap(await c.useCases.workers.listWorkerApplications.execute({ workerId: other }));
     assert.equal(applications[0]?.service.farm.latitude, undefined);
   });
 
@@ -221,9 +221,9 @@ describe('Contas', () => {
     const c = setup();
     unwrap(await c.useCases.farmers.registerFarmer.execute({ email: 'a@exemplo.com', name: 'A', phone: '1', cpf: '52998224725', password: PASSWORD }));
 
-    const sameEmail = await c.useCases.workers.create({ ...workerProfile, email: 'a@exemplo.com', cpf: '11144477735', password: PASSWORD });
+    const sameEmail = await c.useCases.workers.registerWorker.execute({ ...workerProfile, email: 'a@exemplo.com', cpf: '11144477735', password: PASSWORD });
     const sameCpf = await c.useCases.farmers.registerFarmer.execute({ email: 'b@exemplo.com', name: 'B', phone: '1', cpf: '52998224725', password: PASSWORD });
-    const sameCpfOtherRole = await c.useCases.workers.create({ ...workerProfile, email: 'b@exemplo.com', password: PASSWORD });
+    const sameCpfOtherRole = await c.useCases.workers.registerWorker.execute({ ...workerProfile, email: 'b@exemplo.com', password: PASSWORD });
     for (const r of [sameEmail, sameCpf, sameCpfOtherRole]) assert.equal(r.ok ? '' : r.kind, 'conflict');
     assert.equal(sameEmail.ok ? '' : sameEmail.message, 'Já existe uma conta com este e-mail. Entre com ela e ative o outro perfil pelo menu.');
   });
@@ -291,7 +291,7 @@ describe('Contas', () => {
     const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
     const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', ...workerProfile } })).id;
 
-    unwrap(await c.useCases.workers.delete(workerId));
+    unwrap(await c.useCases.workers.deleteWorker.execute({ workerId: workerId }));
     assert.deepEqual(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).profiles, { farmer: farmerId, worker: null });
 
     unwrap(await c.useCases.farmers.deleteFarmer.execute({ farmerId: farmerId }));
@@ -379,7 +379,7 @@ describe('AuthUseCases', () => {
   it('remover o único perfil remove a conta', async () => {
     const c = setup();
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    unwrap(await c.useCases.workers.delete(w));
+    unwrap(await c.useCases.workers.deleteWorker.execute({ workerId: w }));
     assert.deepEqual(await c.repos.accounts.find({ worker_id: w }), []);
   });
 });
@@ -485,16 +485,16 @@ describe('Currículo', () => {
   it('guarda o PDF como veio, troca apagando o anterior e some ao remover o trabalhador', async () => {
     const c = setup();
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    const first = unwrap(await c.useCases.resumes.setWorkerResume(w, PDF())).resume_url;
+    const first = unwrap(await c.useCases.workers.setWorkerResume.execute({ workerId: w, upload: PDF() })).resume_url;
     assert.match(first ?? '', /^\/api\/documents\/.+\.pdf$/);
     const firstId = c.documents.idFromUrl(first ?? '') ?? '';
     assert.deepEqual((await c.documents.get(firstId))?.bytes, PDF());
 
-    const second = unwrap(await c.useCases.resumes.setWorkerResume(w, PDF())).resume_url;
+    const second = unwrap(await c.useCases.workers.setWorkerResume.execute({ workerId: w, upload: PDF() })).resume_url;
     assert.notEqual(second, first);
     assert.equal(await c.documents.get(firstId), undefined);
 
-    unwrap(await c.useCases.workers.delete(w));
+    unwrap(await c.useCases.workers.deleteWorker.execute({ workerId: w }));
     assert.equal(await c.documents.get(c.documents.idFromUrl(second ?? '') ?? ''), undefined);
   });
 
@@ -503,7 +503,7 @@ describe('Currículo', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    const url = unwrap(await c.useCases.resumes.setWorkerResume(w, PDF())).resume_url;
+    const url = unwrap(await c.useCases.workers.setWorkerResume.execute({ workerId: w, upload: PDF() })).resume_url;
     unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
 
     const [application] = unwrap(await c.useCases.hiring.listServiceApplications.execute({ serviceId: serviceId }));
@@ -513,7 +513,7 @@ describe('Currículo', () => {
   it('recusa arquivo que não é PDF', async () => {
     const c = setup();
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    const result = await c.useCases.resumes.setWorkerResume(w, new TextEncoder().encode('texto'));
+    const result = await c.useCases.workers.setWorkerResume.execute({ workerId: w, upload: new TextEncoder().encode('texto') });
     assert.equal(result.ok ? '' : result.kind, 'invalid');
     assert.equal((await c.repos.workers.findById(w))?.resume_url, null);
   });
@@ -526,7 +526,7 @@ describe('Avisos em tempo real (SSE)', () => {
     const listener = (): void => { calls++; };
     const stop = unwrap(kind === 'service'
       ? await c.useCases.hiring.watchServiceApplications.execute({ serviceId: id, listener: listener })
-      : await c.useCases.workers.watchApplications(id, listener));
+      : await c.useCases.workers.watchWorkerApplications.execute({ workerId: id, listener: listener }));
     return { count: () => calls, stop };
   }
 
@@ -570,7 +570,7 @@ describe('Avisos em tempo real (SSE)', () => {
     const c = setup();
     const noop = (): void => undefined;
     const service = await c.useCases.hiring.watchServiceApplications.execute({ serviceId: 999, listener: noop });
-    const w = await c.useCases.workers.watchApplications(999, noop);
+    const w = await c.useCases.workers.watchWorkerApplications.execute({ workerId: 999, listener: noop });
     assert.deepEqual([service.ok ? '' : service.kind, w.ok ? '' : w.kind], ['not_found', 'not_found']);
   });
 });
@@ -766,7 +766,7 @@ describe('AdminUseCases', () => {
     const id = await accountId(c, { farmer_id: farmerId });
     const session = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: id, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } }));
 
-    unwrap(await c.useCases.workers.delete(session.profiles.worker ?? 0));
+    unwrap(await c.useCases.workers.deleteWorker.execute({ workerId: session.profiles.worker ?? 0 }));
     const user = unwrap(await c.useCases.admin.getUser(id));
     assert.deepEqual([user.farmer?.id, user.worker], [farmerId, null]);
   });

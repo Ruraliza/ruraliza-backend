@@ -1,9 +1,9 @@
 import type { ServiceRepository } from '#modules/services';
+import type { WorkerRepository } from '#modules/workers';
 import { type Result, notFound, ok, requireFound } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';
-import type { WorkerRepository } from '../../../domain/repositories';
-import type { ApplicationWithWorker } from '../hiring.contract';
 import type { ApplicationRepository } from '../domain/application.repository';
+import type { ApplicationWithWorker } from '../hiring.contract';
 
 export interface ListServiceApplicationsDeps {
   services: ServiceRepository;
