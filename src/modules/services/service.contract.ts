@@ -1,5 +1,5 @@
 import type { Farm, FarmLocation } from '#modules/farms';
-import type { MessageResponse } from '../../contracts/api';
+import type { MessageResponse } from '#shared/contracts/api';
 
 // Status em inglês na API; a tradução acontece só na UI.
 export type ServiceStatus = 'Pending' | 'In Progress' | 'Completed' | 'Rejected' | 'Cancelled';

@@ -1,4 +1,4 @@
-import type { MessageResponse } from '../../contracts/api';
+import type { MessageResponse } from '#shared/contracts/api';
 
 // Foto guardada no ImageStore (WebP ≤ 1000px). `id` é usado para remover.
 export interface FarmPhoto {

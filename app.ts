@@ -6,7 +6,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import swaggerUi from 'swagger-ui-express';
 import { initialAdminSettings, isAllowedOrigin, serverPort } from '#shared/config';
 import { type Container, createContainer } from './src/container';
-import type { ApiError } from './src/contracts';
+import type { ApiError } from '#shared/contracts/api';
 import { SEED_PASSWORD, seed } from './src/seed';
 import { PDF_CONTENT_TYPE, RESUME_MAX_UPLOAD_BYTES } from '#shared/domain/documents';
 import { IMAGE_MAX_UPLOAD_BYTES } from '#shared/domain/images';

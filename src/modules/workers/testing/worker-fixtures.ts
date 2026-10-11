@@ -1,12 +1,18 @@
+import { createInMemoryAccountRepository } from '#modules/accounts';
+import { createInMemoryFarmerRepository } from '#modules/farmers';
+import { createInMemoryFarmRepository } from '#modules/farms';
 import type { Farm } from '#modules/farms';
+import { createInMemoryApplicationRepository } from '#modules/hiring';
+import { createInMemoryPushSubscriptionRepository } from '#modules/notifications';
+import { createInMemoryServiceRepository } from '#modules/services';
 import type { Service } from '#modules/services';
 import type { ChangeTopic } from '#shared/domain/changes';
 import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-document-store';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { fixedClock } from '#shared/testing/fixed-clock';
 import { recordingChangeFeed } from '#shared/testing/recorders';
-import { createInMemoryRepositories } from '../../../infra/memory';
 import type { NewWorker } from '../application/create-worker-profile.usecase';
+import { createInMemoryWorkerRepository } from '../infra/in-memory-worker.repository';
 import type { Worker } from '../worker.contract';
 import type { WorkersModuleDeps } from '../workers.module';
 
@@ -28,7 +34,13 @@ export interface WorkersTestbed extends WorkersModuleDeps {
 export function workersTestbed(): WorkersTestbed {
   const changes = recordingChangeFeed();
   return {
-    ...createInMemoryRepositories(),
+    workers: createInMemoryWorkerRepository(),
+    farmers: createInMemoryFarmerRepository(),
+    farms: createInMemoryFarmRepository(),
+    services: createInMemoryServiceRepository(),
+    applications: createInMemoryApplicationRepository(),
+    accounts: createInMemoryAccountRepository(),
+    pushSubscriptions: createInMemoryPushSubscriptionRepository(),
     clock: fixedClock(NOW),
     images: new InMemoryImageStore(),
     documents: new InMemoryDocumentStore(),

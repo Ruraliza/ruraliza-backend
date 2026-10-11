@@ -1,11 +1,17 @@
+import { createInMemoryAccountRepository } from '#modules/accounts';
+import { createInMemoryFarmRepository } from '#modules/farms';
 import type { Farm } from '#modules/farms';
+import { createInMemoryApplicationRepository } from '#modules/hiring';
+import { createInMemoryPushSubscriptionRepository } from '#modules/notifications';
+import { createInMemoryServiceRepository } from '#modules/services';
+import { createInMemoryWorkerRepository } from '#modules/workers';
 import type { ChangeTopic } from '#shared/domain/changes';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { fixedClock } from '#shared/testing/fixed-clock';
 import { recordingChangeFeed } from '#shared/testing/recorders';
-import { createInMemoryRepositories } from '../../../infra/memory';
 import type { Farmer, FarmerInput } from '../farmer.contract';
 import type { FarmersModuleDeps } from '../farmers.module';
+import { createInMemoryFarmerRepository } from '../infra/in-memory-farmer.repository';
 
 // Dependências dos produtores em memória, com hash de senha falso e avisos (SSE) gravados.
 
@@ -18,7 +24,7 @@ export interface FarmersTestbed extends FarmersModuleDeps {
 }
 
 export function farmersTestbed(): FarmersTestbed {
-  const repos = createInMemoryRepositories();
+  const repos = { farmers: createInMemoryFarmerRepository(), workers: createInMemoryWorkerRepository(), farms: createInMemoryFarmRepository(), services: createInMemoryServiceRepository(), applications: createInMemoryApplicationRepository(), accounts: createInMemoryAccountRepository(), pushSubscriptions: createInMemoryPushSubscriptionRepository() };
   const changes = recordingChangeFeed();
   return {
     ...repos,

@@ -1,6 +1,6 @@
 import type { OpenAPIV3 } from 'openapi-types';
+import { TAGS } from '#shared/infra/docs/operations';
 import { BEARER_AUTH, type RouteGroup, toOpenApiPath } from '#shared/infra/http/route';
-import { TAGS } from './operations';
 import { schemas } from './schemas';
 
 const DESCRIPTION = `

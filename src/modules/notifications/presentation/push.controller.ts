@@ -1,8 +1,8 @@
 import { vapidSettings } from '#shared/config';
+import type { MessageResponse } from '#shared/contracts/api';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { MessageResponse } from '../../../contracts';
 import type { PushUseCases } from '../notifications.module';
 import type { PushConfig } from '../push.contract';
 import { parsePushSubscription, parsePushUnsubscribe } from './push.parsers';

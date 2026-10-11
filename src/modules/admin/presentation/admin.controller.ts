@@ -2,10 +2,10 @@ import { parseProfileUpdate } from '#modules/accounts';
 import type { FarmerResponse } from '#modules/farmers';
 import { parseWorkerUpdate } from '#modules/workers';
 import type { WorkerResponse } from '#modules/workers';
+import type { MessageResponse } from '#shared/contracts/api';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { MessageResponse } from '../../../contracts';
 import type { AdminUser } from '../admin.contract';
 import type { AdminRouteUseCases } from '../admin.module';
 

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { unwrap } from '#shared/testing/unwrap';
-import { NOW, authTestbed, givenAccount } from '../testing/auth-fixtures';
+import { type AuthTestbed, NOW, authTestbed, givenAccount } from '../testing/auth-fixtures';
 import { ChangePasswordUseCase } from './change-password.usecase';
 
 describe('ChangePasswordUseCase', () => {
-  let t: ReturnType<typeof authTestbed>;
+  let t: AuthTestbed;
   let farmerId: number;
 
   beforeEach(async () => {

@@ -1,7 +1,7 @@
 import type { RequestHandler } from 'express';
 import type { Account } from '#modules/accounts';
 import type { SystemUserRecord } from '#modules/system-users';
-import type { ApiError } from '../../../contracts';
+import type { ApiError } from '../../contracts/api';
 
 // Parâmetros de rota (sempre string na URL).
 export interface IdParams {

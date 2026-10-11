@@ -1,9 +1,11 @@
+import { createInMemoryFarmerRepository } from '#modules/farmers';
 import type { FarmerRepository } from '#modules/farmers';
+import type { Farmer } from '#modules/farmers';
+import { createInMemoryServiceRepository } from '#modules/services';
 import type { ServiceRepository } from '#modules/services';
+import type { Service, ServiceStatus } from '#modules/services';
 import type { Clock } from '#shared/domain/clock';
 import { fixedClock } from '#shared/testing/fixed-clock';
-import type { Farmer, Service, ServiceStatus } from '../../../contracts';
-import { createInMemoryRepositories } from '../../../infra/memory';
 import type { FarmRepository } from '../domain/farm.repository';
 import type { Farm } from '../farm.contract';
 import { createInMemoryFarmRepository } from '../infra/in-memory-farm.repository';
@@ -20,7 +22,8 @@ export interface FarmsTestbed {
 }
 
 export function farmsTestbed(): FarmsTestbed {
-  const { farmers, services } = createInMemoryRepositories();
+  const farmers = createInMemoryFarmerRepository();
+  const services = createInMemoryServiceRepository();
   return { farmers, farms: createInMemoryFarmRepository(), services, clock: fixedClock(NOW) };
 }
 

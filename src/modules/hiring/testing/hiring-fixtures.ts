@@ -1,10 +1,11 @@
+import { createInMemoryAccountRepository } from '#modules/accounts';
 import { type Service, createInMemoryServiceRepository } from '#modules/services';
+import { createInMemoryWorkerRepository } from '#modules/workers';
+import type { Worker } from '#modules/workers';
 import type { ChangeTopic } from '#shared/domain/changes';
 import { type SentPush, adjustableClock, recordingChangeFeed, recordingPush } from '#shared/testing/recorders';
-import type { Worker } from '../../../contracts';
-import { createInMemoryRepositories } from '../../../infra/memory';
-import type { HiringModuleDeps } from '../hiring.module';
 import type { ApplicationStatus, ServiceApplication } from '../hiring.contract';
+import type { HiringModuleDeps } from '../hiring.module';
 import { createInMemoryApplicationRepository } from '../infra/in-memory-application.repository';
 import { createInMemoryPaymentRepository } from '../infra/in-memory-payment.repository';
 
@@ -22,7 +23,8 @@ export interface HiringTestbed extends HiringModuleDeps {
 }
 
 export function hiringTestbed(): HiringTestbed {
-  const { workers, accounts } = createInMemoryRepositories();
+  const workers = createInMemoryWorkerRepository();
+  const accounts = createInMemoryAccountRepository();
   const clock = adjustableClock(NOW);
   const changes = recordingChangeFeed();
   const push = recordingPush();

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import type { SessionTokens } from '#shared/domain/tokens';
 import type { AccessRequest } from '#shared/infra/http/access';
-import { NOW, authTestbed, givenAccount, sessionTokens } from '../testing/auth-fixtures';
+import { type AuthTestbed, NOW, authTestbed, givenAccount, sessionTokens } from '../testing/auth-fixtures';
 import { type AccessPolicies, createAccess } from './access';
 
 const request = (token: string | null, parts: Partial<AccessRequest> = {}): AccessRequest => ({
@@ -10,7 +10,7 @@ const request = (token: string | null, parts: Partial<AccessRequest> = {}): Acce
 });
 
 describe('políticas de acesso', () => {
-  let t: ReturnType<typeof authTestbed>;
+  let t: AuthTestbed;
   let tokens: SessionTokens;
   let access: AccessPolicies;
 

@@ -6,7 +6,7 @@
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
 import type { PasswordHasher } from '#shared/domain/passwords';
-import type { Repositories } from './domain/repositories';
+import type { Repositories } from './repositories';
 import { SERVICE_STATUS } from '#modules/services';
 import { createAccount } from '#modules/accounts';
 

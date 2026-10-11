@@ -1,6 +1,6 @@
+import { createInMemoryAccountRepository } from '#modules/accounts';
 import type { Account } from '#modules/accounts';
 import { fixedClock } from '#shared/testing/fixed-clock';
-import { createInMemoryRepositories } from '../../../infra/memory';
 import type { PushDelivery, PushMessage, PushSubscriptionRecord } from '../domain/push';
 import { createInMemoryPushSubscriptionRepository } from '../infra/in-memory-push-subscription.repository';
 import type { NotificationsModuleDeps } from '../notifications.module';
@@ -17,7 +17,7 @@ export interface PushTestbed extends NotificationsModuleDeps {
 }
 
 export function pushTestbed(): PushTestbed {
-  const { accounts } = createInMemoryRepositories();
+  const accounts = createInMemoryAccountRepository();
   const delivered: PushTestbed['delivered'] = [];
   const gone = new Set<string>();
   return {

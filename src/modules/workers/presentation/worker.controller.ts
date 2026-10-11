@@ -1,12 +1,12 @@
 import { accountToken } from '#modules/accounts';
 import type { ApplicationWithService } from '#modules/hiring';
 import type { OpenService } from '#modules/services';
+import type { MessageResponse } from '#shared/contracts/api';
 import type { SessionTokens } from '#shared/domain/tokens';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import { APPLICATIONS_CHANGED_EVENT, openEventStream, sendEvent } from '#shared/infra/http/sse';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { MessageResponse } from '../../../contracts';
 import type { Worker, WorkerResponse, WorkerSignupResponse } from '../worker.contract';
 import type { WorkerUseCases } from '../workers.module';
 import { parseWorkerInput, parseWorkerUpdate } from './worker.parsers';

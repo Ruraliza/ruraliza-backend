@@ -1,7 +1,7 @@
+import type { MessageResponse } from '#shared/contracts/api';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { FarmParams, Handler, IdParams } from '#shared/infra/http/types';
-import type { MessageResponse } from '../../../contracts';
 import type { Farm, FarmResponse } from '../farm.contract';
 import type { FarmUseCases } from '../farms.module';
 import { parseFarmInput, parseFarmUpdate } from './farm.parsers';

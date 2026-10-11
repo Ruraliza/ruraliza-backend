@@ -1,9 +1,10 @@
 import { googleMapsSettings, isAllowedOrigin } from '#shared/config';
+import { TAGS, operation } from '#shared/infra/docs/operations';
 import { PUBLIC_ROUTE } from '#shared/infra/http/access';
 import { type RouteDef, route } from '#shared/infra/http/route';
 import type { Handler } from '#shared/infra/http/types';
-import type { HealthResponse, MapsConfig } from '../contracts';
-import { TAGS, operation } from '../docs/operations';
+import type { HealthResponse, MapsConfig } from '../platform.contract';
+import type { PlatformSchemaName } from './platform.schemas';
 
 // Health check
 const health: Handler<HealthResponse> = (_req, res) => {
@@ -21,15 +22,17 @@ const mapsConfig: Handler<MapsConfig> = (req, res) => {
   return res.json({ api_key: apiKey, map_id: mapId });
 };
 
+const platformOperation = operation<PlatformSchemaName>;
+
 // Montadas em /api (a raiz do servidor redireciona para a documentação, ver app.ts).
-export const systemRoutes: readonly RouteDef[] = [
-  route('get', '/health', health, operation({
+export const platformRoutes: readonly RouteDef[] = [
+  route('get', '/health', health, platformOperation({
     tag: TAGS.system,
     summary: 'Health check',
     success: { status: 200, description: 'O servidor está rodando.', schema: 'HealthResponse' }
   }), PUBLIC_ROUTE),
 
-  route('get', '/config/maps', mapsConfig, operation({
+  route('get', '/config/maps', mapsConfig, platformOperation({
     tag: TAGS.system,
     summary: 'Configuração do Google Maps',
     description: 'Chave e Map ID usados pelo frontend para carregar o mapa (definidos no .env do backend).',

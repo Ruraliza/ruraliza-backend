@@ -21,8 +21,8 @@ import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-documen
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { SharpImageProcessor } from '#shared/infra/images/sharp-image-processor';
 import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
-import type { Repositories } from './domain/repositories';
-import { createInMemoryRepositories } from './infra/memory';
+import type { Repositories } from './repositories';
+import { createInMemoryRepositories } from './repositories';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
 // Para trocar a persistência (ex.: PostgreSQL), passe outros `repos` aqui; para guardar as

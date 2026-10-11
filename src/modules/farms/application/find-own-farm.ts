@@ -1,6 +1,6 @@
 import type { FarmerRepository } from '#modules/farmers';
+import type { Farmer } from '#modules/farmers';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { Farmer } from '../../../contracts';
 import type { FarmRepository } from '../domain/farm.repository';
 import { findActiveFarm } from '../domain/farm.rules';
 import type { Farm } from '../farm.contract';

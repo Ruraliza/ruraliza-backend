@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import type { ApiError } from '../../../contracts';
+import type { ApiError } from '../../contracts/api';
 import type { Failure, FailureKind } from '../../domain/result';
 import type { ErrorStatus, Locals } from './types';
 

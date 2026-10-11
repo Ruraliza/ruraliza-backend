@@ -1,7 +1,7 @@
 import type { WorkerRepository } from '#modules/workers';
+import type { Worker } from '#modules/workers';
 import { type ImageStore, releaseImage } from '#shared/domain/images';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { Worker } from '../../../contracts';
 
 export interface RemoveWorkerPhotoDeps {
   workers: WorkerRepository;

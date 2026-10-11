@@ -1,10 +1,10 @@
 import type { UserRole } from '#modules/accounts';
 import { accountToken } from '#modules/accounts';
+import type { MessageResponse } from '#shared/contracts/api';
 import type { SessionTokens } from '#shared/domain/tokens';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { MessageResponse } from '../../../contracts';
 import type { LoginResponse, PasswordResetRequestResponse } from '../auth.contract';
 
 import { parseLoginInput, parsePasswordChange, parsePasswordReset, parsePasswordResetRequest } from './auth.parsers';

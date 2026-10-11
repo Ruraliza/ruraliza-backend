@@ -1,9 +1,9 @@
 import { accountToken, parseProfileInput, parseProfileUpdate } from '#modules/accounts';
+import type { MessageResponse } from '#shared/contracts/api';
 import type { SessionTokens } from '#shared/domain/tokens';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { MessageResponse } from '../../../contracts';
 import type { Farmer, FarmerResponse, FarmerSignupResponse } from '../farmer.contract';
 import type { FarmerUseCases } from '../farmers.module';
 

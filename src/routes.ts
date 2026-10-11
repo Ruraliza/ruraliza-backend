@@ -6,12 +6,12 @@ import { createFarmRoutes } from '#modules/farms';
 import { createHiringRoutes } from '#modules/hiring';
 import { createPhotoRoutes } from '#modules/media';
 import { createPushRoutes } from '#modules/notifications';
+import { platformRoutes } from '#modules/platform';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
 import { createSystemUserRoutes } from '#modules/system-users';
 import { createWorkerRoutes } from '#modules/workers';
 import type { RouteGroup } from '#shared/infra/http/route';
-import type { Container } from '../container';
-import { systemRoutes } from './systemRoutes';
+import type { Container } from './container';
 
 // Todas as rotas da API, por prefixo. O app monta estas e o OpenAPI é gerado a partir delas,
 // então rota e documentação não têm como divergir. Cada módulo entrega os seus grupos; aqui fica
@@ -60,6 +60,6 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },
     { prefix: '/api/categories', routes: categoryRoutes },
-    { prefix: '/api', routes: [...systemRoutes, ...push.config] }
+    { prefix: '/api', routes: [...platformRoutes, ...push.config] }
   ];
 }

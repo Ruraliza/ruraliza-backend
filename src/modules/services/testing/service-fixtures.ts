@@ -1,8 +1,10 @@
+import { createInMemoryFarmerRepository } from '#modules/farmers';
+import type { Farmer } from '#modules/farmers';
 import { type Farm, createInMemoryFarmRepository } from '#modules/farms';
+import { createInMemoryApplicationRepository } from '#modules/hiring';
+import type { ApplicationStatus, ServiceApplication } from '#modules/hiring';
 import type { ChangeTopic } from '#shared/domain/changes';
 import { type SentPush, adjustableClock, recordingChangeFeed, recordingPush } from '#shared/testing/recorders';
-import type { ApplicationStatus, Farmer, ServiceApplication } from '../../../contracts';
-import { createInMemoryRepositories } from '../../../infra/memory';
 import { createInMemoryServiceRepository } from '../infra/in-memory-service.repository';
 import type { Service } from '../service.contract';
 import type { ServicesModuleDeps } from '../services.module';
@@ -20,7 +22,8 @@ export interface ServicesTestbed extends ServicesModuleDeps {
 }
 
 export function servicesTestbed(): ServicesTestbed {
-  const { farmers, applications } = createInMemoryRepositories();
+  const farmers = createInMemoryFarmerRepository();
+  const applications = createInMemoryApplicationRepository();
   const clock = adjustableClock(NOW);
   const changes = recordingChangeFeed();
   const push = recordingPush();

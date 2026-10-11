@@ -1,8 +1,9 @@
+import type { FarmerResponse } from '#modules/farmers';
 import type { FarmResponse } from '#modules/farms';
+import type { WorkerResponse } from '#modules/workers';
 import { type Result, invalid, ok } from '#shared/domain/result';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { FarmParams, FarmPhotoParams, Handler, IdParams, ImageParams } from '#shared/infra/http/types';
-import type { FarmerResponse, WorkerResponse } from '../../../contracts';
 import type { PhotoUseCases } from '../media.module';
 
 // HTTP das fotos. O upload chega como o próprio arquivo no corpo (Content-Type image/*),

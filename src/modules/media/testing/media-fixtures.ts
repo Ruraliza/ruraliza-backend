@@ -1,9 +1,11 @@
+import { createInMemoryFarmerRepository } from '#modules/farmers';
+import type { Farmer } from '#modules/farmers';
 import { type Farm, createInMemoryFarmRepository } from '#modules/farms';
+import { createInMemoryWorkerRepository } from '#modules/workers';
+import type { Worker } from '#modules/workers';
 import type { ImageProcessor, NormalizeOptions } from '#shared/domain/images';
 import { invalid, ok } from '#shared/domain/result';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
-import type { Farmer, Worker } from '../../../contracts';
-import { createInMemoryRepositories } from '../../../infra/memory';
 import type { MediaModuleDeps } from '../media.module';
 
 // Dependências das fotos em memória, com um ImageProcessor falso: "imagem" é qualquer byte que
@@ -18,7 +20,8 @@ export interface MediaTestbed extends MediaModuleDeps {
 }
 
 export function mediaTestbed(): MediaTestbed {
-  const { farmers, workers } = createInMemoryRepositories();
+  const farmers = createInMemoryFarmerRepository();
+  const workers = createInMemoryWorkerRepository();
   const calls: (NormalizeOptions | undefined)[] = [];
   const processor = {
     calls,

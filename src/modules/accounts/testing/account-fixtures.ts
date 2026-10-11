@@ -1,7 +1,9 @@
+import { createInMemoryFarmerRepository } from '#modules/farmers';
+import type { Farmer } from '#modules/farmers';
 import { createInMemoryPushSubscriptionRepository } from '#modules/notifications';
+import { createInMemoryWorkerRepository } from '#modules/workers';
+import type { Worker } from '#modules/workers';
 import { ok } from '#shared/domain/result';
-import type { Farmer, Worker } from '../../../contracts';
-import { createInMemoryRepositories } from '../../../infra/memory';
 import type { AccountsModuleDeps } from '../accounts.module';
 import type { Account } from '../domain/account';
 import type { NewProfileData } from '../domain/profile-factory';
@@ -18,7 +20,8 @@ export interface AccountsTestbed extends AccountsModuleDeps {
 }
 
 export function accountsTestbed(): AccountsTestbed {
-  const { farmers, workers } = createInMemoryRepositories();
+  const farmers = createInMemoryFarmerRepository();
+  const workers = createInMemoryWorkerRepository();
   const created: AccountsTestbed['created'] = [];
   return {
     accounts: createInMemoryAccountRepository(),

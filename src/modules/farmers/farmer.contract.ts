@@ -1,5 +1,5 @@
 import type { SessionUser } from '#modules/accounts';
-import type { MessageResponse } from '../../contracts/api';
+import type { MessageResponse } from '#shared/contracts/api';
 
 export interface Farmer {
   id: number;

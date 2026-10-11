@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { unwrap } from '#shared/testing/unwrap';
-import { authTestbed, givenAccount } from '../testing/auth-fixtures';
+import { type AuthTestbed, authTestbed, givenAccount } from '../testing/auth-fixtures';
 import { RequestPasswordResetUseCase } from './request-password-reset.usecase';
 import { ResetPasswordUseCase } from './reset-password.usecase';
 
 describe('esqueci a senha', () => {
-  let t: ReturnType<typeof authTestbed>;
+  let t: AuthTestbed;
 
   beforeEach(() => {
     t = authTestbed();
