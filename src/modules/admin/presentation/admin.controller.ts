@@ -1,12 +1,13 @@
 import { parseProfileUpdate } from '#modules/accounts';
-import type { FarmerUseCases } from '#modules/farmers';
-import type { PhotoUseCases } from '#modules/media';
-import { type WorkerUseCases, parseWorkerUpdate } from '#modules/workers';
+import type { FarmerResponse } from '#modules/farmers';
+import { parseWorkerUpdate } from '#modules/workers';
+import type { WorkerResponse } from '#modules/workers';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { AdminUser, FarmerResponse, MessageResponse, WorkerResponse } from '../contracts';
-import type { AdminUseCases } from '../usecases/AdminUseCases';
+import type { MessageResponse } from '../../../contracts';
+import type { AdminUser } from '../admin.contract';
+import type { AdminRouteUseCases } from '../admin.module';
 
 // HTTP da administração das contas do app (lista, edição, remoção). A equipe fica em src/modules/system-users.
 export interface AdminController {
@@ -21,29 +22,22 @@ export interface AdminController {
   adminDeleteWorkerPhoto: Handler<WorkerResponse, IdParams>;
 }
 
-export interface AdminControllerUseCases {
-  admin: AdminUseCases;
-  farmers: FarmerUseCases;
-  workers: WorkerUseCases;
-  photos: PhotoUseCases;
-}
-
-export function createAdminController({ admin, farmers, workers, photos }: AdminControllerUseCases): AdminController {
+export function createAdminController({ admin, farmers, workers, photos }: AdminRouteUseCases): AdminController {
   // GET /api/admin/users - Todas as contas com os perfis (CPF mascarado)
   const listUsers: Handler<AdminUser[]> = async (_req, res) => {
-    res.status(200).json(await admin.listUsers());
+    res.status(200).json(await admin.listAccounts.execute());
   };
 
   // GET /api/admin/users/:id - Uma conta com os perfis completos
   const getUser: Handler<AdminUser, IdParams> = async (req, res) => {
-    const result = await admin.getUser(toId(req.params.id));
+    const result = await admin.getAccountDetail.execute({ accountId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json(result.value);
   };
 
   // DELETE /api/admin/users/:id - Remove a conta e os dois perfis
   const deleteUser: Handler<MessageResponse, IdParams> = async (req, res) => {
-    const result = await admin.deleteUser(toId(req.params.id));
+    const result = await admin.deleteAccount.execute({ accountId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Account deleted successfully!' });
   };

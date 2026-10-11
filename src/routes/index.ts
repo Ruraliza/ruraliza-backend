@@ -1,4 +1,5 @@
 import { createAccountRoutes } from '#modules/accounts';
+import { createAdminRoutes } from '#modules/admin';
 import { createAccess, createAuthRoutes } from '#modules/auth';
 import { createFarmerRoutes } from '#modules/farmers';
 import { createFarmRoutes } from '#modules/farms';
@@ -10,8 +11,6 @@ import { createSystemUserRoutes } from '#modules/system-users';
 import { createWorkerRoutes } from '#modules/workers';
 import type { RouteGroup } from '#shared/infra/http/route';
 import type { Container } from '../container';
-import { createAdminController } from '../controllers/AdminController';
-import { adminRoutes } from './adminRoutes';
 import { systemRoutes } from './systemRoutes';
 
 // Todas as rotas da API, por prefixo. O app monta estas e o OpenAPI é gerado a partir delas,
@@ -28,7 +27,6 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const photos = createPhotoRoutes(useCases.photos, access);
   const services = createServiceRoutes(useCases.services, access);
   const hiring = createHiringRoutes(useCases.hiring, access);
-  const admin = createAdminController({ admin: useCases.admin, farmers: useCases.farmers, workers: useCases.workers, photos: useCases.photos });
 
   return [
     { prefix: '/api/auth', routes: [...auth.auth, ...systemUsers.auth] },
@@ -58,7 +56,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
         ...workers.tracking // candidaturas, avisos e serviços aceitos
       ]
     },
-    { prefix: '/api/admin', routes: adminRoutes(admin, systemUsers.admin, access) },
+    { prefix: '/api/admin', routes: createAdminRoutes(useCases, systemUsers.admin, access) },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },
     { prefix: '/api/categories', routes: categoryRoutes },

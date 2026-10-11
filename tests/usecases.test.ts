@@ -767,7 +767,7 @@ describe('AdminUseCases', () => {
     const session = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: id, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } }));
 
     unwrap(await c.useCases.workers.deleteWorker.execute({ workerId: session.profiles.worker ?? 0 }));
-    const user = unwrap(await c.useCases.admin.getUser(id));
+    const user = unwrap(await c.useCases.admin.getAccountDetail.execute({ accountId: id }));
     assert.deepEqual([user.farmer?.id, user.worker], [farmerId, null]);
   });
 
@@ -778,7 +778,7 @@ describe('AdminUseCases', () => {
     unwrap(await c.useCases.accounts.addProfile.execute({ accountId: id, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } }));
     unwrap(await c.useCases.push.subscribe.execute({ accountId: id, input: { endpoint: 'https://push.exemplo.com/ana', keys: { p256dh: 'p', auth: 'a' } } }));
 
-    unwrap(await c.useCases.admin.deleteUser(id));
+    unwrap(await c.useCases.admin.deleteAccount.execute({ accountId: id }));
     assert.equal((await c.repos.accounts.find()).length, 0);
     assert.equal((await c.repos.farmers.find()).length, 0);
     assert.equal((await c.repos.workers.find()).length, 0);
@@ -796,12 +796,12 @@ describe('AdminUseCases', () => {
     const application = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
     unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: application.id, action: 'Accept' }));
 
-    const blocked = await c.useCases.admin.deleteUser(id);
+    const blocked = await c.useCases.admin.deleteAccount.execute({ accountId: id });
     assert.equal(blocked.ok ? '' : blocked.kind, 'conflict');
-    const user = unwrap(await c.useCases.admin.getUser(id));
+    const user = unwrap(await c.useCases.admin.getAccountDetail.execute({ accountId: id }));
     assert.ok(user.farmer && user.worker);
 
-    const workerAccount = await c.useCases.admin.deleteUser(await accountId(c, { worker_id: w }));
+    const workerAccount = await c.useCases.admin.deleteAccount.execute({ accountId: await accountId(c, { worker_id: w }) });
     assert.equal(workerAccount.ok ? '' : workerAccount.kind, 'conflict');
   });
 
@@ -809,8 +809,8 @@ describe('AdminUseCases', () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
     const id = await accountId(c, { farmer_id: farmerId });
-    const [listed] = await c.useCases.admin.listUsers();
+    const [listed] = await c.useCases.admin.listAccounts.execute();
     assert.equal(listed?.farmer?.cpf, '***.982.247-**');
-    assert.equal(unwrap(await c.useCases.admin.getUser(id)).farmer?.cpf, '52998224725');
+    assert.equal(unwrap(await c.useCases.admin.getAccountDetail.execute({ accountId: id })).farmer?.cpf, '52998224725');
   });
 });

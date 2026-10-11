@@ -88,7 +88,7 @@ contract-check/             # Verificação de paridade de tipos com o frontend
 src/
   container.ts              # Raiz de composição: escolhe os repositórios e monta os casos de uso
   seed.ts                   # Seed de demonstração
-  modules/<módulo>/         # Fatia vertical por contexto de negócio (migrados: farms, services, hiring, notifications, media, accounts, farmers, workers, system-users, auth)
+  modules/<módulo>/         # Fatia vertical por contexto de negócio (migrados: farms, services, hiring, notifications, media, accounts, farmers, workers, system-users, auth, admin)
     index.ts                #   API pública: o único arquivo que outro módulo enxerga (#modules/<módulo>)
     <módulo>.module.ts      #   Monta os casos de uso (container) e as rotas (src/routes)
     <nome>.contract.ts      #   Contrato da API do módulo (reexportado por src/contracts)

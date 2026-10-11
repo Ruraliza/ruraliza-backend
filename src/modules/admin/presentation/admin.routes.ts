@@ -1,11 +1,15 @@
 import type { AccessPolicies } from '#modules/auth';
+import type { FarmerSchemaName } from '#modules/farmers';
+import type { WorkerSchemaName } from '#modules/workers';
+import { TAGS, operation, pathParam } from '#shared/infra/docs/operations';
 import { type RouteDef, route } from '#shared/infra/http/route';
-import type { AdminController } from '../controllers/AdminController';
-import { TAGS, operation, pathParam } from '../docs/operations';
+import type { AdminController } from './admin.controller';
+import type { AdminSchemaName } from './admin.schemas';
 
 const accountId = pathParam('id', 'ID da conta (`account_id`).');
 const farmerId = pathParam('id', 'ID do produtor.');
 const workerId = pathParam('id', 'ID do trabalhador.');
+const adminOperation = operation<AdminSchemaName | FarmerSchemaName | WorkerSchemaName>;
 const inProgress = 'Há serviço em andamento (o pagamento precisa ser concluído antes).';
 
 // Montadas em /api/admin. Só usuários de sistema com cargo que tenha a permissão (hoje, o admin).
@@ -16,14 +20,14 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
   return [
     // --- CONTAS DO APP ---
 
-    route('get', '/users', admin.listUsers, operation({
+    route('get', '/users', admin.listUsers, adminOperation({
       tag: TAGS.admin,
       summary: 'Listar contas do app',
       description: 'Todas as contas, as mais novas primeiro, com os perfis de produtor e trabalhador (CPF mascarado).',
       success: { status: 200, description: 'Contas.', schema: { listOf: 'AdminUser' } }
     }), manageUsers),
 
-    route('get', '/users/:id', admin.getUser, operation({
+    route('get', '/users/:id', admin.getUser, adminOperation({
       tag: TAGS.admin,
       summary: 'Detalhe de uma conta',
       description: 'A conta com os perfis completos (CPF sem máscara).',
@@ -32,7 +36,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       errors: { 404: 'Conta não encontrada.' }
     }), manageUsers),
 
-    route('delete', '/users/:id', admin.deleteUser, operation({
+    route('delete', '/users/:id', admin.deleteUser, adminOperation({
       tag: TAGS.admin,
       summary: 'Remover conta',
       description:
@@ -43,7 +47,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       errors: { 404: 'Conta não encontrada.', 409: inProgress }
     }), manageUsers),
 
-    route('patch', '/farmers/:id', admin.adminUpdateFarmer, operation({
+    route('patch', '/farmers/:id', admin.adminUpdateFarmer, adminOperation({
       tag: TAGS.admin,
       summary: 'Editar perfil de produtor',
       description: 'Mesmas regras de `PATCH /api/farmers/:id`. Trocar o e-mail troca o da conta e o do outro perfil.',
@@ -57,7 +61,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       }
     }), manageUsers),
 
-    route('delete', '/farmers/:id', admin.adminDeleteFarmer, operation({
+    route('delete', '/farmers/:id', admin.adminDeleteFarmer, adminOperation({
       tag: TAGS.admin,
       summary: 'Remover perfil de produtor',
       description: 'Remove o perfil com fazendas, serviços e candidaturas. A conta continua se tiver o perfil de trabalhador.',
@@ -66,7 +70,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       errors: { 404: 'Produtor não encontrado.', 409: inProgress }
     }), manageUsers),
 
-    route('delete', '/farmers/:id/photo', admin.adminDeleteFarmerPhoto, operation({
+    route('delete', '/farmers/:id/photo', admin.adminDeleteFarmerPhoto, adminOperation({
       tag: TAGS.admin,
       summary: 'Remover foto de perfil do produtor',
       description: 'Para fotos impróprias. A imagem é apagada; o produtor pode enviar outra depois.',
@@ -75,7 +79,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       errors: { 404: 'Produtor não encontrado.' }
     }), manageUsers),
 
-    route('patch', '/workers/:id', admin.adminUpdateWorker, operation({
+    route('patch', '/workers/:id', admin.adminUpdateWorker, adminOperation({
       tag: TAGS.admin,
       summary: 'Editar perfil de trabalhador',
       description: 'Mesmas regras de `PATCH /api/workers/:id`. Trocar o e-mail troca o da conta e o do outro perfil.',
@@ -89,7 +93,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       }
     }), manageUsers),
 
-    route('delete', '/workers/:id', admin.adminDeleteWorker, operation({
+    route('delete', '/workers/:id', admin.adminDeleteWorker, adminOperation({
       tag: TAGS.admin,
       summary: 'Remover perfil de trabalhador',
       description: 'Remove o perfil com as candidaturas, a foto e o currículo. A conta continua se tiver o perfil de produtor.',
@@ -98,7 +102,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       errors: { 404: 'Trabalhador não encontrado.', 409: 'Há serviço em andamento atribuído a este trabalhador.' }
     }), manageUsers),
 
-    route('delete', '/workers/:id/photo', admin.adminDeleteWorkerPhoto, operation({
+    route('delete', '/workers/:id/photo', admin.adminDeleteWorkerPhoto, adminOperation({
       tag: TAGS.admin,
       summary: 'Remover foto de perfil do trabalhador',
       description: 'Para fotos impróprias. A imagem é apagada; o trabalhador pode enviar outra depois.',
@@ -107,7 +111,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       errors: { 404: 'Trabalhador não encontrado.' }
     }), manageUsers),
 
-    // --- EQUIPE (USUÁRIOS DE SISTEMA, src/modules/system-users) ---
+    // --- EQUIPE (src/modules/system-users) ---
 
     ...staffRoutes
   ];

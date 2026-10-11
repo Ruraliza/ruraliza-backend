@@ -1,4 +1,5 @@
 import { type AccountUseCases, type ProfileFactory, createAccountUseCases } from '#modules/accounts';
+import { type AdminUseCases, createAdminUseCases } from '#modules/admin';
 import { type AuthUseCases, createAuthUseCases } from '#modules/auth';
 import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
@@ -22,7 +23,6 @@ import { SharpImageProcessor } from '#shared/infra/images/sharp-image-processor'
 import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
 import type { Repositories } from './domain/repositories';
 import { createInMemoryRepositories } from './infra/memory';
-import { AdminUseCases } from './usecases/AdminUseCases';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
 // Para trocar a persistência (ex.: PostgreSQL), passe outros `repos` aqui; para guardar as
@@ -115,7 +115,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
       push: createPushUseCases(pushDeps),
       systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),
-      admin: new AdminUseCases({ accounts, farmers, workers, services }, { farmers: farmerUseCases, workers: workerUseCases })
+      admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases })
     }
   };
 }
