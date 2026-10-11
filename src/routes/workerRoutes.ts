@@ -1,13 +1,13 @@
-import type { AuthController } from '../controllers/AuthController';
-import type { EventController } from '../controllers/EventController';
-import type { PhotoController } from '../controllers/PhotoController';
-import type { ResumeController } from '../controllers/ResumeController';
-import type { WorkerController } from '../controllers/WorkerController';
-import { IMAGE_UPLOAD, PDF_UPLOAD, TAGS, operation, pathParam } from '../docs/operations';
-import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
 import type { HiringRoutes } from '#modules/hiring';
+import type { PhotoRoutes } from '#modules/media';
 import type { ServiceRoutes } from '#modules/services';
 import { type RouteDef, route } from '#shared/infra/http/route';
+import type { AuthController } from '../controllers/AuthController';
+import type { EventController } from '../controllers/EventController';
+import type { ResumeController } from '../controllers/ResumeController';
+import type { WorkerController } from '../controllers/WorkerController';
+import { PDF_UPLOAD, TAGS, operation, pathParam } from '../docs/operations';
+import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
 
 // Montadas em /api/workers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
 
@@ -15,15 +15,14 @@ const workerId = pathParam('id', 'ID do trabalhador.');
 
 export interface WorkerRouteControllers {
   workers: WorkerController;
-  photos: PhotoController;
   resumes: ResumeController;
   auth: AuthController;
   events: EventController;
 }
 
 export function workerRoutes(
-  { workers, photos, resumes, auth, events }: WorkerRouteControllers,
-  modules: { services: ServiceRoutes; hiring: HiringRoutes },
+  { workers, resumes, auth, events }: WorkerRouteControllers,
+  modules: { services: ServiceRoutes; hiring: HiringRoutes; photos: PhotoRoutes },
   access: AccessPolicies
 ): readonly RouteDef[] {
   return [
@@ -97,29 +96,8 @@ export function workerRoutes(
       }
     }), access.ownWorker()),
 
-    route('post', '/:id/photo', photos.uploadWorkerPhoto, operation({
-      tag: TAGS.workers,
-      summary: 'Enviar foto de perfil do trabalhador',
-      description:
-        'Substitui a foto anterior. Envie a foto já recortada em quadrado; se vier em outra proporção, ' +
-        'o servidor recorta o quadrado central. Reduzida para no máximo 1000×1000px e convertida para WebP, sem metadados.',
-      params: [workerId],
-      body: IMAGE_UPLOAD,
-      success: { status: 200, description: 'Foto salva; `photo_url` atualizado.', schema: 'WorkerResponse' },
-      errors: {
-        400: 'Corpo vazio, sem Content-Type image/*, ou arquivo que não é uma imagem legível.',
-        404: 'Trabalhador não encontrado.',
-        413: 'Arquivo maior que 10 MB.'
-      }
-    }), access.ownWorker()),
-
-    route('delete', '/:id/photo', photos.deleteWorkerPhoto, operation({
-      tag: TAGS.workers,
-      summary: 'Remover foto de perfil do trabalhador',
-      params: [workerId],
-      success: { status: 200, description: 'Foto removida (`photo_url` = null).', schema: 'WorkerResponse' },
-      errors: { 404: 'Trabalhador não encontrado.' }
-    }), access.ownWorker()),
+    // Foto de perfil (src/modules/media).
+    ...modules.photos.worker,
 
     route('post', '/:id/resume', resumes.uploadWorkerResume, operation({
       tag: TAGS.workers,

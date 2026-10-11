@@ -443,8 +443,8 @@ describe('Fotos', () => {
   it('remover o produtor apaga do store a foto de perfil e as fotos das fazendas', async () => {
     const c = setup();
     const { farmerId, farmId } = await farmerWithFarm(c);
-    const farmer = unwrap(await c.useCases.photos.setFarmerPhoto(farmerId, await PNG()));
-    const farm = unwrap(await c.useCases.photos.addFarmPhoto(farmerId, farmId, await PNG()));
+    const farmer = unwrap(await c.useCases.photos.setFarmerPhoto.execute({ farmerId: farmerId, upload: await PNG() }));
+    const farm = unwrap(await c.useCases.photos.addFarmPhoto.execute({ farmerId: farmerId, farmId: farmId, upload: await PNG() }));
     const ids = [c.images.idFromUrl(farmer.photo_url ?? ''), farm.photos[0]?.id].filter((id): id is string => id !== undefined);
     assert.equal(ids.length, 2);
 
@@ -465,15 +465,15 @@ describe('Fotos', () => {
       return [width, height];
     };
 
-    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.setFarmerPhoto(farmerId, wide)).photo_url), [1000, 1000]);
-    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.setFarmerPhoto(farmerId, small)).photo_url), [300, 300]);
-    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.addFarmPhoto(farmerId, farmId, wide)).photos[0]?.url), [1000, 667]);
+    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.setFarmerPhoto.execute({ farmerId: farmerId, upload: wide })).photo_url), [1000, 1000]);
+    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.setFarmerPhoto.execute({ farmerId: farmerId, upload: small })).photo_url), [300, 300]);
+    assert.deepEqual(await sizeOf(unwrap(await c.useCases.photos.addFarmPhoto.execute({ farmerId: farmerId, farmId: farmId, upload: wide })).photos[0]?.url), [1000, 667]);
   });
 
   it('recusa bytes que não são imagem', async () => {
     const c = setup();
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    const result = await c.useCases.photos.setWorkerPhoto(w, new TextEncoder().encode('texto'));
+    const result = await c.useCases.photos.setWorkerPhoto.execute({ workerId: w, upload: new TextEncoder().encode('texto') });
     assert.equal(result.ok ? '' : result.kind, 'invalid');
     assert.equal((await c.repos.workers.findById(w))?.photo_url, null);
   });

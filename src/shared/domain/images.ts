@@ -49,3 +49,10 @@ export interface ImageStore {
   // Id a partir de uma URL gerada por este store (para remover a foto antiga).
   idFromUrl(url: string): string | undefined;
 }
+
+// Apaga do store a imagem de uma URL gerada por ele (sem erro se não houver, ou se for de outro lugar).
+export async function releaseImage(store: ImageStore, url: string | null): Promise<void> {
+  if (url === null) return;
+  const id = store.idFromUrl(url);
+  if (id !== undefined) await store.delete(id);
+}

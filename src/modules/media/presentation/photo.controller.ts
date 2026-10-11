@@ -1,8 +1,9 @@
-import type { FarmResponse, FarmerResponse, WorkerResponse } from '../contracts';
+import type { FarmResponse } from '#modules/farms';
 import { type Result, invalid, ok } from '#shared/domain/result';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { FarmParams, FarmPhotoParams, Handler, IdParams, ImageParams } from '#shared/infra/http/types';
-import type { PhotoUseCases } from '../usecases/PhotoUseCases';
+import type { FarmerResponse, WorkerResponse } from '../../../contracts';
+import type { PhotoUseCases } from '../media.module';
 
 // HTTP das fotos. O upload chega como o próprio arquivo no corpo (Content-Type image/*),
 // lido pelo express.raw em app.ts. Sem multipart: um arquivo por requisição.
@@ -25,7 +26,7 @@ function readUpload(body: unknown): Result<Uint8Array> {
 export function createPhotoController(photos: PhotoUseCases): PhotoController {
   // GET /api/images/:id - Bytes da imagem (WebP). O id é único por envio, então pode ficar em cache.
   const getImage: Handler<Buffer, ImageParams> = async (req, res) => {
-    const result = await photos.getImage(req.params.id);
+    const result = await photos.getImage.execute({ imageId: req.params.id });
     if (!result.ok) { sendFailure(res, result); return; }
     res.setHeader('Content-Type', result.value.contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
@@ -36,14 +37,14 @@ export function createPhotoController(photos: PhotoUseCases): PhotoController {
   const uploadFarmerPhoto: Handler<FarmerResponse, IdParams> = async (req, res) => {
     const upload = readUpload(req.body);
     if (!upload.ok) { sendFailure(res, upload); return; }
-    const result = await photos.setFarmerPhoto(toId(req.params.id), upload.value);
+    const result = await photos.setFarmerPhoto.execute({ farmerId: toId(req.params.id), upload: upload.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Profile photo updated.', farmer: result.value });
   };
 
   // DELETE /api/farmers/:id/photo - Remove a foto de perfil do produtor
   const deleteFarmerPhoto: Handler<FarmerResponse, IdParams> = async (req, res) => {
-    const result = await photos.removeFarmerPhoto(toId(req.params.id));
+    const result = await photos.removeFarmerPhoto.execute({ farmerId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Profile photo removed.', farmer: result.value });
   };
@@ -52,14 +53,14 @@ export function createPhotoController(photos: PhotoUseCases): PhotoController {
   const uploadWorkerPhoto: Handler<WorkerResponse, IdParams> = async (req, res) => {
     const upload = readUpload(req.body);
     if (!upload.ok) { sendFailure(res, upload); return; }
-    const result = await photos.setWorkerPhoto(toId(req.params.id), upload.value);
+    const result = await photos.setWorkerPhoto.execute({ workerId: toId(req.params.id), upload: upload.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Profile photo updated.', worker: result.value });
   };
 
   // DELETE /api/workers/:id/photo - Remove a foto de perfil do trabalhador
   const deleteWorkerPhoto: Handler<WorkerResponse, IdParams> = async (req, res) => {
-    const result = await photos.removeWorkerPhoto(toId(req.params.id));
+    const result = await photos.removeWorkerPhoto.execute({ workerId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Profile photo removed.', worker: result.value });
   };
@@ -68,14 +69,14 @@ export function createPhotoController(photos: PhotoUseCases): PhotoController {
   const addFarmPhoto: Handler<FarmResponse, FarmParams> = async (req, res) => {
     const upload = readUpload(req.body);
     if (!upload.ok) { sendFailure(res, upload); return; }
-    const result = await photos.addFarmPhoto(toId(req.params.id), toId(req.params.farmId), upload.value);
+    const result = await photos.addFarmPhoto.execute({ farmerId: toId(req.params.id), farmId: toId(req.params.farmId), upload: upload.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(201).json({ message: 'Farm photo added.', farm: result.value });
   };
 
   // DELETE /api/farmers/:id/farms/:farmId/photos/:photoId - Remove uma foto da fazenda
   const deleteFarmPhoto: Handler<FarmResponse, FarmPhotoParams> = async (req, res) => {
-    const result = await photos.removeFarmPhoto(toId(req.params.id), toId(req.params.farmId), req.params.photoId);
+    const result = await photos.removeFarmPhoto.execute({ farmerId: toId(req.params.id), farmId: toId(req.params.farmId), photoId: req.params.photoId });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Farm photo removed.', farm: result.value });
   };

@@ -1,5 +1,6 @@
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
+import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import { type PushDispatcher, type PushSender, type PushUseCases, WebPushSender, createPushDispatcher, createPushUseCases } from '#modules/notifications';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { authTokenSecret } from '#shared/config';
@@ -21,7 +22,6 @@ import { AccountUseCases } from './usecases/AccountUseCases';
 import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
 import { FarmerUseCases } from './usecases/FarmerUseCases';
-import { PhotoUseCases } from './usecases/PhotoUseCases';
 import { ResumeUseCases } from './usecases/ResumeUseCases';
 import { SystemUserUseCases } from './usecases/SystemUserUseCases';
 import { WorkerUseCases } from './usecases/WorkerUseCases';
@@ -109,7 +109,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       farms: createFarmUseCases({ farmers, farms, services, clock }),
       services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier }),
       hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier }),
-      photos: new PhotoUseCases({ farmers, workers, farms }, { processor: imageProcessor, store: images }),
+      photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
       resumes: new ResumeUseCases({ workers }, documents),
       push: createPushUseCases(pushDeps),
       systemUsers: new SystemUserUseCases({ systemUsers }, clock, passwords),

@@ -5,7 +5,7 @@ import { SERVICE_STATUS, type ServiceRepository, toOpenService } from '#modules/
 import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import type { DocumentStore } from '#shared/domain/documents';
-import type { ImageStore } from '#shared/domain/images';
+import { type ImageStore, releaseImage } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';
@@ -15,7 +15,6 @@ import type {
   FarmerRepository,
   WorkerRepository
 } from '../domain/repositories';
-import { releaseImage } from './PhotoUseCases';
 import { releaseDocument } from './ResumeUseCases';
 import { changeAccountEmail, checkNewAccount, createAccount, toSession, unlinkProfile } from './accounts';
 import { checkProfileUnique } from './shared';

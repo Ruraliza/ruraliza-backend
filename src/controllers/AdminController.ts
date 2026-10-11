@@ -1,11 +1,11 @@
-import type { AdminUser, FarmerResponse, MessageResponse, SystemUser, SystemUserResponse, WorkerResponse } from '../contracts';
+import type { PhotoUseCases } from '#modules/media';
 import { toBody } from '#shared/infra/http/body';
-import { parseAdminSystemUserUpdate, parseProfileUpdate, parseSystemUserInput, parseWorkerUpdate } from '../http/parsers';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
+import type { AdminUser, FarmerResponse, MessageResponse, SystemUser, SystemUserResponse, WorkerResponse } from '../contracts';
+import { parseAdminSystemUserUpdate, parseProfileUpdate, parseSystemUserInput, parseWorkerUpdate } from '../http/parsers';
 import type { AdminUseCases } from '../usecases/AdminUseCases';
 import type { FarmerUseCases } from '../usecases/FarmerUseCases';
-import type { PhotoUseCases } from '../usecases/PhotoUseCases';
 import type { SystemUserUseCases } from '../usecases/SystemUserUseCases';
 import type { WorkerUseCases } from '../usecases/WorkerUseCases';
 import { systemUserId } from './AuthController';
@@ -74,7 +74,7 @@ export function createAdminController({ admin, farmers, workers, photos, systemU
 
   // DELETE /api/admin/farmers/:id/photo - Remove a foto de perfil do produtor (ex.: imagem imprópria)
   const adminDeleteFarmerPhoto: Handler<FarmerResponse, IdParams> = async (req, res) => {
-    const result = await photos.removeFarmerPhoto(toId(req.params.id));
+    const result = await photos.removeFarmerPhoto.execute({ farmerId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Farmer photo removed successfully!', farmer: result.value });
   };
@@ -98,7 +98,7 @@ export function createAdminController({ admin, farmers, workers, photos, systemU
 
   // DELETE /api/admin/workers/:id/photo - Remove a foto de perfil do trabalhador (ex.: imagem imprópria)
   const adminDeleteWorkerPhoto: Handler<WorkerResponse, IdParams> = async (req, res) => {
-    const result = await photos.removeWorkerPhoto(toId(req.params.id));
+    const result = await photos.removeWorkerPhoto.execute({ workerId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Worker photo removed successfully!', worker: result.value });
   };

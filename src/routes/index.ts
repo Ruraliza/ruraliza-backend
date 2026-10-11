@@ -1,5 +1,6 @@
 import { createFarmRoutes } from '#modules/farms';
 import { createHiringRoutes } from '#modules/hiring';
+import { createPhotoRoutes } from '#modules/media';
 import { createPushRoutes } from '#modules/notifications';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
 import type { RouteGroup } from '#shared/infra/http/route';
@@ -9,7 +10,6 @@ import { createAdminController } from '../controllers/AdminController';
 import { createAuthController } from '../controllers/AuthController';
 import { createEventController } from '../controllers/EventController';
 import { createFarmerController } from '../controllers/FarmerController';
-import { createPhotoController } from '../controllers/PhotoController';
 import { createResumeController } from '../controllers/ResumeController';
 import { createWorkerController } from '../controllers/WorkerController';
 import { createAccess } from '../http/access';
@@ -18,7 +18,6 @@ import { adminRoutes } from './adminRoutes';
 import { authRoutes } from './authRoutes';
 import { documentRoutes } from './documentRoutes';
 import { farmerRoutes } from './farmerRoutes';
-import { imageRoutes } from './imageRoutes';
 import { systemRoutes } from './systemRoutes';
 import { workerRoutes } from './workerRoutes';
 
@@ -31,7 +30,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const push = createPushRoutes(useCases.push, access);
   const farmers = createFarmerController(useCases.farmers, tokens);
   const workers = createWorkerController(useCases.workers, tokens);
-  const photos = createPhotoController(useCases.photos);
+  const photos = createPhotoRoutes(useCases.photos, access);
   const resumes = createResumeController(useCases.resumes);
   const events = createEventController(useCases.workers);
   const hiring = createHiringRoutes(useCases.hiring, access);
@@ -41,10 +40,10 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   return [
     { prefix: '/api/auth', routes: authRoutes(auth, access) },
     { prefix: '/api/accounts', routes: accountRoutes(accounts, push.account, access) },
-    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, photos, auth }, { farms: createFarmRoutes(useCases.farms, access), services, hiring }, access) },
-    { prefix: '/api/workers', routes: workerRoutes({ workers, photos, resumes, auth, events }, { services, hiring }, access) },
+    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, auth }, { farms: createFarmRoutes(useCases.farms, access), services, hiring, photos }, access) },
+    { prefix: '/api/workers', routes: workerRoutes({ workers, resumes, auth, events }, { services, hiring, photos }, access) },
     { prefix: '/api/admin', routes: adminRoutes(admin, access) },
-    { prefix: '/api/images', routes: imageRoutes(photos) },
+    { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: documentRoutes(resumes) },
     { prefix: '/api/categories', routes: categoryRoutes },
     { prefix: '/api', routes: [...systemRoutes, ...push.config] }
