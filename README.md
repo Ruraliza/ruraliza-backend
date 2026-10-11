@@ -88,7 +88,7 @@ contract-check/             # Verificação de paridade de tipos com o frontend
 src/
   container.ts              # Raiz de composição: escolhe os repositórios e monta os casos de uso
   seed.ts                   # Seed de demonstração
-  modules/<módulo>/         # Fatia vertical por contexto de negócio (migrado: farms)
+  modules/<módulo>/         # Fatia vertical por contexto de negócio (migrados: farms, services)
     index.ts                #   API pública: o único arquivo que outro módulo enxerga (#modules/<módulo>)
     <módulo>.module.ts      #   Monta os casos de uso (container) e as rotas (src/routes)
     <nome>.contract.ts      #   Contrato da API do módulo (reexportado por src/contracts)
@@ -110,7 +110,7 @@ src/
   # Ainda não migrados para src/modules (saem a cada módulo migrado):
   usecases/  controllers/  routes/  http/ (access, parsers)  domain/ (agregado de repositórios, contas, push, equipe)
   infra/memory/             # Agregado dos repositórios em memória
-  constants/                # Status e categorias
+  constants/                # Status das candidaturas e dos pagamentos
 ```
 
 ### Camadas e módulos
@@ -151,7 +151,7 @@ Imports: dentro do módulo, relativos; entre módulos, só `#modules/<módulo>` 
    - `accounts (id, email text UNIQUE, password_hash text, reset_token_digest text, reset_expires_at timestamptz, farmer_id int UNIQUE references farmers ON DELETE SET NULL, worker_id int UNIQUE references workers ON DELETE SET NULL, last_role text)`. Ao remover um perfil, ele sai da conta; a conta some junto com o último perfil.
    - `system_users (id, email text UNIQUE, name text, role text CHECK (role IN ('admin','tutor')), password_hash text, insertion_date timestamptz)`: a equipe, sem ligação com `accounts`.
    - Restrições `UNIQUE` e transações estão marcadas com `TODO(db)` no código (`grep -rn "TODO(db)" src`).
-4. **Busca de vagas.** `ServiceUseCases.searchOpen` filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no método).
+4. **Busca de vagas.** `SearchOpenServicesUseCase` (`src/modules/services/application/`) filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no caso de uso).
 5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/shared/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar). Os currículos fazem o mesmo com `DocumentStore` (`src/shared/domain/documents.ts`), passado em `createContainer({ documents })`.
 6. **Seed.** `src/seed.ts` só roda na memória. No banco, vire um script de seed ou migração.
 

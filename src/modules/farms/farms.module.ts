@@ -1,6 +1,7 @@
 import type { Clock } from '#shared/domain/clock';
 import type { RouteDef } from '#shared/infra/http/route';
-import type { FarmerRepository, ServiceRepository } from '../../domain/repositories';
+import type { ServiceRepository } from '#modules/services';
+import type { FarmerRepository } from '../../domain/repositories';
 import type { AccessPolicies } from '../../http/access';
 import { CreateFarmUseCase } from './application/create-farm.usecase';
 import { DeleteFarmUseCase } from './application/delete-farm.usecase';

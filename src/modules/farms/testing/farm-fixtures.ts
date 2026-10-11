@@ -1,7 +1,8 @@
 import type { Clock } from '#shared/domain/clock';
 import { fixedClock } from '#shared/testing/fixed-clock';
 import type { Farmer, Service, ServiceStatus } from '../../../contracts';
-import type { FarmerRepository, ServiceRepository } from '../../../domain/repositories';
+import type { ServiceRepository } from '#modules/services';
+import type { FarmerRepository } from '../../../domain/repositories';
 import { createInMemoryRepositories } from '../../../infra/memory';
 import type { Farm } from '../farm.contract';
 import type { FarmRepository } from '../domain/farm.repository';

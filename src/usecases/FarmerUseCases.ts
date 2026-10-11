@@ -1,5 +1,4 @@
 import type { Farmer, FarmerInput, FarmerUpdate, SessionUser } from '../contracts';
-import { SERVICE_STATUS } from '../constants/status';
 import { type ChangeFeed, workerApplications } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import type { ImageStore } from '#shared/domain/images';
@@ -9,9 +8,9 @@ import type {
   ApplicationRepository,
   FarmerRepository,
   PushSubscriptionRepository,
-  ServiceRepository,
   WorkerRepository
 } from '../domain/repositories';
+import { SERVICE_STATUS, type ServiceRepository } from '#modules/services';
 import type { FarmRepository } from '#modules/farms';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';

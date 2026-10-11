@@ -1,4 +1,5 @@
 import { createInMemoryFarmRepository } from '#modules/farms';
+import { createInMemoryServiceRepository } from '#modules/services';
 import type { Repositories } from '../../domain/repositories';
 import { InMemoryRepository } from '#shared/infra/memory/in-memory-repository';
 
@@ -8,7 +9,7 @@ export function createInMemoryRepositories(): Repositories {
     farmers: new InMemoryRepository(['email', 'cpf'], (data, id) => ({ id, ...data })),
     workers: new InMemoryRepository(['email', 'cpf'], (data, id) => ({ id, ...data })),
     farms: createInMemoryFarmRepository(),
-    services: new InMemoryRepository(['farmer_id', 'worker_id', 'farm_id', 'status'], (data, id) => ({ id, ...data })),
+    services: createInMemoryServiceRepository(),
     applications: new InMemoryRepository(['service_id', 'worker_id', 'status'], (data, id) => ({ id, ...data })),
     payments: new InMemoryRepository(['service_id'], (data, id) => ({ id, ...data })),
     accounts: new InMemoryRepository(['email', 'farmer_id', 'worker_id', 'reset_token_digest'], (data, id) => ({ id, ...data })),

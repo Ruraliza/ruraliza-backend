@@ -51,3 +51,8 @@ export function isBlank(value: unknown): boolean {
 export function missingFields<K extends string>(body: Readonly<Record<string, unknown>>, fields: readonly K[]): K[] {
   return fields.filter((field) => isBlank(body[field]));
 }
+
+// Mensagem de erro se o texto passar do limite (null quando está dentro).
+export function tooLong(label: string, value: string | null | undefined, max: number): string | null {
+  return value && value.length > max ? `${label} pode ter no máximo ${max} caracteres.` : null;
+}

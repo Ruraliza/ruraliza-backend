@@ -1,5 +1,8 @@
 import type { Farm, FarmLocation } from '#modules/farms';
-import type { ServiceStatus } from './status';
+import type { MessageResponse } from '../../contracts/api';
+
+// Status em inglês na API; a tradução acontece só na UI.
+export type ServiceStatus = 'Pending' | 'In Progress' | 'Completed' | 'Rejected' | 'Cancelled';
 
 export interface Service {
   id: number;
@@ -31,6 +34,11 @@ export interface ServiceInput {
 
 // PATCH /farmers/services/:id (só enquanto Pending; o produtor não muda)
 export type ServiceUpdate = Partial<Omit<ServiceInput, 'farmer_id'>>;
+
+// Resposta de publicar, editar e cancelar (e base das respostas de aceite e pagamento).
+export interface ServiceResponse extends MessageResponse {
+  service: Service;
+}
 
 // GET /farmers/services/:id
 export interface ServiceWithFarm extends Service {

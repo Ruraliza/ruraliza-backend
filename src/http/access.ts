@@ -1,5 +1,6 @@
 import type { IncomingHttpHeaders } from 'node:http';
-import type { AccountRepository, ServiceRepository, SystemUserRepository } from '../domain/repositories';
+import type { ServiceRepository } from '#modules/services';
+import type { AccountRepository, SystemUserRepository } from '../domain/repositories';
 import { type Result, forbidden, ok, unauthorized } from '#shared/domain/result';
 import { type SystemPermission, canDo } from '../domain/system-users';
 import type { SessionTokens } from '#shared/domain/tokens';

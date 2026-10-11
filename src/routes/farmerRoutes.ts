@@ -1,11 +1,11 @@
 import type { AuthController } from '../controllers/AuthController';
 import type { EventController } from '../controllers/EventController';
 import type { FarmerController } from '../controllers/FarmerController';
+import type { HiringController } from '../controllers/HiringController';
 import type { PhotoController } from '../controllers/PhotoController';
-import type { ServiceController } from '../controllers/ServiceController';
-import { IMAGE_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
-import { ref } from '../docs/schemas';
+import { IMAGE_UPLOAD, TAGS, operation, pathParam } from '../docs/operations';
 import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
+import type { ServiceRoutes } from '#modules/services';
 import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/farmers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
@@ -21,64 +21,24 @@ const uploadErrors = {
 
 export interface FarmerRouteControllers {
   farmers: FarmerController;
-  services: ServiceController;
+  hiring: HiringController;
   photos: PhotoController;
   auth: AuthController;
   events: EventController;
 }
 
 export function farmerRoutes(
-  { farmers, services, photos, auth, events }: FarmerRouteControllers,
-  farmRoutes: readonly RouteDef[],
+  { farmers, hiring, photos, auth, events }: FarmerRouteControllers,
+  modules: { farms: readonly RouteDef[]; services: ServiceRoutes },
   access: AccessPolicies
 ): readonly RouteDef[] {
   return [
     // --- SERVIÇOS ---
 
-    route('post', '/services', services.requestService, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Publicar serviço (RF01)',
-      description: 'Cria um serviço `Pending` numa fazenda ativa do produtor.',
-      body: 'ServiceInput',
-      success: { status: 201, description: 'Serviço publicado.', schema: 'ServiceResponse' },
-      errors: {
-        400: 'Campo obrigatório faltando; `duration` ou `price` não é número maior que zero; fazenda de outro produtor.',
-        404: 'Produtor não encontrado; fazenda não encontrada ou removida.'
-      }
-    }), access.farmerInBody()),
+    // Publicar, ver, editar e cancelar vêm do módulo (src/modules/services); candidaturas, aceite e pagamento, daqui.
+    ...modules.services.services,
 
-    route('get', '/services/:id', services.getService, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Detalhe do serviço com a fazenda',
-      params: [serviceId],
-      success: { status: 200, description: 'Serviço com a fazenda completa (mesmo que removida).', schema: 'ServiceWithFarm' },
-      errors: { 404: 'Serviço não encontrado.' }
-    }), access.farmerOfService()),
-
-    route('patch', '/services/:id', services.updateService, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Editar serviço',
-      description: 'Só enquanto o serviço está `Pending` (sem trabalhador aceito).',
-      params: [serviceId],
-      body: 'ServiceUpdate',
-      success: { status: 200, description: 'Serviço atualizado.', schema: 'ServiceResponse' },
-      errors: {
-        400: 'Tentou alterar `farmer_id`, `worker_id`, `payment_id` ou `status`; nome ou categoria vazios; duração ou valor inválidos; fazenda de outro produtor.',
-        404: 'Serviço não encontrado; fazenda não encontrada ou removida.',
-        409: 'O serviço não está mais `Pending`.'
-      }
-    }), access.farmerOfService()),
-
-    route('patch', '/services/:id/cancel', services.cancelService, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Cancelar serviço',
-      description: 'Só enquanto `Pending`. O serviço vira `Cancelled`, sai das vagas e as candidaturas pendentes são recusadas.',
-      params: [serviceId],
-      success: { status: 200, description: 'Serviço cancelado.', schema: 'ServiceResponse' },
-      errors: { 404: 'Serviço não encontrado.', 409: 'O serviço não está mais `Pending`.' }
-    }), access.farmerOfService()),
-
-    route('get', '/services/:id/applications', services.listServiceApplications, operation({
+    route('get', '/services/:id/applications', hiring.listServiceApplications, operation({
       tag: TAGS.farmerServices,
       summary: 'Candidaturas do serviço',
       params: [serviceId],
@@ -99,7 +59,7 @@ export function farmerRoutes(
       errors: { 404: 'Serviço não encontrado.' }
     }), access.farmerOfService('id', { tokenInQuery: true })),
 
-    route('patch', '/services/:id/analyze', services.analyzeOffer, operation({
+    route('patch', '/services/:id/analyze', hiring.analyzeOffer, operation({
       tag: TAGS.farmerServices,
       summary: 'Aceitar ou recusar candidatura (RF03)',
       description:
@@ -115,7 +75,7 @@ export function farmerRoutes(
       }
     }), access.farmerOfService()),
 
-    route('post', '/services/:id/payment', services.processPayment, operation({
+    route('post', '/services/:id/payment', hiring.processPayment, operation({
       tag: TAGS.farmerServices,
       summary: 'Liberar pagamento (RF04)',
       description: 'Simulação: registra o pagamento do valor do serviço e o conclui (`Completed`). Nenhum dinheiro é movimentado.',
@@ -211,7 +171,7 @@ export function farmerRoutes(
     // --- FAZENDAS ---
 
     // As da fazenda em si vêm do módulo (src/modules/farms); as fotos da fazenda continuam aqui.
-    ...farmRoutes,
+    ...modules.farms,
 
     route('post', '/:id/farms/:farmId/photos', photos.addFarmPhoto, operation({
       tag: TAGS.farms,
@@ -237,16 +197,6 @@ export function farmerRoutes(
 
     // --- SERVIÇOS DO PRODUTOR ---
 
-    route('get', '/:id/services', services.listFarmerServices, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Serviços do produtor',
-      params: [farmerId, queryParam('status', 'Filtra por status.', ref('ServiceStatus'))],
-      success: {
-        status: 200,
-        description: 'Serviços com a fazenda e a contagem de candidaturas pendentes.',
-        schema: { listOf: 'FarmerServiceItem' }
-      },
-      errors: { 400: '`status` inválido.', 404: 'Produtor não encontrado.' }
-    }), access.ownFarmer())
+    ...modules.services.farmerServices
   ];
 }

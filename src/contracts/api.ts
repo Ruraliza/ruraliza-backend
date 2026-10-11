@@ -1,7 +1,7 @@
+import type { ServiceResponse } from '#modules/services';
 import type { SessionUser } from './auth';
 import type { Farmer } from './farmer';
 import type { Payment } from './payment';
-import type { Service } from './service';
 import type { ServiceApplication } from './service-application';
 import type { Worker } from './worker';
 
@@ -32,10 +32,6 @@ export interface FarmerSignupResponse extends FarmerResponse {
 export interface WorkerSignupResponse extends WorkerResponse {
   user: SessionUser;
   token: string;
-}
-
-export interface ServiceResponse extends MessageResponse {
-  service: Service;
 }
 
 export interface ApplicationResponse extends MessageResponse {

@@ -1,11 +1,12 @@
 import type { AuthController } from '../controllers/AuthController';
 import type { EventController } from '../controllers/EventController';
-import type { JobController } from '../controllers/JobController';
+import type { HiringController } from '../controllers/HiringController';
 import type { PhotoController } from '../controllers/PhotoController';
 import type { ResumeController } from '../controllers/ResumeController';
 import type { WorkerController } from '../controllers/WorkerController';
-import { IMAGE_UPLOAD, PDF_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
+import { IMAGE_UPLOAD, PDF_UPLOAD, TAGS, operation, pathParam } from '../docs/operations';
 import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
+import type { ServiceRoutes } from '#modules/services';
 import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/workers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
@@ -15,54 +16,25 @@ const serviceId = pathParam('id', 'ID do serviço (vaga).');
 
 export interface WorkerRouteControllers {
   workers: WorkerController;
-  jobs: JobController;
+  hiring: HiringController;
   photos: PhotoController;
   resumes: ResumeController;
   auth: AuthController;
   events: EventController;
 }
 
-const date = { type: 'string' as const, format: 'date', example: '2026-10-01' };
-
 export function workerRoutes(
-  { workers, jobs, photos, resumes, auth, events }: WorkerRouteControllers,
+  { workers, hiring, photos, resumes, auth, events }: WorkerRouteControllers,
+  modules: { services: ServiceRoutes },
   access: AccessPolicies
 ): readonly RouteDef[] {
   return [
     // --- VAGAS ---
 
-    route('get', '/services', jobs.searchServices, operation({
-      tag: TAGS.jobs,
-      summary: 'Buscar vagas abertas (RF02)',
-      description:
-        'Serviços `Pending` dentro da validade (`expires_at` vazio ou hoje/futuro, no horário de Brasília), ' +
-        'com cidade/UF e fotos da fazenda (sem o endereço completo). Todos os filtros são opcionais e se combinam.',
-      params: [
-        queryParam('q', 'Busca no nome, na descrição, na categoria e na cidade. Ignora acentos e maiúsculas; todas as palavras precisam aparecer.', { type: 'string', maxLength: 100 }),
-        queryParam('category', 'Filtra por categoria (ver GET /api/categories).', { type: 'string' }),
-        queryParam('min_hours', 'Carga horária mínima (horas).', { type: 'number', minimum: 0 }),
-        queryParam('max_hours', 'Carga horária máxima (horas).', { type: 'number', minimum: 0 }),
-        queryParam('from', 'Publicadas a partir deste dia.', date),
-        queryParam('to', 'Publicadas até este dia.', date),
-        queryParam('sort', 'Ordem. Padrão: recent.', { type: 'string', enum: ['recent', 'price_desc', 'price_asc', 'duration_asc', 'duration_desc'] })
-      ],
-      success: { status: 200, description: 'Vagas abertas.', schema: { listOf: 'OpenService' } },
-      errors: { 400: 'Número ou data em formato inválido; mínimo maior que o máximo; `from` depois de `to`; `sort` desconhecido.' }
-    }), access.worker()),
+    // Buscar e ver vêm do módulo (src/modules/services); candidatura e desistência, daqui.
+    ...modules.services.jobs,
 
-    route('get', '/services/:id', jobs.getServiceDetail, operation({
-      tag: TAGS.jobs,
-      summary: 'Detalhe da vaga',
-      description: 'Retorna o serviço em qualquer status (o trabalhador acompanha as vagas em que se candidatou). Com `worker_id` do trabalhador aceito no serviço, `farm` inclui `latitude`/`longitude`.',
-      params: [
-        serviceId,
-        queryParam('worker_id', 'Trabalhador que está vendo a vaga. Se for o aceito no serviço, recebe o ponto da fazenda no mapa.', { type: 'integer', minimum: 1 })
-      ],
-      success: { status: 200, description: 'Serviço com cidade/UF da fazenda (e o ponto no mapa, para o trabalhador aceito).', schema: 'OpenService' },
-      errors: { 400: '`worker_id` inválido.', 404: 'Serviço não encontrado.' }
-    }), access.worker()),
-
-    route('post', '/services/:id/apply', jobs.applyForService, operation({
+    route('post', '/services/:id/apply', hiring.applyForService, operation({
       tag: TAGS.jobs,
       summary: 'Candidatar-se (RF02)',
       params: [serviceId],
@@ -75,7 +47,7 @@ export function workerRoutes(
       }
     }), access.workerInBody()),
 
-    route('patch', '/services/:id/withdraw', jobs.withdrawFromService, operation({
+    route('patch', '/services/:id/withdraw', hiring.withdrawFromService, operation({
       tag: TAGS.jobs,
       summary: 'Desistir (candidatura ou serviço aceito)',
       description:

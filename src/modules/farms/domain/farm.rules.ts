@@ -1,5 +1,5 @@
+import type { Service } from '#modules/services';
 import { requireFound } from '#shared/domain/result';
-import type { Service } from '../../../contracts';
 import type { Farm } from '../farm.contract';
 import type { FarmRepository } from './farm.repository';
 

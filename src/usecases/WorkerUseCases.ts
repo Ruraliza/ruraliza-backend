@@ -1,5 +1,4 @@
 import type { ApplicationWithService, OpenService, SessionUser, Worker, WorkerUpdate } from '../contracts';
-import { SERVICE_STATUS } from '../constants/status';
 import { type ChangeFeed, type ChangeListener, serviceApplications, workerApplications } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import type { DocumentStore } from '#shared/domain/documents';
@@ -10,16 +9,16 @@ import type {
   ApplicationRepository,
   FarmerRepository,
   PushSubscriptionRepository,
-  ServiceRepository,
   WorkerRepository
 } from '../domain/repositories';
+import { SERVICE_STATUS, type ServiceRepository, toOpenService } from '#modules/services';
 import type { FarmRepository } from '#modules/farms';
 import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';
 import { releaseImage } from './PhotoUseCases';
 import { releaseDocument } from './ResumeUseCases';
 import { changeAccountEmail, checkNewAccount, createAccount, toSession, unlinkProfile } from './accounts';
-import { checkProfileUnique, toOpenService } from './shared';
+import { checkProfileUnique } from './shared';
 
 // Dados de cadastro já validados (textos opcionais vazios viram null).
 export interface NewWorker {

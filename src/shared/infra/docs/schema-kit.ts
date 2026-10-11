@@ -29,6 +29,7 @@ export function input(properties: Properties, required: readonly string[], descr
 // --- Propriedades reaproveitadas ---
 
 export const id: Schema = { type: 'integer', minimum: 1, example: 1 };
+export const nullableId: Schema = { type: 'integer', minimum: 1, nullable: true, example: null };
 export const isoDate: Schema = { type: 'string', format: 'date-time', example: '2026-09-28T12:00:00.000Z' };
 export const latitude: Schema = { type: 'number', minimum: -90, maximum: 90, example: -22.1165, description: 'Graus decimais.' };
 export const longitude: Schema = { type: 'number', minimum: -180, maximum: 180, example: -43.2092, description: 'Graus decimais.' };

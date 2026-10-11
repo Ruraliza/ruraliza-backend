@@ -1,8 +1,7 @@
 import type { Clock } from '#shared/domain/clock';
 import { type Result, conflict, ok } from '#shared/domain/result';
-import { SERVICE_STATUS } from '../../../constants/status';
-import type { ServiceStatus } from '../../../contracts';
-import type { FarmerRepository, ServiceRepository } from '../../../domain/repositories';
+import { SERVICE_STATUS, type ServiceRepository, type ServiceStatus } from '#modules/services';
+import type { FarmerRepository } from '../../../domain/repositories';
 import type { FarmRepository } from '../domain/farm.repository';
 import { findOwnFarm } from './find-own-farm';
 

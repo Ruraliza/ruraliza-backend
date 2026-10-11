@@ -1,4 +1,4 @@
-import type { OpenService } from './service';
+import type { OpenService } from '#modules/services';
 import type { ApplicationStatus } from './status';
 import type { Worker } from './worker';
 

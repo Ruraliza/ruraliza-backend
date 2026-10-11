@@ -1,12 +1,13 @@
-import type { AnalyzeInput, Payment, Service, ServiceApplication } from '../contracts';
-import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
-import { type ChangeFeed, type ChangeTopic, serviceApplications, workerApplications } from '#shared/domain/changes';
+import { SERVICE_STATUS, type ServiceRepository, isExpired } from '#modules/services';
+import type { AnalyzeInput, ApplicationWithWorker, Payment, Service, ServiceApplication } from '../contracts';
+import { APPLICATION_STATUS, PAYMENT_STATUS } from '../constants/status';
+import { type ChangeFeed, type ChangeListener, type ChangeTopic, serviceApplications, workerApplications } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import { type PushMessage, type PushNotifier, WORKER_APPLICATIONS_URL, farmerServiceUrl } from '../domain/push';
-import type { AccountRepository, ApplicationRepository, PaymentRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
+import type { AccountRepository, ApplicationRepository, PaymentRepository, WorkerRepository } from '../domain/repositories';
 import { type Result, conflict, invalid, notFound, ok, requireFound } from '#shared/domain/result';
+import { toPublicProfile } from '#shared/utils/profile';
 import { findAccountOf } from './accounts';
-import { isExpired } from './shared';
 
 export interface AnalyzeOutcome {
   application: ServiceApplication;
@@ -16,7 +17,7 @@ export interface AnalyzeOutcome {
 // O que a desistência desfez: a candidatura pendente, ou o serviço já aceito.
 export type WithdrawOutcome = { undone: 'application' | 'service'; service: Service };
 
-// Contratação: candidatura, aceite/recusa, desistência e pagamento.
+// Contratação: candidatura, aceite/recusa, desistência e pagamento, e as candidaturas de cada serviço.
 // Cada operação altera várias entidades juntas e, no fim, avisa as telas abertas do serviço
 // e dos trabalhadores afetados (`changes`) e manda push para quem precisa agir ou saber (`push`).
 // TODO(db): executar cada uma numa transação.
@@ -191,6 +192,29 @@ export class HiringUseCases {
     });
 
     return ok({ service, payment });
+  }
+
+  // Candidaturas do serviço com o trabalhador embutido (CPF mascarado).
+  async listApplications(serviceId: number): Promise<Result<ApplicationWithWorker[]>> {
+    const { services, applications, workers } = this.repos;
+    const service = await services.findById(serviceId);
+    if (!service) return notFound('Serviço não encontrado.');
+
+    const own = await applications.find({ service_id: service.id });
+    const result = await Promise.all(
+      own.map(async (a): Promise<ApplicationWithWorker> => {
+        const worker = requireFound(await workers.findById(a.worker_id), `trabalhador da candidatura ${a.id}`);
+        return { ...a, worker: toPublicProfile(worker) };
+      })
+    );
+    return ok(result);
+  }
+
+  // Acompanha as candidaturas do serviço (tela do produtor); devolve a função que para de acompanhar.
+  async watchApplications(serviceId: number, listener: ChangeListener): Promise<Result<() => void>> {
+    const service = await this.repos.services.findById(serviceId);
+    if (!service) return notFound('Serviço não encontrado.');
+    return ok(this.changes.subscribe(serviceApplications(service.id), listener));
   }
 
   // Avisa a tela de candidaturas do serviço e a de cada trabalhador afetado.

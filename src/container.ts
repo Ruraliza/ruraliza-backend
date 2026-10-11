@@ -16,6 +16,7 @@ import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-documen
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { WebPushSender } from '#shared/infra/push/web-push-sender';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
+import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { AccountUseCases } from './usecases/AccountUseCases';
 import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
@@ -24,7 +25,6 @@ import { HiringUseCases } from './usecases/HiringUseCases';
 import { PhotoUseCases } from './usecases/PhotoUseCases';
 import { PushUseCases } from './usecases/PushUseCases';
 import { ResumeUseCases } from './usecases/ResumeUseCases';
-import { ServiceUseCases } from './usecases/ServiceUseCases';
 import { SystemUserUseCases } from './usecases/SystemUserUseCases';
 import { WorkerUseCases } from './usecases/WorkerUseCases';
 
@@ -105,7 +105,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       farmers: farmerUseCases,
       workers: workerUseCases,
       farms: createFarmUseCases({ farmers, farms, services, clock }),
-      services: new ServiceUseCases({ farmers, workers, farms, services, applications }, clock, changes, pushUseCases),
+      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: pushUseCases }),
       hiring: new HiringUseCases({ services, applications, workers, payments, accounts }, clock, changes, pushUseCases),
       photos: new PhotoUseCases({ farmers, workers, farms }, { processor: imageProcessor, store: images }),
       resumes: new ResumeUseCases({ workers }, documents),

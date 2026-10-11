@@ -1,8 +1,8 @@
-import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
-import { type Properties, type RefTo, type Schema, id, input, isoDate, object, refTo } from '#shared/infra/docs/schema-kit';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
-import { CATEGORIES } from '../constants/categories';
-import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
+import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
+import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
+import { type Properties, type RefTo, type Schema, id, input, isoDate, nullableId, object, refTo } from '#shared/infra/docs/schema-kit';
+import { APPLICATION_STATUS, PAYMENT_STATUS } from '../constants/status';
 
 // Registro dos schemas OpenAPI do contrato (src/contracts): os genéricos (#shared/infra/docs),
 // os dos módulos já migrados e, aqui mesmo, os das partes ainda não migradas para src/modules.
@@ -11,22 +11,21 @@ import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants
 // e `ref()` só aceita estes, então um $ref quebrado não compila.
 export type SchemaName =
   | CoreSchemaName
-  | 'ServiceStatus' | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
-  | 'HealthResponse' | 'MapsConfig' | 'PushConfig' | 'CategoryList'
+  | ServiceSchemaName
+  | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
+  | 'HealthResponse' | 'MapsConfig' | 'PushConfig'
   | FarmSchemaName
   | 'Farmer' | 'Worker'
-  | 'Service' | 'ServiceWithFarm' | 'FarmerServiceItem' | 'OpenService'
   | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
   | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate'
-  | 'ServiceInput' | 'ServiceUpdate' | 'AnalyzeInput' | 'WorkerActionInput'
+  | 'AnalyzeInput' | 'WorkerActionInput'
   | 'UserRole' | 'SessionUser' | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
   | 'ProfileCreateInput' | 'ActiveRoleInput' | 'PushSubscriptionInput' | 'PushUnsubscribeInput'
   | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
-  | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse' | 'ServiceResponse'
+  | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse'
   | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse'
   | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
-const nullableId: Schema = { type: 'integer', minimum: 1, nullable: true, example: null };
 const photoUrl: Schema = {
   type: 'string',
   nullable: true,
@@ -39,14 +38,6 @@ const resumeUrl: Schema = {
   example: '/api/documents/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.pdf',
   description: 'Currículo em PDF. null quando não há currículo. Relativa à API.'
 };
-const lastDay: Schema = {
-  type: 'string',
-  format: 'date',
-  nullable: true,
-  example: '2026-10-31',
-  description: 'Último dia (horário de Brasília) para receber candidaturas. null = sem prazo. Vencida, a vaga sai da busca e não aceita candidaturas, mas continua Pending: dá para renovar a data ou cancelar.'
-};
-const description: Schema = { type: 'string', nullable: true, maxLength: 2000, example: 'Colheita manual de café. Levar luvas e chapéu; almoço por conta da fazenda.' };
 const sessionToken: Schema = {
   type: 'string',
   example: 'eyJraW5kIjoiYWNjb3VudCIsImlkIjoxLCJleHAiOjE3OTk5OTk5OTk5OTl9.p0dTqW…',
@@ -55,23 +46,6 @@ const sessionToken: Schema = {
 const ref: RefTo<SchemaName> = refTo;
 
 // --- Propriedades reaproveitadas ---
-
-const serviceProps: Properties = {
-  id,
-  farmer_id: id,
-  farm_id: id,
-  payment_id: nullableId,
-  worker_id: { ...nullableId, description: 'Trabalhador aceito (null enquanto Pending).' },
-  name: { type: 'string', example: 'Colheita de café' },
-  description,
-  category: { type: 'string', example: 'Colheita' },
-  duration: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 16, description: 'Horas de trabalho.' },
-  price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 900, description: 'Valor total em R$.' },
-  expires_at: lastDay,
-  status: ref('ServiceStatus'),
-  insertion_date: isoDate
-};
-const serviceRequired = ['id', 'farmer_id', 'farm_id', 'payment_id', 'worker_id', 'name', 'description', 'category', 'duration', 'price', 'expires_at', 'status', 'insertion_date'];
 
 const applicationProps: Properties = {
   id,
@@ -152,7 +126,6 @@ const workerSchema: Schema = object(
 
 export const schemas = {
   // --- Status ---
-  ServiceStatus: { type: 'string', enum: Object.values(SERVICE_STATUS), example: 'Pending' },
   ApplicationStatus: { type: 'string', enum: Object.values(APPLICATION_STATUS), example: 'Pending' },
   PaymentStatus: { type: 'string', enum: Object.values(PAYMENT_STATUS) },
   AnalyzeAction: { type: 'string', enum: ['Accept', 'Reject'] },
@@ -173,19 +146,12 @@ export const schemas = {
     ['public_key'],
     'Chave pública VAPID (base64url) para o PushManager.subscribe().'
   ),
-  CategoryList: { type: 'array', items: { type: 'string', enum: [...CATEGORIES] }, example: [...CATEGORIES] },
 
   // --- Entidades ---
   Farmer: farmerSchema,
   Worker: workerSchema,
   ...farmSchemas,
-  Service: object(serviceProps, serviceRequired),
-  ServiceWithFarm: object({ ...serviceProps, farm: ref('Farm') }, [...serviceRequired, 'farm']),
-  FarmerServiceItem: object(
-    { ...serviceProps, farm: ref('Farm'), applications_pending: { type: 'integer', minimum: 0, example: 2 } },
-    [...serviceRequired, 'farm', 'applications_pending']
-  ),
-  OpenService: object({ ...serviceProps, farm: ref('FarmLocation') }, [...serviceRequired, 'farm']),
+  ...serviceSchemas,
   ServiceApplication: object(applicationProps, applicationRequired),
   ApplicationWithWorker: object(
     { ...applicationProps, worker: ref('Worker') },
@@ -232,33 +198,6 @@ export const schemas = {
     },
     [],
     'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
-  ),
-  ServiceInput: input(
-    {
-      farmer_id: id,
-      farm_id: id,
-      name: { type: 'string', example: 'Colheita de café' },
-      description: { ...description, description: 'Opcional. Vazio vira null.' },
-      category: { type: 'string', example: 'Colheita', description: 'Uma das categorias de GET /api/categories.' },
-      duration: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 16, description: 'Horas.' },
-      price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 900, description: 'R$.' },
-      expires_at: { ...lastDay, description: 'Opcional: último dia para candidaturas (hoje ou futuro).' }
-    },
-    ['farmer_id', 'farm_id', 'name', 'category', 'duration', 'price'],
-    'Publicação de serviço. A fazenda precisa ser ativa e do mesmo produtor.'
-  ),
-  ServiceUpdate: input(
-    {
-      farm_id: id,
-      name: { type: 'string' },
-      description: { ...description, description: 'null ou vazio remove a descrição.' },
-      category: { type: 'string' },
-      duration: { type: 'number', exclusiveMinimum: true, minimum: 0 },
-      price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 1200 },
-      expires_at: { ...lastDay, description: 'Nova validade (hoje ou futuro); null remove o prazo. Renova uma vaga vencida.' }
-    },
-    [],
-    'Edição parcial. Enviar `farmer_id`, `worker_id`, `payment_id` ou `status` resulta em 400.'
   ),
   AnalyzeInput: input(
     { application_id: id, action: ref('AnalyzeAction') },
@@ -360,7 +299,6 @@ export const schemas = {
     ['message', 'worker', 'user', 'token'],
     'Cadastro concluído: a conta foi criada e já está aberta (`user`, `token`).'
   ),
-  ServiceResponse: object({ message: { type: 'string', example: 'Service requested successfully!' }, service: ref('Service') }, ['message', 'service']),
   ApplicationResponse: object(
     { message: { type: 'string', example: 'Application sent successfully!' }, application: ref('ServiceApplication') },
     ['message', 'application']

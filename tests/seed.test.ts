@@ -1,7 +1,7 @@
 // O seed precisa servir de demonstração para todos os recursos das vagas.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { CATEGORIES } from '../src/constants/categories';
+import { CATEGORIES } from '#modules/services';
 import type { SessionUser } from '../src/contracts';
 import { createContainer } from '../src/container';
 import { SEED_PASSWORD, seed } from '../src/seed';
@@ -72,11 +72,11 @@ describe('seed', () => {
 
   it('o trabalhador vê 6 vagas (a vencida some); o produtor vê as 7', async () => {
     const c = await seeded();
-    const jobs = await c.useCases.services.searchOpen();
+    const jobs = await c.useCases.services.searchOpenServices.execute();
     assert.equal(jobs.length, 6);
     assert.ok(!jobs.some((j) => j.name === 'Limpeza de galpão'));
 
-    const own = await c.useCases.services.listForFarmer(1);
+    const own = await c.useCases.services.listFarmerServices.execute({ farmerId: 1 });
     assert.equal(own.ok ? own.value.length : -1, 7);
   });
 
@@ -85,12 +85,12 @@ describe('seed', () => {
     const published = new Set((await c.repos.services.find()).map((s) => s.insertion_date));
     assert.equal(published.size, 7);
 
-    const lastThreeDays = await c.useCases.services.searchOpen({ from: '2026-03-12' });
+    const lastThreeDays = await c.useCases.services.searchOpenServices.execute({ from: '2026-03-12' });
     assert.deepEqual(lastThreeDays.map((j) => j.name).sort(), [
       'Colheita de café', 'Conserto de cerca', 'Pulverização de pasto', 'Vacinação do rebanho'
     ]);
 
-    const recent = await c.useCases.services.searchOpen({ sort: 'recent' });
+    const recent = await c.useCases.services.searchOpenServices.execute({ sort: 'recent' });
     assert.equal(recent[0]?.name, 'Conserto de cerca'); // publicada hoje
   });
 });
