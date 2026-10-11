@@ -3,11 +3,20 @@
 //
 // Canais:
 // - candidaturas de um serviço (tela do produtor): `serviceApplications(serviceId)`;
-// - candidaturas de um trabalhador (tela "Candidaturas"): `workerApplications(workerId)`.
-export type ChangeTopic = `service:${number}:applications` | `worker:${number}:applications`;
+// - candidaturas de um trabalhador (tela "Candidaturas"): `workerApplications(workerId)`;
+// - mensagens de uma conversa (tela da conversa): `chatMessages(chatId)`;
+// - lista de conversas de um perfil (tela "Conversas" e o contador do menu): `profileChats(role, id)`.
+export type ChangeTopic =
+  | `service:${number}:applications`
+  | `worker:${number}:applications`
+  | `chat:${number}`
+  | `farmer:${number}:chats`
+  | `worker:${number}:chats`;
 
 export const serviceApplications = (serviceId: number): ChangeTopic => `service:${serviceId}:applications`;
 export const workerApplications = (workerId: number): ChangeTopic => `worker:${workerId}:applications`;
+export const chatMessages = (chatId: number): ChangeTopic => `chat:${chatId}`;
+export const profileChats = (role: 'farmer' | 'worker', profileId: number): ChangeTopic => `${role}:${profileId}:chats`;
 
 export type ChangeListener = () => void;
 

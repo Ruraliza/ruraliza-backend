@@ -56,7 +56,7 @@ export interface OpenService extends Service {
 }
 
 // GET /workers/services: filtros das vagas abertas (todos opcionais, combinados com E).
-export type JobSort = 'recent' | 'price_desc' | 'price_asc' | 'duration_asc' | 'duration_desc';
+export type JobSort = 'recent' | 'price_desc' | 'price_asc' | 'duration_asc' | 'duration_desc' | 'rating';
 
 export interface JobFilters {
   q?: string; // busca no nome, na descrição, na categoria e na cidade (sem acento/maiúscula)
@@ -65,6 +65,7 @@ export interface JobFilters {
   max_hours?: number;
   from?: string; // publicado a partir de (AAAA-MM-DD)
   to?: string; // publicado até (AAAA-MM-DD)
-  sort?: JobSort;
+  min_rating?: number; // só fazendas com média publicada a partir desta nota (1 a 5)
+  sort?: JobSort; // 'rating': fazendas mais bem avaliadas primeiro
   worker_id?: number; // oculta vagas em que este trabalhador já foi recusado
 }

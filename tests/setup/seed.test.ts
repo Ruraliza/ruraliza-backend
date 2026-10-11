@@ -16,9 +16,9 @@ async function seeded(): Promise<ReturnType<typeof createContainer>> {
 }
 
 describe('seed', () => {
-  it('tem um serviço por categoria, todos completos e abertos', async () => {
+  it('tem um serviço aberto por categoria, todos completos', async () => {
     const c = await seeded();
-    const services = await c.repos.services.find();
+    const services = await c.repos.services.find({ status: 'Pending' });
 
     assert.deepEqual(services.map((s) => s.category).sort(), [...CATEGORIES].sort());
     for (const s of services) {
@@ -76,13 +76,13 @@ describe('seed', () => {
     assert.equal(jobs.length, 6);
     assert.ok(!jobs.some((j) => j.name === 'Limpeza de galpão'));
 
-    const own = await c.useCases.services.listFarmerServices.execute({ farmerId: 1 });
+    const own = await c.useCases.services.listFarmerServices.execute({ farmerId: 1, status: 'Pending' });
     assert.equal(own.ok ? own.value.length : -1, 7);
   });
 
   it('as datas de publicação variam, então filtros de data e ordenação funcionam', async () => {
     const c = await seeded();
-    const published = new Set((await c.repos.services.find()).map((s) => s.insertion_date));
+    const published = new Set((await c.repos.services.find({ status: 'Pending' })).map((s) => s.insertion_date));
     assert.equal(published.size, 7);
 
     const lastThreeDays = await c.useCases.services.searchOpenServices.execute({ from: '2026-03-12' });
@@ -92,5 +92,39 @@ describe('seed', () => {
 
     const recent = await c.useCases.services.searchOpenServices.execute({ sort: 'recent' });
     assert.equal(recent[0]?.name, 'Conserto de cerca'); // publicada hoje
+  });
+
+  it('as fazendas e a Maria já têm nota; o Pedro tem uma nota mediana e o Carlos nenhuma', async () => {
+    const c = await seeded();
+    const workers = await c.useCases.reviews.getReputation.forWorkers([1, 2, 3]);
+    const farms = await c.useCases.reviews.getReputation.forFarms([1, 2]);
+
+    assert.deepEqual([workers.get(1)?.count, workers.get(1)?.average], [2, 4.7]);
+    assert.deepEqual([workers.get(3)?.count, workers.get(3)?.average], [1, 3.7]);
+    assert.equal(workers.get(2)?.count, 0);
+    assert.deepEqual([farms.get(1)?.count, farms.get(2)?.count], [2, 1], 'a avaliação da ordenha continua escondida');
+  });
+
+  it('a vaga 1 tem dois candidatos com reputações diferentes', async () => {
+    const c = await seeded();
+    const applicants = await c.useCases.hiring.listServiceApplications.execute({ serviceId: 1 });
+
+    assert.deepEqual(applicants.ok && applicants.value.map((a) => [a.worker.name, a.reputation.count]), [['Pedro Diarista', 1], ['Carlos Produtor e Trabalhador', 0]]);
+  });
+
+  it('o produtor e a Maria têm avaliações pendentes, uma delas já respondida pela Maria', async () => {
+    const c = await seeded();
+    const farmer = await c.useCases.reviews.listPendingReviews.forFarmer({ farmerId: 1 });
+    const maria = await c.useCases.reviews.listPendingReviews.forWorker({ workerId: 1 });
+
+    assert.deepEqual(farmer.map((p) => [p.service_name, p.received_hidden]), [['Ordenha da manhã', true], ['Limpeza de pasto', false]]);
+    assert.deepEqual(maria.map((p) => p.service_name), ['Limpeza de pasto']);
+  });
+
+  it('a Maria tem uma conversa em andamento com uma mensagem não lida', async () => {
+    const c = await seeded();
+    const chats = await c.useCases.chat.listChats.forWorker({ workerId: 1 });
+
+    assert.deepEqual(chats.map((chat) => [chat.service_name, chat.open, chat.unread]), [['Reforma do curral', true, 1], ['Limpeza de pasto', true, 0]]);
   });
 });

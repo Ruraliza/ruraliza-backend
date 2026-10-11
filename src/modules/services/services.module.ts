@@ -12,6 +12,7 @@ import { ListFarmerServicesUseCase } from './application/list-farmer-services.us
 import { PublishServiceUseCase } from './application/publish-service.usecase';
 import { SearchOpenServicesUseCase } from './application/search-open-services.usecase';
 import { UpdateServiceUseCase } from './application/update-service.usecase';
+import type { FarmReputationReader } from './domain/farm-reputation';
 import type { ServiceRepository } from './domain/service.repository';
 import { createJobController } from './presentation/job.controller';
 import { createServiceController } from './presentation/service.controller';
@@ -25,6 +26,7 @@ export interface ServicesModuleDeps {
   clock: Clock;
   changes: ChangeFeed;
   push: PushNotifier;
+  reputation: FarmReputationReader;
 }
 
 export interface ServiceUseCases {

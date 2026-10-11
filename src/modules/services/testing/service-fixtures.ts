@@ -35,6 +35,7 @@ export function servicesTestbed(): ServicesTestbed {
     clock,
     changes,
     push,
+    reputation: { forFarms: () => Promise.resolve(new Map()) }, // sem avaliações: as vagas saem sem `farm.reputation`
     setNow: clock.set,
     published: changes.published,
     pushes: push.sent

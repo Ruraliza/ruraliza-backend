@@ -1,3 +1,4 @@
+import type { FarmReputation } from '#modules/reviews';
 import type { MessageResponse } from '#shared/contracts/api';
 
 // Foto guardada no ImageStore (WebP ≤ 1000px). `id` é usado para remover.
@@ -43,4 +44,5 @@ export interface FarmLocation {
   photos: string[]; // URLs das fotos da fazenda (a primeira é a capa)
   latitude?: number; // só para o trabalhador aceito no serviço
   longitude?: number;
+  reputation?: FarmReputation; // avaliações publicadas da fazenda (na busca e no detalhe da vaga)
 }

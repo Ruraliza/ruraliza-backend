@@ -1,5 +1,6 @@
 import { createInMemoryAccountRepository } from '#modules/accounts';
 import type { Account } from '#modules/accounts';
+import { type ChatRepository, createInMemoryChatRepository } from '#modules/chat';
 import { createInMemoryFarmerRepository } from '#modules/farmers';
 import { type ServiceRepository, createInMemoryServiceRepository } from '#modules/services';
 import { type SystemUserRepository, createInMemorySystemUserRepository } from '#modules/system-users';
@@ -16,6 +17,7 @@ export const NOW = '2026-01-01T12:00:00.000Z';
 export interface AuthTestbed extends AuthModuleDeps {
   services: ServiceRepository;
   systemUsers: SystemUserRepository;
+  chats: ChatRepository;
   setNow: (iso: string) => void;
 }
 
@@ -27,6 +29,7 @@ export function authTestbed(): AuthTestbed {
     workers: createInMemoryWorkerRepository(),
     services: createInMemoryServiceRepository(),
     systemUsers: createInMemorySystemUserRepository(),
+    chats: createInMemoryChatRepository(),
     clock,
     setNow: clock.set,
     passwords: { hash: (p) => Promise.resolve(`hash(${p})`), verify: (p, h) => Promise.resolve(h === `hash(${p})`) },

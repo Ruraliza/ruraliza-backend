@@ -12,6 +12,7 @@ import { PayServiceUseCase } from './application/pay-service.usecase';
 import { WatchServiceApplicationsUseCase } from './application/watch-service-applications.usecase';
 import { WithdrawFromServiceUseCase } from './application/withdraw-from-service.usecase';
 import type { ApplicationRepository } from './domain/application.repository';
+import type { HiringEvents, WorkerReputationReader } from './domain/hiring-events';
 import type { PaymentRepository } from './domain/payment.repository';
 import { createHiringController } from './presentation/hiring.controller';
 import { type HiringRoutes, hiringRoutes } from './presentation/hiring.routes';
@@ -25,6 +26,9 @@ export interface HiringModuleDeps {
   clock: Clock;
   changes: ChangeFeed;
   push: PushNotifier;
+  // Quem acompanha as etapas (a conversa) e quem dá a reputação dos candidatos (avaliações).
+  events: HiringEvents;
+  reputation: WorkerReputationReader;
 }
 
 export interface HiringUseCases {

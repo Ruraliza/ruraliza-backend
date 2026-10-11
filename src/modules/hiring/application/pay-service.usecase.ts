@@ -1,8 +1,9 @@
-import { type PushNotifier, WORKER_APPLICATIONS_URL } from '#modules/notifications';
+import { type PushNotifier, workerJobUrl } from '#modules/notifications';
 import { SERVICE_STATUS, type Service, type ServiceRepository } from '#modules/services';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
+import type { HiringEvents } from '../domain/hiring-events';
 import { PAYMENT_STATUS } from '../domain/hiring-status';
 import type { PaymentRepository } from '../domain/payment.repository';
 import type { Payment } from '../hiring.contract';
@@ -14,6 +15,7 @@ export interface PayServiceDeps {
   clock: Clock;
   changes: ChangeFeed;
   push: PushNotifier;
+  events: HiringEvents;
 }
 
 export interface PayServiceInput {
@@ -45,11 +47,12 @@ export class PayServiceUseCase {
     service.payment_id = payment.id;
     service.status = SERVICE_STATUS.COMPLETED;
     await services.update(service);
+    await this.deps.events.paid(service); // a conversa fica aberta por mais alguns dias
     publishApplicationChanges(this.deps.changes, service.id, [workerId]);
     this.deps.push.notify('worker', workerId, {
       title: 'Pagamento liberado',
-      body: `O pagamento de ${service.name} foi liberado.`,
-      url: WORKER_APPLICATIONS_URL
+      body: `O pagamento de ${service.name} foi liberado. Conte como foi na fazenda.`,
+      url: workerJobUrl(service.id) // onde ele avalia a fazenda
     });
 
     return ok({ service, payment });

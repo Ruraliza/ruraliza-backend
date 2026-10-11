@@ -1,6 +1,7 @@
 // Smoke test do fluxo completo da API (em memória).
 // Sobe o app numa porta livre, sem o seed, e percorre:
 // produtor → fazenda → serviço → trabalhador → candidatura → aceite → pagamento,
+// a conversa do serviço e a avaliação dupla,
 // além dos principais casos 400/401/403/404/409 e da administração pelos usuários de sistema.
 // Uso: npm run test:e2e
 import assert from 'node:assert/strict';
@@ -11,6 +12,17 @@ import type {
   ApplicationResponse,
   ApplicationWithService,
   ApplicationWithWorker,
+  Chat,
+  ChatDetail,
+  ChatMessageResponse,
+  ChatResponse,
+  FarmReviewsPage,
+  FarmerReviewResponse,
+  FarmerServiceReviews,
+  PendingReview,
+  WorkerReviewResponse,
+  WorkerReviewsPage,
+  WorkerServiceReviews,
   Farm,
   FarmResponse,
   Farmer,
@@ -235,7 +247,10 @@ async function run(): Promise<void> {
 
   actAs(bruno);
   await step<OpenService[]>('vagas com cidade/UF', 'GET', '/workers/services?category=Colheita', undefined, 200,
-    (b) => assert.deepEqual(b[0]?.farm, { city: 'Três Rios', state: 'RJ', photos: [] }));
+    (b) => assert.deepEqual(b[0]?.farm, {
+      city: 'Três Rios', state: 'RJ', photos: [],
+      reputation: { average: null, count: 0, score: 3.5, infrastructure: null, conditions: null, as_described: null }
+    }));
   await step<OpenService>('detalhe da vaga sem o ponto no mapa', 'GET', `/workers/services/${service.id}?worker_id=${worker.id}`, undefined, 200,
     (b) => assert.equal(b.farm.latitude, undefined));
 
@@ -689,6 +704,143 @@ async function run(): Promise<void> {
   console.log('  ok  400 POST   /farmers  — JSON inválido');
 
   await administration({ ana, outro, carla, farmer, other, worker, worker2, farmId: farm.id });
+
+  console.log('\nConversa do serviço');
+  actAs(null);
+  const { farmer: rosaFarmer, token: rosa } = await step<FarmerSignupResponse>('cadastrar produtora', 'POST', '/farmers',
+    { name: 'Rosa Produtora', email: 'rosa@exemplo.com', phone: '24999991111', cpf: '14725836982', password: PW }, 201);
+  actAs(rosa);
+  const { farm: rosaFarm } = await step<FarmResponse>('fazenda da produtora', 'POST', `/farmers/${rosaFarmer.id}/farms`,
+    { address: 'Sítio Bela Vista', city: 'Vassouras', state: 'RJ', latitude: -22.4039, longitude: -43.6628 }, 201);
+  const { service: hired } = await step<ServiceResponse>('serviço para conversar e avaliar', 'POST', '/farmers/services',
+    { farmer_id: rosaFarmer.id, farm_id: rosaFarm.id, name: 'Colheita de feijão', category: 'Colheita', duration: 8, price: 350 }, 201);
+  actAs(null);
+  const { worker: tiagoWorker, token: tiago } = await step<WorkerSignupResponse>('cadastrar trabalhador da conversa', 'POST', '/workers',
+    { name: 'Tiago Lima', email: 'tiago@exemplo.com', phone: '24988881111', cpf: '25836914737', password: PW }, 201);
+  actAs(tiago);
+  const { application: tiagoApp } = await step<ApplicationResponse>('candidatar-se', 'POST', `/workers/services/${hired.id}/apply`, { worker_id: tiagoWorker.id }, 201);
+  actAs(rosa);
+  await step<ApplicationWithWorker[]>('candidato com contato mascarado e reputação', 'GET', `/farmers/services/${hired.id}/applications`, undefined, 200, (b) => {
+    assert.deepEqual([b[0]?.worker.phone, b[0]?.worker.email, b[0]?.worker.cpf], ['(24) *****-**11', 't***@exemplo.com', '***.369.147-**']);
+    assert.deepEqual([b[0]?.reputation.count, b[0]?.reputation.average], [0, null]);
+  });
+  await step<Chat[]>('sem conversa antes do aceite', 'GET', `/farmers/${rosaFarmer.id}/chats`, undefined, 200, (b) => assert.equal(b.length, 0));
+  const rosaChats = await openEvents('produtora acompanha as conversas (SSE)', `/farmers/${rosaFarmer.id}/chats/events`);
+  await step('aceitar trabalhador', 'PATCH', `/farmers/services/${hired.id}/analyze`, { application_id: tiagoApp.id, action: 'Accept' }, 200);
+  await rosaChats.expectEvent('conversa aberta no aceite', 'chats');
+  const [opened] = await step<Chat[]>('conversa aberta no aceite', 'GET', `/farmers/${rosaFarmer.id}/chats`, undefined, 200, (b) => {
+    assert.equal(b.length, 1);
+    assert.deepEqual([b[0]?.service_id, b[0]?.open, b[0]?.unread, b[0]?.farmer.phone, b[0]?.worker.phone], [hired.id, true, 0, null, null]);
+    assert.equal(b[0]?.last_message?.sender, 'system');
+  });
+  assert.ok(opened);
+  actAs(tiago);
+  await step<Chat[]>('trabalhador vê a mesma conversa', 'GET', `/workers/${tiagoWorker.id}/chats`, undefined, 200,
+    (b) => assert.deepEqual(b.map((c) => [c.id, c.farmer.name]), [[opened.id, 'Rosa Produtora']]));
+  const tiagoChat = await openEvents('trabalhador acompanha a conversa (SSE)', `/chats/${opened.id}/events`);
+  actAs(rosa);
+  await step<ChatMessageResponse>('telefone na mensagem sai oculto', 'POST', `/chats/${opened.id}/messages`,
+    { body: 'Pode chegar às 7h? Meu número é (24) 99999-1111' }, 201, (b) => {
+      assert.deepEqual([b.sent.sender, b.sent.body, b.masked], ['farmer', 'Pode chegar às 7h? Meu número é [número oculto]', true]);
+    });
+  await tiagoChat.expectEvent('trabalhador recebe a mensagem na hora', 'chat');
+  await rosaChats.expectEvent('lista da produtora atualizada', 'chats');
+  actAs(tiago);
+  await step<ChatDetail>('abrir a conversa', 'GET', `/chats/${opened.id}`, undefined, 200, (b) => {
+    assert.deepEqual(b.messages.map((m) => m.sender), ['system', 'farmer']);
+    assert.equal(b.unread, 2);
+  });
+  await step('marcar como lida', 'POST', `/chats/${opened.id}/read`, undefined, 200);
+  await step<Chat[]>('contador zerado', 'GET', `/workers/${tiagoWorker.id}/chats`, undefined, 200, (b) => assert.equal(b[0]?.unread, 0));
+  await step<ChatResponse>('trabalhador libera o WhatsApp', 'PATCH', `/chats/${opened.id}/phone`, { share: true }, 200,
+    (b) => assert.deepEqual([b.chat.worker_shares_phone, b.chat.farmer.phone, b.chat.worker.phone], [true, null, null]));
+  await tiagoChat.expectEvent('aviso de WhatsApp liberado na conversa', 'chat');
+  actAs(rosa);
+  await step<ChatResponse>('produtora também libera: os números aparecem', 'PATCH', `/chats/${opened.id}/phone`, { share: true }, 200,
+    (b) => assert.deepEqual([b.chat.farmer.phone, b.chat.worker.phone], ['24999991111', '24988881111']));
+  await step<ChatMessageResponse>('depois de liberar, o número passa', 'POST', `/chats/${opened.id}/messages`, { body: 'Me liga no 24 99999-1111' }, 201,
+    (b) => assert.deepEqual([b.sent.body, b.masked], ['Me liga no 24 99999-1111', false]));
+  await step('mensagem vazia', 'POST', `/chats/${opened.id}/messages`, { body: '   ' }, 400);
+  await step('mensagem longa demais', 'POST', `/chats/${opened.id}/messages`, { body: 'a'.repeat(1001) }, 400);
+  await step('share inválido', 'PATCH', `/chats/${opened.id}/phone`, { share: 'sim' }, 400);
+  await step('conversa inexistente', 'GET', '/chats/999', undefined, 404);
+  await step('lista de conversas de outro produtor', 'GET', `/farmers/${farmer.id}/chats`, undefined, 403);
+  actAs(bruno);
+  await step('quem não participa não abre a conversa', 'GET', `/chats/${opened.id}`, undefined, 403);
+  await step('quem não participa não envia', 'POST', `/chats/${opened.id}/messages`, { body: 'Oi' }, 403);
+  await step('quem não participa não acompanha (SSE)', 'GET', `/chats/${opened.id}/events`, undefined, 403);
+  actAs(null);
+  await step('conversa sem token', 'GET', `/chats/${opened.id}`, undefined, 401);
+  tiagoChat.close();
+  rosaChats.close();
+
+  console.log('\nAvaliação dupla');
+  actAs(rosa);
+  await step<FarmerServiceReviews>('antes de concluir não há o que avaliar', 'GET', `/farmers/services/${hired.id}/reviews`, undefined, 200,
+    (b) => assert.deepEqual([b.can_review, b.window_ends_at, b.given, b.received], [false, null, null, null]));
+  await step('avaliar antes de concluir', 'POST', `/farmers/services/${hired.id}/review`, { punctuality: 5, effort: 5, quality: 5 }, 409);
+  await step('liberar pagamento', 'POST', `/farmers/services/${hired.id}/payment`, undefined, 200);
+  await step<ChatDetail>('a conversa continua aberta por 7 dias', 'GET', `/chats/${opened.id}`, undefined, 200, (b) => {
+    assert.equal(b.open, true);
+    assert.notEqual(b.closes_at, null);
+    assert.equal(b.messages.at(-1)?.body, 'Pagamento liberado. A conversa continua aberta por mais 7 dias.');
+  });
+  await step<PendingReview[]>('avaliação pendente da produtora', 'GET', `/farmers/${rosaFarmer.id}/reviews/pending`, undefined, 200,
+    (b) => assert.deepEqual(b.map((p) => [p.service_id, p.subject, p.received_hidden]), [[hired.id, 'Tiago Lima', false]]));
+  await step('nota fora de 1 a 5', 'POST', `/farmers/services/${hired.id}/review`, { punctuality: 6, effort: 5, quality: 5 }, 400);
+  await step('nota quebrada', 'POST', `/farmers/services/${hired.id}/review`, { punctuality: 4.5, effort: 5, quality: 5 }, 400);
+  await step('comentário longo demais', 'POST', `/farmers/services/${hired.id}/review`, { punctuality: 5, effort: 5, quality: 5, comment: 'a'.repeat(501) }, 400);
+  await step<FarmerReviewResponse>('produtora avalia o trabalhador', 'POST', `/farmers/services/${hired.id}/review`,
+    { punctuality: 5, effort: 4, quality: 5, comment: 'Chegou cedo e caprichou.' }, 201,
+    (b) => assert.deepEqual([b.reviews.can_review, b.reviews.given?.punctuality, b.reviews.received, b.reviews.received_hidden], [false, 5, null, false]));
+  await step('avaliar de novo', 'POST', `/farmers/services/${hired.id}/review`, { punctuality: 1, effort: 1, quality: 1 }, 409);
+  await step<PendingReview[]>('nada pendente para a produtora', 'GET', `/farmers/${rosaFarmer.id}/reviews/pending`, undefined, 200, (b) => assert.equal(b.length, 0));
+  actAs(tiago);
+  await step<WorkerServiceReviews>('a nota recebida fica escondida até ele avaliar', 'GET', `/workers/services/${hired.id}/reviews?worker_id=${tiagoWorker.id}`, undefined, 200,
+    (b) => assert.deepEqual([b.can_review, b.received, b.received_hidden], [true, null, true]));
+  await step<WorkerReviewsPage>('ainda fora da reputação', 'GET', `/reviews/workers/${tiagoWorker.id}`, undefined, 200, (b) => assert.equal(b.reputation.count, 0));
+  await step<PendingReview[]>('avaliação pendente do trabalhador', 'GET', `/workers/${tiagoWorker.id}/reviews/pending`, undefined, 200,
+    (b) => assert.deepEqual(b.map((p) => [p.subject, p.received_hidden]), [['Fazenda em Vassouras, RJ', true]]));
+  await step('avaliar em nome de outro trabalhador', 'POST', `/workers/services/${hired.id}/review`, { worker_id: worker.id, infrastructure: 5, conditions: 5, as_described: 5 }, 403);
+  await step('avaliação sem worker_id', 'POST', `/workers/services/${hired.id}/review`, { infrastructure: 5, conditions: 5, as_described: 5 }, 400);
+  await step('reviews sem worker_id', 'GET', `/workers/services/${hired.id}/reviews`, undefined, 400);
+  await step<WorkerReviewResponse>('trabalhador avalia a fazenda: as duas aparecem', 'POST', `/workers/services/${hired.id}/review`,
+    { worker_id: tiagoWorker.id, infrastructure: 4, conditions: 5, as_described: 5 }, 201,
+    (b) => assert.deepEqual([b.reviews.received?.punctuality, b.reviews.received?.comment, b.reviews.received_hidden], [5, 'Chegou cedo e caprichou.', false]));
+  await step<WorkerReviewsPage>('reputação do trabalhador', 'GET', `/reviews/workers/${tiagoWorker.id}`, undefined, 200, (b) => {
+    assert.deepEqual([b.reputation.average, b.reputation.count, b.reputation.punctuality], [4.7, 1, 5]);
+    assert.deepEqual(b.reviews.map((r) => [r.author, r.service_name]), [['Produtor em Vassouras, RJ', 'Colheita de feijão']]);
+  });
+  actAs(rosa);
+  await step<FarmReviewsPage>('reputação da fazenda', 'GET', `/reviews/farms/${rosaFarm.id}`, undefined, 200, (b) => {
+    assert.deepEqual([b.reputation.average, b.reputation.infrastructure], [4.7, 4]);
+    assert.deepEqual(b.reviews.map((r) => r.author), ['Tiago']);
+  });
+  await step<FarmerServiceReviews>('a produtora vê a avaliação da fazenda', 'GET', `/farmers/services/${hired.id}/reviews`, undefined, 200,
+    (b) => assert.equal(b.received?.conditions, 5));
+  const { service: nextJob } = await step<ServiceResponse>('nova vaga na fazenda avaliada', 'POST', '/farmers/services',
+    { farmer_id: rosaFarmer.id, farm_id: rosaFarm.id, name: 'Plantio de feijão', category: 'Plantio', duration: 6, price: 250 }, 201);
+  actAs(tiago);
+  await step<OpenService[]>('vagas por avaliação: a fazenda avaliada primeiro', 'GET', '/workers/services?sort=rating', undefined, 200, (b) => {
+    assert.equal(b[0]?.id, nextJob.id);
+    assert.equal(b[0].farm.reputation?.average, 4.7);
+  });
+  await step<OpenService[]>('só fazendas com nota 4 ou mais', 'GET', '/workers/services?min_rating=4', undefined, 200,
+    (b) => assert.deepEqual(b.map((s) => s.id), [nextJob.id]));
+  await step<OpenService>('detalhe da vaga com a reputação da fazenda', 'GET', `/workers/services/${nextJob.id}`, undefined, 200,
+    (b) => assert.equal(b.farm.reputation?.count, 1));
+  await step('min_rating inválido', 'GET', '/workers/services?min_rating=6', undefined, 400);
+  await step('reputação de trabalhador inexistente', 'GET', '/reviews/workers/999', undefined, 404);
+  await step('reputação de fazenda inexistente', 'GET', '/reviews/farms/999', undefined, 404);
+  actAs(null);
+  await step('reputação sem token', 'GET', `/reviews/workers/${tiagoWorker.id}`, undefined, 401);
+
+  actAs(tiago);
+  await step('trabalhador remove o perfil', 'DELETE', `/workers/${tiagoWorker.id}`, undefined, 200);
+  actAs(rosa);
+  await step<FarmReviewsPage>('as avaliações dele saem junto', 'GET', `/reviews/farms/${rosaFarm.id}`, undefined, 200, (b) => assert.equal(b.reputation.count, 0));
+  await step<Chat[]>('e a conversa também', 'GET', `/farmers/${rosaFarmer.id}/chats`, undefined, 200, (b) => assert.equal(b.length, 0));
+  await step<FarmerServiceReviews>('não dá para avaliar quem saiu', 'GET', `/farmers/services/${hired.id}/reviews`, undefined, 200, (b) => assert.equal(b.can_review, false));
 
   console.log('\nDocumentação');
   actAs(null);

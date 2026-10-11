@@ -8,7 +8,9 @@ export {
   type PushSender,
   type PushSubscriptionRecord,
   WORKER_APPLICATIONS_URL,
-  farmerServiceUrl
+  chatUrl,
+  farmerServiceUrl,
+  workerJobUrl
 } from './domain/push';
 export type { PushSubscriptionRepository } from './domain/push-subscription.repository';
 export { createInMemoryPushSubscriptionRepository } from './infra/in-memory-push-subscription.repository';

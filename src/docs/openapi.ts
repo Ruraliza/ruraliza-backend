@@ -30,6 +30,8 @@ const TAG_DESCRIPTIONS: Record<(typeof TAGS)[keyof typeof TAGS], string> = {
   [TAGS.jobs]: 'Vagas abertas (com filtros), candidatura e desistência.',
   [TAGS.images]: 'Fotos de perfil e de fazenda (WebP, no máximo 1000px).',
   [TAGS.documents]: 'Currículos dos trabalhadores (PDF, até 5 MB).',
+  [TAGS.reviews]: 'Avaliação dupla depois do serviço concluído: o produtor avalia o trabalhador, o trabalhador avalia a fazenda. As notas só aparecem quando os dois avaliaram (ou o prazo acaba).',
+  [TAGS.chat]: 'Conversa do serviço entre o produtor e o trabalhador aceito, com o WhatsApp protegido até os dois liberarem.',
   [TAGS.admin]: 'Gerenciamento das contas do app e da equipe, pelos usuários de sistema com cargo de administrador.'
 };
 

@@ -3,12 +3,14 @@
 // dias diferentes (filtros from/to e sort=recent) e com todos os casos de prazo (sem prazo, vence em
 // alguns dias, vence hoje e já vencida). As contas de teste entram com a senha SEED_PASSWORD:
 // uma só de produtor, uma só de trabalhador e uma com os dois perfis; e, na equipe, um administrador.
+// Depois das vagas abertas vem o histórico das avaliações e da conversa (src/seed-history.ts).
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { Repositories } from './repositories';
 import { SERVICE_STATUS } from '#modules/services';
 import { createAccount } from '#modules/accounts';
+import { seedHistory } from './seed-history';
 
 export const SEED_PASSWORD = 'ruraliza123';
 
@@ -142,4 +144,9 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
       insertion_date: shift(-s.publishedDaysAgo)
     });
   }
+
+  // Serviços concluídos e avaliados, um em andamento com conversa e candidatos na vaga 1 (src/seed-history.ts).
+  await seedHistory(repos, now, passwords, SEED_PASSWORD, {
+    farmerId: farmer.id, farmSaoJose: farmSaoJose.id, farmBoaVista: farmBoaVista.id, mariaId: worker.id, carlosWorkerId: bothWorker.id
+  });
 }

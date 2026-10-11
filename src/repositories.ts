@@ -1,4 +1,5 @@
 import { createInMemoryAccountRepository } from '#modules/accounts';
+import { type ChatMessageRepository, type ChatRepository, createInMemoryChatMessageRepository, createInMemoryChatRepository } from '#modules/chat';
 import type { AccountRepository } from '#modules/accounts';
 import { createInMemoryFarmerRepository } from '#modules/farmers';
 import type { FarmerRepository } from '#modules/farmers';
@@ -8,6 +9,7 @@ import { createInMemoryApplicationRepository, createInMemoryPaymentRepository } 
 import type { ApplicationRepository, PaymentRepository } from '#modules/hiring';
 import { createInMemoryPushSubscriptionRepository } from '#modules/notifications';
 import type { PushSubscriptionRepository } from '#modules/notifications';
+import { type FarmReviewRepository, type WorkerReviewRepository, createInMemoryFarmReviewRepository, createInMemoryWorkerReviewRepository } from '#modules/reviews';
 import { createInMemoryServiceRepository } from '#modules/services';
 import type { ServiceRepository } from '#modules/services';
 import { type SystemUserRepository, createInMemorySystemUserRepository } from '#modules/system-users';
@@ -27,6 +29,10 @@ export interface Repositories {
   accounts: AccountRepository;
   pushSubscriptions: PushSubscriptionRepository;
   systemUsers: SystemUserRepository;
+  workerReviews: WorkerReviewRepository;
+  farmReviews: FarmReviewRepository;
+  chats: ChatRepository;
+  chatMessages: ChatMessageRepository;
 }
 
 // Repositórios em memória (um conjunto novo por chamada, isolado dos outros).
@@ -40,6 +46,10 @@ export function createInMemoryRepositories(): Repositories {
     payments: createInMemoryPaymentRepository(),
     accounts: createInMemoryAccountRepository(),
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
-    systemUsers: createInMemorySystemUserRepository()
+    systemUsers: createInMemorySystemUserRepository(),
+    workerReviews: createInMemoryWorkerReviewRepository(),
+    farmReviews: createInMemoryFarmReviewRepository(),
+    chats: createInMemoryChatRepository(),
+    chatMessages: createInMemoryChatMessageRepository()
   };
 }

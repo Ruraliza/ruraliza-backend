@@ -1,3 +1,4 @@
+import type { ReviewSchemaName } from '#modules/reviews';
 import type { ServiceSchemaName } from '#modules/services';
 import { type Properties, type RefTo, type Schema, id, input, isoDate, object, refTo } from '#shared/infra/docs/schema-kit';
 import { APPLICATION_STATUS, PAYMENT_STATUS } from '../domain/hiring-status';
@@ -10,7 +11,7 @@ export type HiringSchemaName =
   | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse';
 
 // 'Worker' ainda é do registro legado (sai quando o módulo de trabalhadores migrar).
-const ref: RefTo<HiringSchemaName | ServiceSchemaName | 'Worker'> = refTo;
+const ref: RefTo<HiringSchemaName | ServiceSchemaName | ReviewSchemaName | 'Worker'> = refTo;
 
 const applicationProps: Properties = {
   id,
@@ -28,9 +29,9 @@ export const hiringSchemas = {
   AnalyzeAction: { type: 'string', enum: ['Accept', 'Reject'] },
   ServiceApplication: object(applicationProps, applicationRequired),
   ApplicationWithWorker: object(
-    { ...applicationProps, worker: ref('Worker') },
-    [...applicationRequired, 'worker'],
-    'O CPF do trabalhador vem mascarado.'
+    { ...applicationProps, worker: ref('Worker'), reputation: ref('WorkerReputation') },
+    [...applicationRequired, 'worker', 'reputation'],
+    'CPF, telefone e e-mail do trabalhador vêm mascarados: o contato só é trocado pela conversa, quando os dois liberam o WhatsApp.'
   ),
   ApplicationWithService: object({ ...applicationProps, service: ref('OpenService') }, [...applicationRequired, 'service']),
   Payment: object(

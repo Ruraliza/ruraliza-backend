@@ -6,6 +6,7 @@ import type { ApplicationRepository } from '#modules/hiring';
 import type { PushSubscriptionRepository } from '#modules/notifications';
 import type { ServiceRepository } from '#modules/services';
 import type { ChangeFeed } from '#shared/domain/changes';
+import type { ProfileCleanup } from '#shared/domain/profile-cleanup';
 import type { Clock } from '#shared/domain/clock';
 import type { DocumentStore } from '#shared/domain/documents';
 import type { ImageStore } from '#shared/domain/images';
@@ -41,6 +42,8 @@ export interface WorkersModuleDeps {
   documents: DocumentStore;
   passwords: PasswordHasher;
   changes: ChangeFeed;
+  // Conversas e avaliações do perfil removido (ligado pelo container).
+  cleanup: ProfileCleanup;
 }
 
 export interface WorkerUseCases {

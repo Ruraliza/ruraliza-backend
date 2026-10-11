@@ -22,7 +22,9 @@ npm run test:e2e         # HTTP de verdade: percorre o fluxo completo e os casos
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
-Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 1 trabalhador, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
+Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
+
+Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a [conversa](#conversas) (`src/seed-history.ts`): os serviços 8 a 10 já concluídos e avaliados pelos dois lados (as duas fazendas e a Maria têm nota; o Pedro tem uma nota mediana), o 11 concluído há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida), o 12 concluído ontem sem avaliações e com a conversa ainda aberta, e o 13 em andamento com a Maria, com conversa (a última mensagem do produtor ainda não lida por ela). A vaga 1 tem dois candidatos: o Pedro (com nota) e o Carlos (sem avaliações).
 
 ### Usuários de teste
 
@@ -31,8 +33,9 @@ Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe. Cada conta ent
 | Conta | Perfis (ID) | Nome | E-mail | Senha | CPF | Dados |
 |---|---|---|---|---|---|---|
 | 1 | Produtor 1 | João Produtor | `produtor@exemplo.com` | `ruraliza123` | `52998224725` | Fazendas 1 (São José, Três Rios/RJ) e 2 (Boa Vista, Paraíba do Sul/RJ); serviços 1 a 7 |
-| 2 | Trabalhador 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; nenhuma candidatura |
-| 3 | Produtor 2 e trabalhador 2 | Carlos Produtor e Trabalhador | `ambos@exemplo.com` | `ruraliza123` | `39053344705` | Abre no painel de produtor; sem fazendas nem serviços |
+| 2 | Trabalhador 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; serviços concluídos com nota 4,7, uma avaliação pendente e a conversa do serviço 13 |
+| 3 | Produtor 2 e trabalhador 2 | Carlos Produtor e Trabalhador | `ambos@exemplo.com` | `ruraliza123` | `39053344705` | Abre no painel de produtor; sem fazendas nem serviços; como trabalhador, candidato à vaga 1 (sem avaliações) |
+| 4 | Trabalhador 3 | Pedro Diarista | `pedro@exemplo.com` | `ruraliza123` | `71428793860` | Um serviço concluído (nota 3,7) e candidato à vaga 1: bom para testar o aceite, a conversa e a avaliação |
 
 Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha"), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
 
@@ -94,8 +97,8 @@ src/
   docs/                     # Registro de todos os schemas OpenAPI e montagem do documento
   contracts/                # Barrel do contrato da API (reexporta os *.contract.ts) para o check:contracts
   modules/                  # Uma fatia vertical por contexto de negócio:
-                            #   accounts, auth, farmers, workers, farms, services, hiring, media,
-                            #   notifications, system-users, admin, platform
+                            #   accounts, auth, farmers, workers, farms, services, hiring, reviews,
+                            #   chat, media, notifications, system-users, admin, platform
     <módulo>/
       index.ts              #   API pública: o único arquivo que outro módulo enxerga (#modules/<módulo>)
       <módulo>.module.ts    #   Monta os casos de uso (container) e as rotas (src/routes.ts)
@@ -142,6 +145,8 @@ Regras de fronteira:
 | Tratamento das fotos | Processado no upload, não é guardado | `SharpImageProcessor` (`src/shared/infra/images/`) |
 | Senhas (hash) e pedidos de redefinição | Array em memória, separado dos perfis | `InMemoryRepository` de `Account` (`src/modules/accounts/domain/account.ts`) |
 | Currículos dos trabalhadores (PDF) | `Map` em memória de id para bytes do PDF | `InMemoryDocumentStore` (`src/shared/infra/documents/in-memory-document-store.ts`) |
+| Avaliações (produtor → trabalhador e trabalhador → fazenda) | Um array por lado, com o prazo e se já foi publicada | `InMemoryRepository` (`src/modules/reviews/infra/`) |
+| Conversas e mensagens | Um array de conversas e um de mensagens | `InMemoryRepository` (`src/modules/chat/infra/`) |
 
 - Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
 - As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
@@ -160,6 +165,8 @@ Regras de fronteira:
    - `insertion_date` → `timestamptz`.
    - `accounts (id, email text UNIQUE, password_hash text, reset_token_digest text, reset_expires_at timestamptz, farmer_id int UNIQUE references farmers ON DELETE SET NULL, worker_id int UNIQUE references workers ON DELETE SET NULL, last_role text)`. Ao remover um perfil, ele sai da conta; a conta some junto com o último perfil.
    - `system_users (id, email text UNIQUE, name text, role text CHECK (role IN ('admin','tutor')), password_hash text, insertion_date timestamptz)`: a equipe, sem ligação com `accounts`.
+   - `worker_reviews (id, service_id int UNIQUE references services, farmer_id, worker_id, punctuality, effort, quality smallint CHECK (1..5), comment text, insertion_date, window_ends_at timestamptz, revealed boolean)` e `farm_reviews` (o mesmo, com `farm_id` e `infrastructure`, `conditions`, `as_described`). A reputação vira `AVG`/`COUNT ... WHERE revealed OR window_ends_at < now()`.
+   - `chats (id, service_id, farmer_id, worker_id, farmer_shares_phone, worker_shares_phone boolean, farmer_read_up_to, worker_read_up_to int, closes_at timestamptz, insertion_date, UNIQUE (service_id, worker_id))` e `chat_messages (id, chat_id references chats ON DELETE CASCADE, sender text CHECK (sender IN ('farmer','worker','system')), body text, insertion_date)`, com índice `(chat_id, id)`.
    - Restrições `UNIQUE` e transações estão marcadas com `TODO(db)` no código (`grep -rn "TODO(db)" src`).
 4. **Busca de vagas.** `SearchOpenServicesUseCase` (`src/modules/services/application/`) filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no caso de uso).
 5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/shared/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar). Os currículos fazem o mesmo com `DocumentStore` (`src/shared/domain/documents.ts`), passado em `createContainer({ documents })`.
@@ -229,7 +236,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | GET | `/api/farmers/services/:id` | Serviço com a fazenda |
 | PATCH | `/api/farmers/services/:id` | Edita `farm_id`, `name`, `category`, `duration`, `price`, `description`, `expires_at` (`null` tira o prazo; data futura renova uma vaga vencida); 409 se não estiver `Pending` |
 | PATCH | `/api/farmers/services/:id/cancel` | Cancela (`Cancelled`) e recusa as candidaturas pendentes; 409 se não estiver `Pending` |
-| GET | `/api/farmers/services/:id/applications` | Candidaturas com o trabalhador embutido |
+| GET | `/api/farmers/services/:id/applications` | Candidaturas com o trabalhador embutido e a `reputation` dele. CPF, telefone e e-mail do trabalhador vêm **mascarados**: o contato só é trocado pela [conversa](#conversas) |
 | GET | `/api/farmers/services/:id/events` | Acompanha as candidaturas em tempo real (SSE, ver [abaixo](#atualização-em-tempo-real-sse)); 404 se o serviço não existe |
 | PATCH | `/api/farmers/services/:id/analyze` | `{ application_id, action: "Accept" \| "Reject" }` |
 | POST | `/api/farmers/services/:id/payment` | Libera pagamento (simulação) de serviço `In Progress`; cria `Payment` |
@@ -250,7 +257,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido (com o ponto da fazenda no mapa quando a candidatura foi aceita) |
 | GET | `/api/workers/:id/events` | Acompanha o status das candidaturas em tempo real (SSE, ver [abaixo](#atualização-em-tempo-real-sse)); 404 se o trabalhador não existe |
 | GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador (com `farm.latitude`/`farm.longitude`) |
-| GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category`, `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`); 400 se algum filtro for inválido |
+| GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category`, `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `min_rating` (só fazendas com média publicada a partir desta nota), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`, `rating`); cada vaga traz `farm.reputation`; 400 se algum filtro for inválido |
 | GET | `/api/workers/services/:id?worker_id=` | Detalhe da vaga. Com `worker_id` do trabalhador aceito no serviço, inclui `farm.latitude`/`farm.longitude` |
 | POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta, se o prazo terminou ou se já houve candidatura |
 | PATCH | `/api/workers/services/:id/withdraw` | `{ worker_id }`; desiste e volta uma etapa: candidatura `Pending` é removida; se já aceito, o serviço volta a `Pending` e as candidaturas recusadas pelo aceite voltam a `Pending`; 409 se recusada ou serviço encerrado |
@@ -272,6 +279,50 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 | GET | `/api/admin/system-users/:id` | Um usuário de sistema |
 | PATCH | `/api/admin/system-users/:id` | Edita `name`, `email` e `role` de um membro da equipe; 409 se o e-mail já existe ou se o administrador tentar mudar o próprio cargo (a equipe nunca fica sem administrador) |
 
+### Avaliações
+
+**Avaliação dupla** depois do serviço concluído (pagamento liberado): o produtor avalia o trabalhador (pontualidade, empenho e qualidade) e o trabalhador avalia a fazenda (infraestrutura, condições de trabalho e se o serviço foi como o anúncio dizia). Notas inteiras de 1 a 5 e comentário opcional (até 500 caracteres).
+
+- **Cega:** a nota de um lado só aparece para o outro (e entra na reputação) quando os dois avaliaram, ou quando o prazo acaba. Assim ninguém avalia "de troco".
+- **Prazo de 14 dias** depois do pagamento. Depois disso ninguém avalia mais e o que foi escrito é publicado.
+- **Uma vez só:** a avaliação não pode ser editada.
+- **Reputação:** média geral, média por critério e quantidade. O campo `score` é uma média ponderada (bayesiana, começa em 3,5 com peso 2), usada para ordenar: quem tem uma nota 5 não passa na frente de quem tem vinte notas 4,8.
+- **Sem identificar quem escreveu:** nas listas, quem avaliou aparece como "Produtor em Três Rios, RJ" ou pelo primeiro nome do trabalhador.
+- Ao remover um perfil, as avaliações em que ele aparece saem junto (os serviços e fazendas do produtor também somem).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/farmers/services/:id/reviews` | O produtor vê as avaliações do serviço: a que deu (`given`), a que a fazenda recebeu (`received`, só publicada), `received_hidden` (o trabalhador já avaliou e espera a dele) e `can_review` |
+| POST | `/api/farmers/services/:id/review` | `{ punctuality, effort, quality, comment? }`; 409 se o serviço não foi concluído, se já avaliou ou se o prazo terminou |
+| GET | `/api/farmers/:id/reviews/pending` | Serviços concluídos esperando a avaliação do produtor (o que vence primeiro vem antes) |
+| GET | `/api/workers/services/:id/reviews?worker_id=` | O mesmo do lado do trabalhador (403 se ele não fez o serviço) |
+| POST | `/api/workers/services/:id/review` | `{ worker_id, infrastructure, conditions, as_described, comment? }` |
+| GET | `/api/workers/:id/reviews/pending` | Serviços concluídos esperando a avaliação do trabalhador |
+| GET | `/api/reviews/workers/:id` | Reputação e avaliações publicadas de um trabalhador (qualquer conta do app) |
+| GET | `/api/reviews/farms/:id` | Reputação e avaliações publicadas de uma fazenda |
+
+A reputação também vem embutida onde se escolhe: na lista de candidatos (`reputation`) e nas vagas (`farm.reputation`, com o filtro `min_rating` e `sort=rating`).
+
+### Conversas
+
+Conversa interna de cada contratação, para **proteger o WhatsApp** dos dois até haver confiança:
+
+- **Abre no aceite** (com um aviso da plataforma), **fecha se o trabalhador desistir** e fica aberta por **7 dias depois do pagamento**. Fechada, continua legível. Se a mesma pessoa for aceita de novo, a conversa reabre com o histórico.
+- **Consentimento duplo:** cada lado libera o próprio WhatsApp (`PATCH /api/chats/:id/phone`); os números (`farmer.phone`, `worker.phone`) só aparecem quando os dois liberaram. Antes disso, telefones e e-mails escritos nas mensagens saem como `[número oculto]`/`[e-mail oculto]`.
+- A lista de candidatos não mostra mais telefone nem e-mail (vêm mascarados).
+- **Não lidas** por pessoa; avisos da plataforma causados por quem agiu (aceitou, pagou, desistiu, liberou o WhatsApp) já contam como lidos para essa pessoa.
+- Cada mensagem gera push para a outra parte; o pedido de WhatsApp também.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/farmers/:id/chats` e `/api/workers/:id/chats` | Conversas do perfil, a mais recente primeiro, com `unread` e `last_message` |
+| GET | `/api/farmers/:id/chats/events` e `/api/workers/:id/chats/events` | SSE `event: chats`: alguma conversa do perfil mudou (lista e contador do menu) |
+| GET | `/api/chats/:id` | A conversa com as mensagens (só o produtor e o trabalhador dela) |
+| GET | `/api/chats/:id/events` | SSE `event: chat`: chegou mensagem ou mudou o WhatsApp liberado |
+| POST | `/api/chats/:id/messages` | `{ body }` (até 1000 caracteres) → `{ message, sent, masked }`; 409 se a conversa foi encerrada |
+| POST | `/api/chats/:id/read` | Marca a conversa como lida para quem pediu |
+| PATCH | `/api/chats/:id/phone` | `{ share: true \| false }`: libera ou deixa de compartilhar o próprio WhatsApp |
+
 ### Outros
 | Método | Rota | Descrição |
 |---|---|---|
@@ -287,11 +338,11 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 
 As telas de candidatos do serviço (produtor) e de candidaturas (trabalhador) se atualizam sozinhas por **Server-Sent Events**: o frontend abre `GET .../events` com `EventSource`, a resposta (`text/event-stream`) fica aberta e chega `event: applications` a cada mudança. O aviso não traz dados; a tela busca a lista de novo pela rota de sempre. A cada 25 s vai um `: ping` para a conexão não ser cortada por inatividade, e o `EventSource` reconecta sozinho se ela cair.
 
-Os casos de uso publicam os avisos (`ChangeFeed`, `src/shared/domain/changes.ts`) depois de cada mudança: candidatura, desistência, aceite/recusa (inclusive as recusadas pelo aceite e as que voltam a `Pending`), edição, cancelamento e pagamento do serviço, e remoção de produtor ou trabalhador. A implementação em memória (`InMemoryChangeFeed`) só vale para **um processo**; com várias instâncias da API, troque por algo compartilhado (LISTEN/NOTIFY do PostgreSQL ou Redis pub/sub) em `createContainer({ changes })`.
+Os casos de uso publicam os avisos (`ChangeFeed`, `src/shared/domain/changes.ts`) depois de cada mudança: candidatura, desistência, aceite/recusa (inclusive as recusadas pelo aceite e as que voltam a `Pending`), edição, cancelamento e pagamento do serviço, avaliação, e remoção de produtor ou trabalhador. As conversas têm dois canais próprios: o da conversa aberta (`event: chat`) e o da lista de cada perfil (`event: chats`). A implementação em memória (`InMemoryChangeFeed`) só vale para **um processo**; com várias instâncias da API, troque por algo compartilhado (LISTEN/NOTIFY do PostgreSQL ou Redis pub/sub) em `createContainer({ changes })`.
 
 ### Notificações push
 
-Com o app fechado, quem precisa agir recebe uma notificação (**Web Push**, chaves VAPID do `.env`): o produtor quando alguém se candidata ou desiste; o trabalhador quando é aceito, recusado (inclusive pelo aceite de outro), quando o serviço é cancelado e quando o pagamento é liberado. A mensagem segue o formato do service worker do Angular (`notification.data.onActionClick`), e o clique abre o app na tela certa.
+Com o app fechado, quem precisa agir recebe uma notificação (**Web Push**, chaves VAPID do `.env`): o produtor quando alguém se candidata ou desiste; o trabalhador quando é aceito, recusado (inclusive pelo aceite de outro), quando o serviço é cancelado e quando o pagamento é liberado (o clique abre a vaga, onde ele avalia a fazenda); os dois quando chega mensagem na conversa, quando o outro pede para trocar WhatsApp e quando o outro avalia ("avalie também para ver a nota"). A mensagem segue o formato do service worker do Angular (`notification.data.onActionClick`), e o clique abre o app na tela certa.
 
 O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`) roda em segundo plano: falha no serviço de push só vai para o log, nunca para a resposta. Inscrições que o navegador revogou (404/410) são apagadas no primeiro envio. Como o resto dos dados, as inscrições ficam em memória; o frontend reenvia a dele a cada abertura do app.
 
@@ -306,3 +357,6 @@ O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`)
 - [ ] Encerrar as sessões abertas ao trocar a senha (hoje o token vale até vencer).
 - [ ] Rotas do tutor para cadastrar e editar trilhas de estudo (permissão `tracks:manage`).
 - [ ] Trilhas de qualificação, registro de horas e relatórios em PDF.
+- [ ] Avaliações: lembrete por push perto do fim do prazo de 14 dias (precisa de uma tarefa agendada) e moderação de comentários pela equipe (denúncia e remoção).
+- [ ] Conversas: denunciar mensagem/bloquear, limite de mensagens por minuto, paginação das mensagens antigas e envio de foto (ex.: "cheguei na porteira").
+- [ ] Reputação também a partir de sinais objetivos (ex.: desistências depois do aceite), com cuidado para não punir quem desistiu por motivo justo.

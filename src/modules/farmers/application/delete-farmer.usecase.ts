@@ -5,6 +5,7 @@ import type { PushSubscriptionRepository } from '#modules/notifications';
 import { SERVICE_STATUS, type ServiceRepository } from '#modules/services';
 import { type ChangeFeed, workerApplications } from '#shared/domain/changes';
 import { type ImageStore, releaseImage } from '#shared/domain/images';
+import type { ProfileCleanup } from '#shared/domain/profile-cleanup';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import type { FarmerRepository } from '../domain/farmer.repository';
 
@@ -17,10 +18,11 @@ export interface DeleteFarmerDeps {
   pushSubscriptions: PushSubscriptionRepository;
   images: ImageStore;
   changes: ChangeFeed;
+  cleanup: ProfileCleanup;
 }
 
-// Remove em cascata: candidaturas → serviços → fazendas (e fotos) → foto de perfil → perfil na conta
-// → produtor. Os pagamentos ficam como histórico. Bloqueado enquanto houver serviço em andamento.
+// Remove em cascata: conversas e avaliações → candidaturas → serviços → fazendas (e fotos) → foto de perfil
+// → perfil na conta → produtor. Os pagamentos ficam como histórico. Bloqueado enquanto houver serviço em andamento.
 export class DeleteFarmerUseCase {
   constructor(private readonly deps: DeleteFarmerDeps) {}
 
@@ -35,6 +37,7 @@ export class DeleteFarmerUseCase {
     }
 
     // TODO(db): numa transação, ou com ON DELETE CASCADE.
+    await this.deps.cleanup.farmerRemoved(farmer.id);
     const applicants = new Set<number>();
     for (const service of ownServices) {
       for (const application of await applications.find({ service_id: service.id })) {

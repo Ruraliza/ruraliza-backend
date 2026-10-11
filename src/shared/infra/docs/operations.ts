@@ -14,6 +14,8 @@ export const TAGS = {
   jobs: 'Vagas (trabalhador)',
   images: 'Imagens',
   documents: 'Documentos',
+  reviews: 'Avaliações',
+  chat: 'Conversas',
   admin: 'Administração'
 } as const;
 export type Tag = (typeof TAGS)[keyof typeof TAGS];

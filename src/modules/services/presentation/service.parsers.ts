@@ -82,7 +82,7 @@ function parseServiceExtras(body: Body): Result<{ description?: string | null; e
 
 // --- Filtros das vagas (GET /workers/services) ---
 
-const JOB_SORTS: readonly JobSort[] = ['recent', 'price_desc', 'price_asc', 'duration_asc', 'duration_desc'];
+const JOB_SORTS: readonly JobSort[] = ['recent', 'price_desc', 'price_asc', 'duration_asc', 'duration_desc', 'rating'];
 
 function queryText(query: Query, key: string): string | undefined {
   const value = query[key];
@@ -118,6 +118,13 @@ export function parseJobFilters(query: Query): Result<JobFilters> {
     filters[key] = raw;
   }
   if (filters.from && filters.to && filters.from > filters.to) return invalid('from não pode ser depois de to.');
+
+  const minRating = queryText(query, 'min_rating');
+  if (minRating !== undefined) {
+    const rating = Number(minRating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) return invalid('min_rating deve ser uma nota de 1 a 5.');
+    filters.min_rating = rating;
+  }
 
   const sort = queryText(query, 'sort');
   if (sort !== undefined) {

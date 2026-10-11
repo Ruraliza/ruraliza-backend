@@ -13,5 +13,7 @@ export type * from '../modules/services/service.contract';
 export type * from '../modules/system-users/system-user.contract';
 export type * from '../modules/workers/worker.contract';
 export type * from '../modules/hiring/hiring.contract';
+export type * from '../modules/reviews/reviews.contract';
+export type * from '../modules/chat/chat.contract';
 export type * from '../modules/notifications/push.contract';
 export type * from '../modules/platform/platform.contract';
