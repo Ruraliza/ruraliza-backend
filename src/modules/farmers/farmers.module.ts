@@ -1,4 +1,5 @@
 import type { AccountRepository } from '#modules/accounts';
+import type { AccessPolicies } from '#modules/auth';
 import type { FarmRepository } from '#modules/farms';
 import type { ApplicationRepository } from '#modules/hiring';
 import type { PushSubscriptionRepository } from '#modules/notifications';
@@ -10,7 +11,6 @@ import type { ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { SessionTokens } from '#shared/domain/tokens';
 import type { RouteDef } from '#shared/infra/http/route';
-import type { AccessPolicies } from '../../http/access';
 import { CreateFarmerProfileUseCase } from './application/create-farmer-profile.usecase';
 import { DeleteFarmerUseCase } from './application/delete-farmer.usecase';
 import { GetFarmerUseCase } from './application/get-farmer.usecase';

@@ -2,17 +2,9 @@ import { type Result, invalid, ok } from '#shared/domain/result';
 import { type Body, missingMessage } from '#shared/infra/http/body';
 import { normalizeEmail } from '#shared/utils/profile';
 import { isValidEmail, missingFields, parseNewPassword, text } from '#shared/utils/validation';
-import type {
-  LoginInput,
-  PasswordChangeInput,
-  PasswordResetInput,
-  PasswordResetRequestInput
-} from '../contracts';
+import type { LoginInput, PasswordChangeInput, PasswordResetInput, PasswordResetRequestInput } from '../auth.contract';
 
-// Validação do formato dos corpos (400). Regras que dependem dos dados (unicidade, existência,
-// estado do serviço) ficam nos casos de uso.
-
-// --- Acesso ---
+// Formato dos corpos das rotas de acesso (400). O corpo do login da equipe é o mesmo LoginInput.
 
 export function parseLoginInput(body: Body): Result<LoginInput> {
   const missing = missingFields(body, ['email', 'password']);

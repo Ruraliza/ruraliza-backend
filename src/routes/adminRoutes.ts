@@ -1,7 +1,7 @@
+import type { AccessPolicies } from '#modules/auth';
+import { type RouteDef, route } from '#shared/infra/http/route';
 import type { AdminController } from '../controllers/AdminController';
 import { TAGS, operation, pathParam } from '../docs/operations';
-import type { AccessPolicies } from '../http/access';
-import { type RouteDef, route } from '#shared/infra/http/route';
 
 const accountId = pathParam('id', 'ID da conta (`account_id`).');
 const farmerId = pathParam('id', 'ID do produtor.');

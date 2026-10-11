@@ -1,6 +1,6 @@
 import type { AccountRepository } from '#modules/accounts';
+import type { AccessPolicies } from '#modules/auth';
 import type { Clock } from '#shared/domain/clock';
-import type { AccessPolicies } from '../../http/access';
 import { PushDispatcher } from './application/push-dispatcher';
 import { SubscribePushUseCase } from './application/subscribe-push.usecase';
 import { UnsubscribePushUseCase } from './application/unsubscribe-push.usecase';

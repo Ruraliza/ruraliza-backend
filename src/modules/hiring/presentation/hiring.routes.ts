@@ -1,7 +1,7 @@
+import type { AccessPolicies } from '#modules/auth';
 import type { ServiceSchemaName } from '#modules/services';
 import { TAGS, operation, pathParam } from '#shared/infra/docs/operations';
 import { type RouteDef, route } from '#shared/infra/http/route';
-import type { AccessPolicies } from '../../../http/access';
 import type { HiringController } from './hiring.controller';
 import type { HiringSchemaName } from './hiring.schemas';
 

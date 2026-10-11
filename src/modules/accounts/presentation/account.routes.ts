@@ -1,6 +1,6 @@
+import type { AccessPolicies } from '#modules/auth';
 import { TAGS, operation, pathParam } from '#shared/infra/docs/operations';
 import { type RouteDef, route } from '#shared/infra/http/route';
-import type { AccessPolicies } from '../../../http/access';
 import type { AccountController } from './account.controller';
 import type { AccountSchemaName } from './account.schemas';
 

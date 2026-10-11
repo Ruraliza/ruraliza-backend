@@ -1,37 +1,12 @@
-import type { IncomingHttpHeaders } from 'node:http';
 import type { Account, AccountRepository } from '#modules/accounts';
 import type { ServiceRepository } from '#modules/services';
 import { type SystemPermission, type SystemUserRepository, canDo } from '#modules/system-users';
 import { type Result, forbidden, ok, unauthorized } from '#shared/domain/result';
 import type { SessionTokens } from '#shared/domain/tokens';
-import type { Principal, Query } from '#shared/infra/http/types';
+import type { Access, AccessOptions, AccessRequest } from '#shared/infra/http/access';
+import type { Principal } from '#shared/infra/http/types';
 
-// Quem pode chamar cada rota. Toda rota declara um `Access` (ver route() em ./route.ts), que vira a
-// checagem antes do handler e a seção de segurança da documentação.
-//
-// - Sem token, ou token inválido/vencido: 401.
-// - Token válido, mas de outro tipo de usuário, de outro dono, ou de um cargo sem a permissão: 403.
-// - Recurso inexistente passa adiante: o handler responde 404 como sempre.
-
-export interface AccessRequest {
-  headers: IncomingHttpHeaders;
-  params: unknown;
-  body: unknown;
-  query: Query;
-}
-
-export interface Access {
-  audience: 'public' | 'account' | 'system';
-  // Quem pode, em uma frase (vai para a documentação).
-  rule: string;
-  // Aceita o token também em `?access_token=` (só SSE: o EventSource do navegador não envia cabeçalhos).
-  tokenInQuery: boolean;
-  authorize(req: AccessRequest): Promise<Result<Principal | null>>;
-}
-
-export interface AccessOptions {
-  tokenInQuery?: boolean;
-}
+// Políticas de acesso das rotas: quem pode o quê (o contrato `Access` fica em #shared/infra/http/access).
 
 export const SIGN_IN_REQUIRED = 'Entre na sua conta para continuar.';
 export const SESSION_EXPIRED = 'Sua sessão expirou. Entre novamente.';
@@ -64,14 +39,6 @@ function bearerToken(req: AccessRequest, tokenInQuery: boolean): string | undefi
   }
   return undefined;
 }
-
-// Rota aberta, sem token (login, cadastro, imagens, configuração...).
-export const PUBLIC_ROUTE: Access = {
-  audience: 'public',
-  rule: 'Pública.',
-  tokenInQuery: false,
-  authorize: () => Promise.resolve(ok(null))
-};
 
 export interface AccessDeps {
   repos: { accounts: AccountRepository; systemUsers: SystemUserRepository; services: ServiceRepository };

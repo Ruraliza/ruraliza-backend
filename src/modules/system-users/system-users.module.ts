@@ -1,7 +1,7 @@
+import type { AccessPolicies } from '#modules/auth';
 import type { Clock } from '#shared/domain/clock';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { SessionTokens } from '#shared/domain/tokens';
-import type { AccessPolicies } from '../../http/access';
 import { CreateSystemUserUseCase } from './application/create-system-user.usecase';
 import { EnsureInitialAdminUseCase } from './application/ensure-initial-admin.usecase';
 import { GetSystemUserUseCase } from './application/get-system-user.usecase';

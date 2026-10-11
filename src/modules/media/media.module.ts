@@ -1,8 +1,8 @@
+import type { AccessPolicies } from '#modules/auth';
 import type { FarmerRepository } from '#modules/farmers';
 import type { FarmRepository } from '#modules/farms';
 import type { WorkerRepository } from '#modules/workers';
 import type { ImageProcessor, ImageStore } from '#shared/domain/images';
-import type { AccessPolicies } from '../../http/access';
 import { AddFarmPhotoUseCase } from './application/add-farm-photo.usecase';
 import { GetImageUseCase } from './application/get-image.usecase';
 import { RemoveFarmPhotoUseCase } from './application/remove-farm-photo.usecase';

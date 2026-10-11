@@ -1,10 +1,10 @@
+import type { AccessPolicies } from '#modules/auth';
 import type { FarmerRepository } from '#modules/farmers';
 import type { FarmRepository } from '#modules/farms';
 import type { ApplicationRepository } from '#modules/hiring';
 import type { PushNotifier } from '#modules/notifications';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
-import type { AccessPolicies } from '../../http/access';
 import { CancelServiceUseCase } from './application/cancel-service.usecase';
 import { GetOpenServiceUseCase } from './application/get-open-service.usecase';
 import { GetServiceUseCase } from './application/get-service.usecase';

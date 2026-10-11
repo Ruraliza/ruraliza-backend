@@ -1,8 +1,8 @@
+import type { AccessPolicies } from '#modules/auth';
 import type { FarmerRepository } from '#modules/farmers';
 import type { ServiceRepository } from '#modules/services';
 import type { Clock } from '#shared/domain/clock';
 import type { RouteDef } from '#shared/infra/http/route';
-import type { AccessPolicies } from '../../http/access';
 import { CreateFarmUseCase } from './application/create-farm.usecase';
 import { DeleteFarmUseCase } from './application/delete-farm.usecase';
 import { ListFarmsUseCase } from './application/list-farms.usecase';

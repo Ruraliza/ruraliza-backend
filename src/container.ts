@@ -1,4 +1,5 @@
 import { type AccountUseCases, type ProfileFactory, createAccountUseCases } from '#modules/accounts';
+import { type AuthUseCases, createAuthUseCases } from '#modules/auth';
 import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
@@ -13,17 +14,15 @@ import { type Clock, systemClock } from '#shared/domain/clock';
 import type { DocumentStore } from '#shared/domain/documents';
 import type { ImageProcessor, ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
-import type { SessionTokens } from '#shared/domain/tokens';
+import type { ResetTokens, SessionTokens } from '#shared/domain/tokens';
 import { createHmacSessionTokens, randomResetTokens, scryptPasswordHasher } from '#shared/infra/crypto/node-crypto';
 import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-document-store';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { SharpImageProcessor } from '#shared/infra/images/sharp-image-processor';
 import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
-import type { ResetTokens } from './domain/passwords';
 import type { Repositories } from './domain/repositories';
 import { createInMemoryRepositories } from './infra/memory';
 import { AdminUseCases } from './usecases/AdminUseCases';
-import { AuthUseCases } from './usecases/AuthUseCases';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
 // Para trocar a persistência (ex.: PostgreSQL), passe outros `repos` aqui; para guardar as
@@ -106,7 +105,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
     tokens,
     notifier,
     useCases: {
-      auth: new AuthUseCases({ farmers, workers, accounts }, clock, { hasher: passwords, resetTokens }),
+      auth: createAuthUseCases({ accounts, farmers, workers, clock, passwords, resetTokens }),
       accounts: createAccountUseCases({ accounts, farmers, workers, profiles }),
       farmers: farmerUseCases,
       workers: workerUseCases,

@@ -11,3 +11,9 @@ export interface SessionTokens {
   // null = token malformado, adulterado ou vencido.
   verify(token: string): TokenSubject | null;
 }
+
+// Tokens de uso único (ex.: redefinição de senha): aleatórios, e guardados só como resumo (digest).
+export interface ResetTokens {
+  create(): { token: string; digest: string };
+  digest(token: string): string;
+}

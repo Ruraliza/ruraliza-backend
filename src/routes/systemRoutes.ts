@@ -1,9 +1,9 @@
 import { googleMapsSettings, isAllowedOrigin } from '#shared/config';
-import type { HealthResponse, MapsConfig } from '../contracts';
-import { TAGS, operation } from '../docs/operations';
-import { PUBLIC_ROUTE } from '../http/access';
+import { PUBLIC_ROUTE } from '#shared/infra/http/access';
 import { type RouteDef, route } from '#shared/infra/http/route';
 import type { Handler } from '#shared/infra/http/types';
+import type { HealthResponse, MapsConfig } from '../contracts';
+import { TAGS, operation } from '../docs/operations';
 
 // Health check
 const health: Handler<HealthResponse> = (_req, res) => {

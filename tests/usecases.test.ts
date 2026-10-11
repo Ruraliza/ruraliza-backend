@@ -205,7 +205,7 @@ describe('FarmerUseCases', () => {
     const c = setup();
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
-    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const accountId = unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
     const session = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } }));
 
     const own = await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: session.id });
@@ -231,7 +231,7 @@ describe('Contas', () => {
   it('o segundo perfil entra na mesma conta, com a mesma senha, e o login abre o último painel', async () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
-    const first = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD }));
+    const first = unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD }));
     assert.deepEqual(first, { account_id: first.account_id, role: 'farmer', id: farmerId, profiles: { farmer: farmerId, worker: null } });
 
     const both = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: first.account_id, input: { role: 'worker', ...workerProfile, experience: '3 anos' } }));
@@ -244,16 +244,16 @@ describe('Contas', () => {
     assert.equal(again.ok ? '' : again.kind, 'conflict');
 
     // A mesma senha abre o último painel usado; trocar de painel muda o próximo login.
-    assert.equal(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).role, 'worker');
+    assert.equal(unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).role, 'worker');
     assert.equal(unwrap(await c.useCases.accounts.setActiveRole.execute({ accountId: first.account_id, role: 'farmer' })).id, farmerId);
-    assert.equal(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).role, 'farmer');
+    assert.equal(unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).role, 'farmer');
   });
 
   it('o segundo perfil não pode usar o CPF de outra conta', async () => {
     const c = setup();
     await farmerWithFarm(c);
     await worker(c, 'w@exemplo.com', '11144477735');
-    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const accountId = unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
 
     const taken = await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', ...workerProfile, cpf: '11144477735' } });
     assert.equal(taken.ok ? '' : taken.kind, 'conflict');
@@ -262,7 +262,7 @@ describe('Contas', () => {
   it('só troca para um painel que a conta tem', async () => {
     const c = setup();
     await farmerWithFarm(c);
-    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const accountId = unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
 
     const missing = await c.useCases.accounts.setActiveRole.execute({ accountId: accountId, role: 'worker' });
     assert.equal(missing.ok ? '' : missing.kind, 'not_found');
@@ -273,7 +273,7 @@ describe('Contas', () => {
   it('trocar o e-mail num perfil vale para a conta e para o outro perfil', async () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
-    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const accountId = unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
     const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', ...workerProfile } })).id;
     await worker(c, 'w@exemplo.com', '11144477735');
 
@@ -282,21 +282,21 @@ describe('Contas', () => {
 
     unwrap(await c.useCases.farmers.updateFarmer.execute({ farmerId: farmerId, changes: { email: 'nova@exemplo.com' } }));
     assert.equal((await c.repos.workers.findById(workerId))?.email, 'nova@exemplo.com');
-    unwrap(await c.useCases.auth.login({ email: 'nova@exemplo.com', password: PASSWORD }));
+    unwrap(await c.useCases.auth.login.execute({ email: 'nova@exemplo.com', password: PASSWORD }));
   });
 
   it('remover um perfil mantém a conta com o outro; remover os dois apaga a conta', async () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
-    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const accountId = unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
     const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', ...workerProfile } })).id;
 
     unwrap(await c.useCases.workers.deleteWorker.execute({ workerId: workerId }));
-    assert.deepEqual(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).profiles, { farmer: farmerId, worker: null });
+    assert.deepEqual(unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).profiles, { farmer: farmerId, worker: null });
 
     unwrap(await c.useCases.farmers.deleteFarmer.execute({ farmerId: farmerId }));
     assert.deepEqual(await c.repos.accounts.find(), []);
-    assert.equal((await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).ok, false);
+    assert.equal((await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).ok, false);
   });
 });
 
@@ -317,9 +317,9 @@ describe('AuthUseCases', () => {
     const [account] = await c.repos.accounts.find({ farmer_id: farmerId });
     assert.ok(account && !account.password_hash.includes(PASSWORD));
 
-    assert.equal(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).id, farmerId);
-    const wrong = await c.useCases.auth.login({ email: 'ana@exemplo.com', password: 'outra-senha' });
-    const unknown = await c.useCases.auth.login({ email: 'ninguem@exemplo.com', password: PASSWORD });
+    assert.equal(unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).id, farmerId);
+    const wrong = await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: 'outra-senha' });
+    const unknown = await c.useCases.auth.login.execute({ email: 'ninguem@exemplo.com', password: PASSWORD });
     for (const r of [wrong, unknown]) assert.equal(r.ok ? '' : r.message, 'E-mail ou senha incorretos.');
   });
 
@@ -327,52 +327,52 @@ describe('AuthUseCases', () => {
     const c = setup();
     const w = await worker(c, 'w@exemplo.com', '11144477735');
 
-    const missing = await c.useCases.auth.requestReset({ email: 'ninguem@exemplo.com' });
+    const missing = await c.useCases.auth.requestPasswordReset.execute({ email: 'ninguem@exemplo.com' });
     assert.equal(missing.ok ? '' : missing.kind, 'not_found');
 
-    const first = unwrap(await c.useCases.auth.requestReset({ email: 'w@exemplo.com' })).reset_token;
-    const second = unwrap(await c.useCases.auth.requestReset({ email: 'w@exemplo.com' })).reset_token;
-    const stale = await c.useCases.auth.resetPassword({ token: first, password: 'nova-senha-1' });
+    const first = unwrap(await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' })).reset_token;
+    const second = unwrap(await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' })).reset_token;
+    const stale = await c.useCases.auth.resetPassword.execute({ token: first, password: 'nova-senha-1' });
     assert.equal(stale.ok ? '' : stale.kind, 'invalid'); // o pedido novo invalida o anterior
 
-    const reset = unwrap(await c.useCases.auth.resetPassword({ token: second, password: 'nova-senha-1' }));
+    const reset = unwrap(await c.useCases.auth.resetPassword.execute({ token: second, password: 'nova-senha-1' }));
     assert.deepEqual([reset.role, reset.id], ['worker', w]);
-    const reused = await c.useCases.auth.resetPassword({ token: second, password: 'outra-senha-2' });
+    const reused = await c.useCases.auth.resetPassword.execute({ token: second, password: 'outra-senha-2' });
     assert.equal(reused.ok ? '' : reused.kind, 'invalid');
 
-    assert.equal((await c.useCases.auth.login({ email: 'w@exemplo.com', password: PASSWORD })).ok, false);
-    unwrap(await c.useCases.auth.login({ email: 'w@exemplo.com', password: 'nova-senha-1' }));
+    assert.equal((await c.useCases.auth.login.execute({ email: 'w@exemplo.com', password: PASSWORD })).ok, false);
+    unwrap(await c.useCases.auth.login.execute({ email: 'w@exemplo.com', password: 'nova-senha-1' }));
   });
 
   it('o token de redefinição expira em 30 minutos', async () => {
     const { c, setNow } = setupAt();
     await worker(c, 'w@exemplo.com', '11144477735');
-    const { reset_token } = unwrap(await c.useCases.auth.requestReset({ email: 'w@exemplo.com' }));
+    const { reset_token } = unwrap(await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' }));
 
     setNow('2026-01-01T00:30:00.000Z');
-    const late = await c.useCases.auth.resetPassword({ token: reset_token, password: 'nova-senha-1' });
+    const late = await c.useCases.auth.resetPassword.execute({ token: reset_token, password: 'nova-senha-1' });
     assert.equal(late.ok ? '' : late.kind, 'invalid');
   });
 
   it('trocar a senha logado exige a senha atual, cancela a redefinição pendente e vale para os dois perfis', async () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
-    const { reset_token } = unwrap(await c.useCases.auth.requestReset({ email: 'ana@exemplo.com' }));
-    const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
+    const { reset_token } = unwrap(await c.useCases.auth.requestPasswordReset.execute({ email: 'ana@exemplo.com' }));
+    const accountId = unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
     const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } })).id;
 
-    const wrong = await c.useCases.auth.changePassword('farmer', farmerId, { current_password: 'errada-123', new_password: 'nova-senha-1' });
+    const wrong = await c.useCases.auth.changePassword.execute({ role: 'farmer', profileId: farmerId, input: { current_password: 'errada-123', new_password: 'nova-senha-1' } });
     assert.equal(wrong.ok ? '' : wrong.kind, 'unauthorized');
-    const same = await c.useCases.auth.changePassword('farmer', farmerId, { current_password: PASSWORD, new_password: PASSWORD });
+    const same = await c.useCases.auth.changePassword.execute({ role: 'farmer', profileId: farmerId, input: { current_password: PASSWORD, new_password: PASSWORD } });
     assert.equal(same.ok ? '' : same.kind, 'invalid');
-    const ghost = await c.useCases.auth.changePassword('worker', 999, { current_password: PASSWORD, new_password: 'nova-senha-1' });
+    const ghost = await c.useCases.auth.changePassword.execute({ role: 'worker', profileId: 999, input: { current_password: PASSWORD, new_password: 'nova-senha-1' } });
     assert.equal(ghost.ok ? '' : ghost.kind, 'not_found');
 
-    unwrap(await c.useCases.auth.changePassword('farmer', farmerId, { current_password: PASSWORD, new_password: 'nova-senha-1' }));
-    unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: 'nova-senha-1' }));
+    unwrap(await c.useCases.auth.changePassword.execute({ role: 'farmer', profileId: farmerId, input: { current_password: PASSWORD, new_password: 'nova-senha-1' } }));
+    unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: 'nova-senha-1' }));
     // A senha é da conta: a troca feita pelo perfil de produtor vale no de trabalhador.
-    unwrap(await c.useCases.auth.changePassword('worker', workerId, { current_password: 'nova-senha-1', new_password: 'nova-senha-2' }));
-    const pending = await c.useCases.auth.resetPassword({ token: reset_token, password: 'outra-senha-2' });
+    unwrap(await c.useCases.auth.changePassword.execute({ role: 'worker', profileId: workerId, input: { current_password: 'nova-senha-1', new_password: 'nova-senha-2' } }));
+    const pending = await c.useCases.auth.resetPassword.execute({ token: reset_token, password: 'outra-senha-2' });
     assert.equal(pending.ok ? '' : pending.kind, 'invalid');
   });
 

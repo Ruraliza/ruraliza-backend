@@ -1,6 +1,7 @@
+import type { SessionUser } from '#modules/accounts';
+
 // Acesso: login, redefinição de senha (esqueci a senha) e troca de senha com a conta aberta.
 // A conta e a sessão (SessionUser) ficam em src/modules/accounts.
-import type { SessionUser } from '#modules/accounts';
 
 // POST /auth/login
 export interface LoginInput {

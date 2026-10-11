@@ -1,8 +1,7 @@
 import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import type { Clock } from '../../domain/clock';
-import type { ResetTokens } from '../../../domain/passwords';
 import type { PasswordHasher } from '../../domain/passwords';
-import { SESSION_TOKEN_TTL_MS, type SessionTokens, type TokenSubject } from '../../domain/tokens';
+import { type ResetTokens, SESSION_TOKEN_TTL_MS, type SessionTokens, type TokenSubject } from '../../domain/tokens';
 
 const SALT_BYTES = 16;
 const KEY_BYTES = 64;

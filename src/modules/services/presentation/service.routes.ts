@@ -1,7 +1,7 @@
+import type { AccessPolicies } from '#modules/auth';
 import { TAGS, operation, pathParam, queryParam } from '#shared/infra/docs/operations';
 import { type RefTo, refTo } from '#shared/infra/docs/schema-kit';
 import { type RouteDef, route } from '#shared/infra/http/route';
-import type { AccessPolicies } from '../../../http/access';
 import type { JobController } from './job.controller';
 import type { ServiceController } from './service.controller';
 import type { ServiceSchemaName } from './service.schemas';

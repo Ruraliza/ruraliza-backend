@@ -1,8 +1,8 @@
+import { parseLoginInput } from '#modules/auth';
 import type { SessionTokens } from '#shared/domain/tokens';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import { parseLoginInput } from '../../../http/parsers';
 import type { SystemLoginResponse, SystemUser, SystemUserResponse } from '../system-user.contract';
 import type { SystemUserUseCases } from '../system-users.module';
 import { systemUserId } from './system-principal';

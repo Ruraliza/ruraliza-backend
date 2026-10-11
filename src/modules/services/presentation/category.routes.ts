@@ -1,7 +1,7 @@
 import { TAGS, operation } from '#shared/infra/docs/operations';
+import { PUBLIC_ROUTE } from '#shared/infra/http/access';
 import { type RouteDef, route } from '#shared/infra/http/route';
 import type { Handler } from '#shared/infra/http/types';
-import { PUBLIC_ROUTE } from '../../../http/access';
 import { CATEGORIES } from '../domain/categories';
 import type { ServiceSchemaName } from './service.schemas';
 

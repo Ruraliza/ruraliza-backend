@@ -1,6 +1,7 @@
+import type { AccessPolicies } from '#modules/auth';
 import { TAGS, operation, pathParam } from '#shared/infra/docs/operations';
+import { PUBLIC_ROUTE } from '#shared/infra/http/access';
 import { type RouteDef, route } from '#shared/infra/http/route';
-import { type AccessPolicies, PUBLIC_ROUTE } from '../../../http/access';
 import type { SystemUserController } from './system-user.controller';
 import type { SystemUserSchemaName } from './system-user.schemas';
 

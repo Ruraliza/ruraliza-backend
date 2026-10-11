@@ -1,4 +1,5 @@
 import type { AccountRepository } from '#modules/accounts';
+import type { AccessPolicies } from '#modules/auth';
 import type { FarmerRepository } from '#modules/farmers';
 import type { FarmRepository } from '#modules/farms';
 import type { ApplicationRepository } from '#modules/hiring';
@@ -10,7 +11,6 @@ import type { DocumentStore } from '#shared/domain/documents';
 import type { ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { SessionTokens } from '#shared/domain/tokens';
-import type { AccessPolicies } from '../../http/access';
 import { CreateWorkerProfileUseCase } from './application/create-worker-profile.usecase';
 import { DeleteWorkerUseCase } from './application/delete-worker.usecase';
 import { GetDocumentUseCase } from './application/get-document.usecase';

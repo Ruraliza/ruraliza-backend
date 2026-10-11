@@ -1,5 +1,5 @@
+import type { AccessPolicies } from '#modules/auth';
 import type { RouteDef } from '#shared/infra/http/route';
-import type { AccessPolicies } from '../../http/access';
 import type { AccountRepos } from './application/account-profiles';
 import { AddProfileUseCase } from './application/add-profile.usecase';
 import { GetAccountUseCase } from './application/get-account.usecase';

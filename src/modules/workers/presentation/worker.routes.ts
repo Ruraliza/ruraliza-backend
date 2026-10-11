@@ -1,8 +1,9 @@
+import type { AccessPolicies } from '#modules/auth';
 import type { HiringSchemaName } from '#modules/hiring';
 import type { ServiceSchemaName } from '#modules/services';
 import { PDF_UPLOAD, TAGS, operation, pathParam } from '#shared/infra/docs/operations';
+import { PUBLIC_ROUTE } from '#shared/infra/http/access';
 import { type RouteDef, route } from '#shared/infra/http/route';
-import { type AccessPolicies, PUBLIC_ROUTE } from '../../../http/access';
 import type { ResumeController } from './resume.controller';
 import type { WorkerController } from './worker.controller';
 import type { WorkerSchemaName } from './worker.schemas';

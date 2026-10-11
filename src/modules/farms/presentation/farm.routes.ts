@@ -1,8 +1,8 @@
+import type { AccessPolicies } from '#modules/auth';
 import { TAGS, operation, pathParam } from '#shared/infra/docs/operations';
 import { type RouteDef, route } from '#shared/infra/http/route';
-import type { AccessPolicies } from '../../../http/access';
-import type { FarmSchemaName } from './farm.schemas';
 import type { FarmController } from './farm.controller';
+import type { FarmSchemaName } from './farm.schemas';
 
 // Montadas em /api/farmers (junto com as do produtor, ver src/routes/farmerRoutes.ts).
 

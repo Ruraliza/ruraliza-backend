@@ -34,7 +34,7 @@ describe('seed', () => {
   it('as contas de teste entram com a senha do seed', async () => {
     const c = await seeded();
     const login = async (email: string): Promise<SessionUser | false> => {
-      const r = await c.useCases.auth.login({ email, password: SEED_PASSWORD });
+      const r = await c.useCases.auth.login.execute({ email, password: SEED_PASSWORD });
       return r.ok && r.value;
     };
     assert.deepEqual(await login('produtor@exemplo.com'), { account_id: 1, role: 'farmer', id: 1, profiles: { farmer: 1, worker: null } });
@@ -46,7 +46,7 @@ describe('seed', () => {
     const c = await seeded();
     const admin = await c.useCases.systemUsers.systemLogin.execute({ email: 'admin@exemplo.com', password: SEED_PASSWORD });
     assert.equal(admin.ok && admin.value.role, 'admin');
-    const asApp = await c.useCases.auth.login({ email: 'admin@exemplo.com', password: SEED_PASSWORD });
+    const asApp = await c.useCases.auth.login.execute({ email: 'admin@exemplo.com', password: SEED_PASSWORD });
     assert.equal(asApp.ok, false);
   });
 

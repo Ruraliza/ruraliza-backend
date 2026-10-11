@@ -1,4 +1,5 @@
 import { createAccountRoutes } from '#modules/accounts';
+import { createAccess, createAuthRoutes } from '#modules/auth';
 import { createFarmerRoutes } from '#modules/farmers';
 import { createFarmRoutes } from '#modules/farms';
 import { createHiringRoutes } from '#modules/hiring';
@@ -10,32 +11,53 @@ import { createWorkerRoutes } from '#modules/workers';
 import type { RouteGroup } from '#shared/infra/http/route';
 import type { Container } from '../container';
 import { createAdminController } from '../controllers/AdminController';
-import { createAuthController } from '../controllers/AuthController';
-import { createAccess } from '../http/access';
 import { adminRoutes } from './adminRoutes';
-import { authRoutes } from './authRoutes';
-import { farmerRoutes } from './farmerRoutes';
 import { systemRoutes } from './systemRoutes';
-import { workerRoutes } from './workerRoutes';
 
-// Todas as rotas da API. O app monta estas e o OpenAPI é gerado a partir delas,
-// então rota e documentação não têm como divergir.
+// Todas as rotas da API, por prefixo. O app monta estas e o OpenAPI é gerado a partir delas,
+// então rota e documentação não têm como divergir. Cada módulo entrega os seus grupos; aqui fica
+// só a ordem dentro de cada prefixo (atenção: '/services/...' antes de '/:id').
 export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, 'useCases' | 'repos' | 'tokens'>): readonly RouteGroup[] {
   const access = createAccess({ repos, tokens });
-  const auth = createAuthController(useCases.auth, tokens);
+  const auth = createAuthRoutes(useCases.auth, tokens, access);
   const systemUsers = createSystemUserRoutes(useCases.systemUsers, tokens, access);
   const push = createPushRoutes(useCases.push, access);
+  const farmers = createFarmerRoutes(useCases.farmers, tokens, access);
+  const farms = createFarmRoutes(useCases.farms, access);
   const workers = createWorkerRoutes(useCases.workers, tokens, access);
   const photos = createPhotoRoutes(useCases.photos, access);
-  const hiring = createHiringRoutes(useCases.hiring, access);
   const services = createServiceRoutes(useCases.services, access);
+  const hiring = createHiringRoutes(useCases.hiring, access);
   const admin = createAdminController({ admin: useCases.admin, farmers: useCases.farmers, workers: useCases.workers, photos: useCases.photos });
 
   return [
-    { prefix: '/api/auth', routes: authRoutes(auth, systemUsers.auth) },
+    { prefix: '/api/auth', routes: [...auth.auth, ...systemUsers.auth] },
     { prefix: '/api/accounts', routes: createAccountRoutes(useCases.accounts, push.account, access) },
-    { prefix: '/api/farmers', routes: farmerRoutes({ auth }, { farmers: createFarmerRoutes(useCases.farmers, tokens, access), farms: createFarmRoutes(useCases.farms, access), services, hiring, photos }, access) },
-    { prefix: '/api/workers', routes: workerRoutes({ auth }, { services, hiring, photos, workers }, access) },
+    {
+      prefix: '/api/farmers',
+      routes: [
+        ...services.services, // publicar, ver, editar e cancelar
+        ...hiring.farmer, // candidaturas, avisos, aceite e pagamento
+        ...farmers, // cadastro e perfil
+        ...auth.farmerPassword,
+        ...photos.farmer,
+        ...farms,
+        ...photos.farm,
+        ...services.farmerServices
+      ]
+    },
+    {
+      prefix: '/api/workers',
+      routes: [
+        ...services.jobs, // buscar e ver vagas
+        ...hiring.worker, // candidatura e desistência
+        ...workers.profile, // cadastro e perfil
+        ...auth.workerPassword,
+        ...photos.worker,
+        ...workers.resume,
+        ...workers.tracking // candidaturas, avisos e serviços aceitos
+      ]
+    },
     { prefix: '/api/admin', routes: adminRoutes(admin, systemUsers.admin, access) },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },

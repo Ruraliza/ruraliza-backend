@@ -1,16 +1,14 @@
+import type { UserRole } from '#modules/accounts';
 import { accountToken } from '#modules/accounts';
 import type { SessionTokens } from '#shared/domain/tokens';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type {
-  LoginResponse,
-  MessageResponse,
-  PasswordResetRequestResponse,
-  UserRole
-} from '../contracts';
-import { parseLoginInput, parsePasswordChange, parsePasswordReset, parsePasswordResetRequest } from '../http/parsers';
-import type { AuthUseCases } from '../usecases/AuthUseCases';
+import type { MessageResponse } from '../../../contracts';
+import type { LoginResponse, PasswordResetRequestResponse } from '../auth.contract';
+
+import { parseLoginInput, parsePasswordChange, parsePasswordReset, parsePasswordResetRequest } from './auth.parsers';
+import type { AuthUseCases } from '../auth.module';
 
 // HTTP do acesso: login do app, "esqueci a senha" e troca de senha. O login da equipe fica em src/modules/system-users.
 export interface AuthController {
@@ -28,7 +26,7 @@ export function createAuthController(auth: AuthUseCases, tokens: SessionTokens):
     const input = parseLoginInput(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
-    const result = await auth.login(input.value);
+    const result = await auth.login.execute(input.value);
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Logged in successfully!', user: result.value, token: accountToken(tokens, result.value) });
   };
@@ -38,7 +36,7 @@ export function createAuthController(auth: AuthUseCases, tokens: SessionTokens):
     const input = parsePasswordResetRequest(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
-    const result = await auth.requestReset(input.value);
+    const result = await auth.requestPasswordReset.execute(input.value);
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Password reset requested (simulation: the e-mail was not sent).', reset_token: result.value.reset_token });
   };
@@ -48,7 +46,7 @@ export function createAuthController(auth: AuthUseCases, tokens: SessionTokens):
     const input = parsePasswordReset(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
-    const result = await auth.resetPassword(input.value);
+    const result = await auth.resetPassword.execute(input.value);
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Password reset successfully!', user: result.value, token: accountToken(tokens, result.value) });
   };
@@ -59,7 +57,7 @@ export function createAuthController(auth: AuthUseCases, tokens: SessionTokens):
     const input = parsePasswordChange(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
-    const result = await auth.changePassword(role, toId(req.params.id), input.value);
+    const result = await auth.changePassword.execute({ role, profileId: toId(req.params.id), input: input.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Password changed successfully!' });
   };
