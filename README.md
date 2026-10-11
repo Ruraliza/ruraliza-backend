@@ -73,7 +73,7 @@ O `npm run test:e2e` confere **toda resposta** contra o documento: a rota e o st
 - **Compilador estrito** (`tsconfig.json`): `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, entre outros.
 - **Sem `any`**: o ESLint com informação de tipos (`npm run lint`) barra `any` explícito e também valores `any` vindos de bibliotecas (`no-unsafe-*`).
 - **Entrada validada em tempo de execução**: `req.body` e `req.query` chegam como `unknown`; cada rota valida e converte para o tipo de entrada do contrato (`src/shared/infra/http/body.ts`, parsers por módulo). Os handlers usam `Handler<Resposta, Params>` (`src/shared/infra/http/types.ts`), então a resposta de cada rota é checada contra o contrato.
-- **Contrato com o frontend** (`src/contracts`, que reúne também os `*.contract.ts` dos módulos): entidades, entradas e respostas da API, com os mesmos nomes e formatos de `ruraliza-frontend/src/models`. O `npm run check:contracts` falha se algum tipo divergir em qualquer sentido. Ao mudar um tipo, altere os dois lados e rode o check.
+- **Contrato com o frontend** (`src/contracts`, que reúne também os `*.contract.ts` dos módulos): entidades, entradas e respostas da API, com os mesmos nomes e formatos de `ruraliza-frontend/src/app/core/models`. O `npm run check:contracts` falha se algum tipo divergir em qualquer sentido. Ao mudar um tipo, altere os dois lados e rode o check.
 
 ---
 
