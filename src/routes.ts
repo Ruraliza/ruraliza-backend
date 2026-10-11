@@ -9,6 +9,7 @@ import { createPushRoutes } from '#modules/notifications';
 import { platformRoutes } from '#modules/platform';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
 import { createSystemUserRoutes } from '#modules/system-users';
+import { createTrackRoutes } from '#modules/tracks';
 import { createWorkerRoutes } from '#modules/workers';
 import type { RouteGroup } from '#shared/infra/http/route';
 import type { Container } from './container';
@@ -27,6 +28,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const photos = createPhotoRoutes(useCases.photos, access);
   const services = createServiceRoutes(useCases.services, access);
   const hiring = createHiringRoutes(useCases.hiring, access);
+  const tracks = createTrackRoutes(useCases.tracks, access);
 
   return [
     { prefix: '/api/auth', routes: [...auth.auth, ...systemUsers.auth] },
@@ -48,18 +50,21 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
       prefix: '/api/workers',
       routes: [
         ...services.jobs, // buscar e ver vagas
+        ...tracks.learning, // trilhas de estudo: lista, detalhe e matrícula
         ...hiring.worker, // candidatura e desistência
         ...workers.profile, // cadastro e perfil
         ...auth.workerPassword,
         ...photos.worker,
         ...workers.resume,
-        ...workers.tracking // candidaturas, avisos e serviços aceitos
+        ...workers.tracking, // candidaturas, avisos e serviços aceitos
+        ...tracks.progress // estudo da trilha, aulas concluídas e certificados
       ]
     },
-    { prefix: '/api/admin', routes: createAdminRoutes(useCases, systemUsers.admin, access) },
+    { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage] },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },
     { prefix: '/api/categories', routes: categoryRoutes },
+    { prefix: '/api/certificates', routes: tracks.certificates },
     { prefix: '/api', routes: [...platformRoutes, ...push.config] }
   ];
 }

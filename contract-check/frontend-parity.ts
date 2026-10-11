@@ -12,6 +12,7 @@ import type * as FrontService from '../../ruraliza-frontend/src/app/core/models/
 import type * as FrontApplication from '../../ruraliza-frontend/src/app/core/models/service-application.model';
 import type * as FrontStatus from '../../ruraliza-frontend/src/app/core/models/status';
 import type * as FrontSystem from '../../ruraliza-frontend/src/app/core/models/system.model';
+import type * as FrontTrack from '../../ruraliza-frontend/src/app/core/models/track.model';
 import type * as FrontWorker from '../../ruraliza-frontend/src/app/core/models/worker.model';
 
 // Igualdade estrita de tipos (distingue opcional de `| undefined`, readonly etc.).
@@ -80,5 +81,31 @@ export type ContractParity = [
   Expect<Equals<Api.SystemUserResponse, FrontSystem.SystemUserResponse>>,
   Expect<Equals<Api.AdminUser, FrontSystem.AdminUser>>,
   Expect<Equals<Api.SystemUserUpdate, FrontSystem.SystemUserUpdate>>,
-  Expect<Equals<Api.AdminSystemUserUpdate, FrontSystem.AdminSystemUserUpdate>>
+  Expect<Equals<Api.AdminSystemUserUpdate, FrontSystem.AdminSystemUserUpdate>>,
+
+  Expect<Equals<Api.TrackStatus, FrontTrack.TrackStatus>>,
+  Expect<Equals<Api.TrackTutor, FrontTrack.TrackTutor>>,
+  Expect<Equals<Api.Lesson, FrontTrack.Lesson>>,
+  Expect<Equals<Api.TrackModule, FrontTrack.TrackModule>>,
+  Expect<Equals<Api.LessonOutline, FrontTrack.LessonOutline>>,
+  Expect<Equals<Api.TrackModuleOutline, FrontTrack.TrackModuleOutline>>,
+  Expect<Equals<Api.TrackProgress, FrontTrack.TrackProgress>>,
+  Expect<Equals<Api.TrackSummary, FrontTrack.TrackSummary>>,
+  Expect<Equals<Api.WorkerTrackSummary, FrontTrack.WorkerTrackSummary>>,
+  Expect<Equals<Api.TrackDetail, FrontTrack.TrackDetail>>,
+  Expect<Equals<Api.EnrolledTrack, FrontTrack.EnrolledTrack>>,
+  Expect<Equals<Api.ManagedTrackSummary, FrontTrack.ManagedTrackSummary>>,
+  Expect<Equals<Api.ManagedTrack, FrontTrack.ManagedTrack>>,
+  Expect<Equals<Api.TrackInput, FrontTrack.TrackInput>>,
+  Expect<Equals<Api.TrackUpdate, FrontTrack.TrackUpdate>>,
+  Expect<Equals<Api.LessonInput, FrontTrack.LessonInput>>,
+  Expect<Equals<Api.TrackModuleInput, FrontTrack.TrackModuleInput>>,
+  Expect<Equals<Api.TrackContentInput, FrontTrack.TrackContentInput>>,
+  Expect<Equals<Api.TrackStatusInput, FrontTrack.TrackStatusInput>>,
+  Expect<Equals<Api.ManagedTrackResponse, FrontTrack.ManagedTrackResponse>>,
+  Expect<Equals<Api.TrackFilters, FrontTrack.TrackFilters>>,
+  Expect<Equals<Api.EnrollInput, FrontTrack.EnrollInput>>,
+  Expect<Equals<Api.EnrolledTrackResponse, FrontTrack.EnrolledTrackResponse>>,
+  Expect<Equals<Api.LessonCompletionResponse, FrontTrack.LessonCompletionResponse>>,
+  Expect<Equals<Api.Certificate, FrontTrack.Certificate>>
 ];

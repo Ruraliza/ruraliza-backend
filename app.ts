@@ -125,9 +125,9 @@ async function main(): Promise<void> {
   const PORT = serverPort();
   app.listen(PORT, () => {
     console.log(`Servidor do Ruraliza rodando em http://localhost:${PORT}/api`);
-    console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 1 trabalhador, 7 serviços: 6 vagas abertas e 1 vencida).');
+    console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 1 trabalhador, 7 serviços: 6 vagas abertas e 1 vencida; 3 trilhas de estudo: 2 publicadas e 1 em rascunho).');
     console.log(`Perfis de teste: produtor@exemplo.com, trabalhador@exemplo.com e ambos@exemplo.com, senha "${SEED_PASSWORD}".`);
-    console.log(`Equipe (login em /api/auth/system/login): admin@exemplo.com, senha "${SEED_PASSWORD}".`);
+    console.log(`Equipe (login em /api/auth/system/login): admin@exemplo.com e tutor@exemplo.com, senha "${SEED_PASSWORD}".`);
     if (initialAdmin) {
       console.log(`Administrador do .env (ADMIN_EMAIL): ${initialAdmin.email} ${adminStatus === 'created' ? 'criado' : 'já existia'}.`);
     }

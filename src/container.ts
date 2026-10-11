@@ -8,6 +8,7 @@ import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import { type PushDispatcher, type PushSender, type PushUseCases, WebPushSender, createPushDispatcher, createPushUseCases } from '#modules/notifications';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
+import { type CertificateCodes, type TrackUseCases, createTrackUseCases, randomCertificateCodes } from '#modules/tracks';
 import { type WorkerUseCases, createWorkerUseCases } from '#modules/workers';
 import { authTokenSecret } from '#shared/config';
 import type { ChangeFeed } from '#shared/domain/changes';
@@ -31,7 +32,8 @@ import { createInMemoryRepositories } from './repositories';
 // As senhas usam scrypt (`passwords`); os testes podem passar um hasher mais rápido.
 // Os avisos de mudança para as telas abertas (`changes`, por SSE) ficam em memória;
 // as notificações push saem pelo `push` (Web Push com as chaves VAPID do .env; os testes passam um falso).
-// Os tokens de sessão (`tokens`) são assinados com AUTH_TOKEN_SECRET.
+// Os tokens de sessão (`tokens`) são assinados com AUTH_TOKEN_SECRET; os códigos dos certificados
+// (`certificateCodes`) são aleatórios, e os testes podem passar um gerador previsível.
 
 export interface UseCases {
   auth: AuthUseCases;
@@ -45,6 +47,7 @@ export interface UseCases {
   push: PushUseCases;
   systemUsers: SystemUserUseCases;
   admin: AdminUseCases;
+  tracks: TrackUseCases;
 }
 
 export interface Container {
@@ -71,6 +74,7 @@ export interface ContainerOptions {
   changes?: ChangeFeed;
   push?: PushSender;
   tokens?: SessionTokens;
+  certificateCodes?: CertificateCodes;
 }
 
 export function createContainer(options: ContainerOptions = {}): Container {
@@ -83,7 +87,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const clock = options.clock ?? systemClock;
   const changes = options.changes ?? new InMemoryChangeFeed();
   const tokens = options.tokens ?? createHmacSessionTokens(authTokenSecret(), clock);
-  const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers } = repos;
+  const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers, tracks, enrollments, certificates } = repos;
   const pushDeps = { accounts, pushSubscriptions, clock, sender: options.push ?? new WebPushSender() };
   const notifier = createPushDispatcher(pushDeps);
   const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes });
@@ -115,7 +119,8 @@ export function createContainer(options: ContainerOptions = {}): Container {
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
       push: createPushUseCases(pushDeps),
       systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),
-      admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases })
+      admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases }),
+      tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })
     }
   };
 }

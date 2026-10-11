@@ -9,10 +9,12 @@ export interface SystemUserRecord extends SystemUser {
 
 // O que cada cargo pode fazer. As rotas pedem uma permissão, não um cargo: um cargo novo
 // (ou uma permissão nova para o tutor) muda só este mapa.
-export type SystemPermission = 'users:manage' | 'system-users:manage' | 'tracks:manage';
+// `tracks:manage`: criar trilhas e editar as de que é tutor. `tracks:oversee`: ver, criar, editar e
+// descontinuar qualquer trilha (supervisão do administrador).
+export type SystemPermission = 'users:manage' | 'system-users:manage' | 'tracks:manage' | 'tracks:oversee';
 
 export const SYSTEM_PERMISSIONS: Record<SystemRole, readonly SystemPermission[]> = {
-  admin: ['users:manage', 'system-users:manage'],
+  admin: ['users:manage', 'system-users:manage', 'tracks:oversee'],
   tutor: ['tracks:manage']
 };
 

@@ -15,3 +15,4 @@ export type * from '../modules/workers/worker.contract';
 export type * from '../modules/hiring/hiring.contract';
 export type * from '../modules/notifications/push.contract';
 export type * from '../modules/platform/platform.contract';
+export type * from '../modules/tracks/track.contract';

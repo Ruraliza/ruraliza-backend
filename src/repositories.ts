@@ -11,6 +11,14 @@ import type { PushSubscriptionRepository } from '#modules/notifications';
 import { createInMemoryServiceRepository } from '#modules/services';
 import type { ServiceRepository } from '#modules/services';
 import { type SystemUserRepository, createInMemorySystemUserRepository } from '#modules/system-users';
+import {
+  type CertificateRepository,
+  type EnrollmentRepository,
+  type TrackRepository,
+  createInMemoryCertificateRepository,
+  createInMemoryEnrollmentRepository,
+  createInMemoryTrackRepository
+} from '#modules/tracks';
 import { type WorkerRepository, createInMemoryWorkerRepository } from '#modules/workers';
 
 // Todos os repositórios da API (cada módulo declara a sua porta em src/modules/<módulo>/domain).
@@ -27,6 +35,9 @@ export interface Repositories {
   accounts: AccountRepository;
   pushSubscriptions: PushSubscriptionRepository;
   systemUsers: SystemUserRepository;
+  tracks: TrackRepository;
+  enrollments: EnrollmentRepository;
+  certificates: CertificateRepository;
 }
 
 // Repositórios em memória (um conjunto novo por chamada, isolado dos outros).
@@ -40,6 +51,9 @@ export function createInMemoryRepositories(): Repositories {
     payments: createInMemoryPaymentRepository(),
     accounts: createInMemoryAccountRepository(),
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
-    systemUsers: createInMemorySystemUserRepository()
+    systemUsers: createInMemorySystemUserRepository(),
+    tracks: createInMemoryTrackRepository(),
+    enrollments: createInMemoryEnrollmentRepository(),
+    certificates: createInMemoryCertificateRepository()
   };
 }

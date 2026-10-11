@@ -4,7 +4,7 @@ import type { Access } from './access';
 import { sendFailure } from './respond';
 import type { Handler } from './types';
 
-export type HttpMethod = 'get' | 'post' | 'patch' | 'delete';
+export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 // Rota da API: o handler, quem pode chamá-lo e a documentação OpenAPI andam juntos, então não há
 // rota sem doc nem sem decisão de acesso. `register` fecha sobre o handler tipado (cada rota tem
@@ -58,6 +58,9 @@ export function route<Res, Params>(
           break;
         case 'post':
           router.post(path, guarded);
+          break;
+        case 'put':
+          router.put(path, guarded);
           break;
         case 'patch':
           router.patch(path, guarded);
