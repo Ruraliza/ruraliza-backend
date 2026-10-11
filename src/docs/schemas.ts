@@ -22,7 +22,7 @@ export type SchemaName =
   | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
   | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse' | 'FarmResponse' | 'ServiceResponse'
   | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse'
-  | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
+  | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
 const id: Schema = { type: 'integer', minimum: 1, example: 1 };
 const nullableId: Schema = { type: 'integer', minimum: 1, nullable: true, example: null };
@@ -480,6 +480,23 @@ export const schemas = {
     },
     ['email', 'name', 'role', 'password'],
     'Novo usuário de sistema.'
+  ),
+  SystemUserUpdate: input(
+    {
+      name: { type: 'string', maxLength: 120, example: 'Ana Souza' },
+      email: { type: 'string', format: 'email', example: 'ana@exemplo.com', description: 'Guardado em minúsculas. Único entre os usuários de sistema.' }
+    },
+    [],
+    'Edição parcial do próprio perfil: envie só o que muda. Enviar `id`, `role` ou `password` resulta em 400.'
+  ),
+  AdminSystemUserUpdate: input(
+    {
+      name: { type: 'string', maxLength: 120, example: 'Tiago Tutor' },
+      email: { type: 'string', format: 'email', example: 'tutor@exemplo.com', description: 'Guardado em minúsculas. Único entre os usuários de sistema.' },
+      role: ref('SystemRole')
+    },
+    [],
+    'Edição parcial pelo administrador. Enviar `id` ou `password` resulta em 400; mudar o próprio cargo, em 409.'
   ),
   SystemLoginResponse: object(
     { message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SystemUser'), token: sessionToken },

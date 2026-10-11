@@ -66,6 +66,18 @@ export function authRoutes(auth: AuthController, access: AccessPolicies): readon
       summary: 'Sessão do usuário de sistema',
       description: 'Quem é o dono do token, com o cargo atual.',
       success: { status: 200, description: 'Usuário de sistema.', schema: 'SystemUser' }
+    }), access.anySystemUser),
+
+    route('patch', '/system/me', auth.updateSystemProfile, operation({
+      tag: TAGS.auth,
+      summary: 'Editar o próprio perfil de usuário de sistema',
+      description: 'Nome e e-mail. O cargo só um administrador muda (PATCH /api/admin/system-users/:id); a senha não muda por aqui.',
+      body: 'SystemUserUpdate',
+      success: { status: 200, description: 'Perfil atualizado.', schema: 'SystemUserResponse' },
+      errors: {
+        400: 'Enviou `id`, `role` ou `password`; e-mail inválido; nome vazio ou longo demais.',
+        409: 'Já existe um usuário de sistema com este e-mail.'
+      }
     }), access.anySystemUser)
   ];
 }

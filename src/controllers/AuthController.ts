@@ -1,9 +1,18 @@
-import type { LoginResponse, MessageResponse, PasswordResetRequestResponse, SessionUser, SystemLoginResponse, SystemUser, UserRole } from '../contracts';
+import type {
+  LoginResponse,
+  MessageResponse,
+  PasswordResetRequestResponse,
+  SessionUser,
+  SystemLoginResponse,
+  SystemUser,
+  SystemUserResponse,
+  UserRole
+} from '../contracts';
 import type { SessionTokens } from '../domain/tokens';
 import { toBody } from '../http/body';
-import { parseLoginInput, parsePasswordChange, parsePasswordReset, parsePasswordResetRequest } from '../http/parsers';
+import { parseLoginInput, parsePasswordChange, parsePasswordReset, parsePasswordResetRequest, parseSystemUserUpdate } from '../http/parsers';
 import { sendFailure, toId } from '../http/respond';
-import type { Handler, IdParams } from '../http/types';
+import type { Handler, IdParams, Principal } from '../http/types';
 import type { AuthUseCases } from '../usecases/AuthUseCases';
 import type { SystemUserUseCases } from '../usecases/SystemUserUseCases';
 
@@ -16,6 +25,13 @@ export interface AuthController {
   changeWorkerPassword: Handler<MessageResponse, IdParams>;
   systemLogin: Handler<SystemLoginResponse>;
   getSystemSession: Handler<SystemUser>;
+  updateSystemProfile: Handler<SystemUserResponse>;
+}
+
+// Id do usuário de sistema que fez a requisição. Só nas rotas com acesso de sistema: sem ele, é bug na rota.
+export function systemUserId(principal: Principal | undefined): number {
+  if (principal?.kind !== 'system') throw new Error('Rota de usuário de sistema sem usuário de sistema: confira o access da rota.');
+  return principal.user.id;
 }
 
 // Token da conta aberta (vale para os dois perfis dela).
@@ -81,13 +97,29 @@ export function createAuthController(auth: AuthUseCases, systemUsers: SystemUser
 
   // GET /api/auth/system/me - Quem é o usuário de sistema do token (cargo atualizado)
   const getSystemSession: Handler<SystemUser> = async (_req, res) => {
-    const principal = res.locals.principal;
-    if (principal?.kind !== 'system') throw new Error('GET /auth/system/me sem usuário de sistema: confira o access da rota.');
-
-    const result = await systemUsers.get(principal.user.id);
+    const result = await systemUsers.get(systemUserId(res.locals.principal));
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json(result.value);
   };
 
-  return { login, requestPasswordReset, resetPassword, changeFarmerPassword, changeWorkerPassword, systemLogin, getSystemSession };
+  // PATCH /api/auth/system/me - O usuário de sistema edita o próprio perfil (nome e e-mail)
+  const updateSystemProfile: Handler<SystemUserResponse> = async (req, res) => {
+    const changes = parseSystemUserUpdate(toBody(req.body));
+    if (!changes.ok) { sendFailure(res, changes); return; }
+
+    const result = await systemUsers.updateOwn(systemUserId(res.locals.principal), changes.value);
+    if (!result.ok) { sendFailure(res, result); return; }
+    res.status(200).json({ message: 'Profile updated successfully!', system_user: result.value });
+  };
+
+  return {
+    login,
+    requestPasswordReset,
+    resetPassword,
+    changeFarmerPassword,
+    changeWorkerPassword,
+    systemLogin,
+    getSystemSession,
+    updateSystemProfile
+  };
 }

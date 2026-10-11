@@ -1,6 +1,6 @@
 import type { AdminUser, FarmerResponse, MessageResponse, SystemUser, SystemUserResponse, WorkerResponse } from '../contracts';
 import { toBody } from '../http/body';
-import { parseProfileUpdate, parseSystemUserInput, parseWorkerUpdate } from '../http/parsers';
+import { parseAdminSystemUserUpdate, parseProfileUpdate, parseSystemUserInput, parseWorkerUpdate } from '../http/parsers';
 import { sendFailure, toId } from '../http/respond';
 import type { Handler, IdParams } from '../http/types';
 import type { AdminUseCases } from '../usecases/AdminUseCases';
@@ -8,6 +8,7 @@ import type { FarmerUseCases } from '../usecases/FarmerUseCases';
 import type { PhotoUseCases } from '../usecases/PhotoUseCases';
 import type { SystemUserUseCases } from '../usecases/SystemUserUseCases';
 import type { WorkerUseCases } from '../usecases/WorkerUseCases';
+import { systemUserId } from './AuthController';
 
 // HTTP da administração: contas do app (lista, edição, remoção) e equipe (usuários de sistema).
 export interface AdminController {
@@ -22,6 +23,8 @@ export interface AdminController {
   adminDeleteWorkerPhoto: Handler<WorkerResponse, IdParams>;
   listSystemUsers: Handler<SystemUser[]>;
   createSystemUser: Handler<SystemUserResponse>;
+  getSystemUser: Handler<SystemUser, IdParams>;
+  updateSystemUser: Handler<SystemUserResponse, IdParams>;
 }
 
 export interface AdminControllerUseCases {
@@ -115,6 +118,23 @@ export function createAdminController({ admin, farmers, workers, photos, systemU
     res.status(201).json({ message: 'System user created successfully!', system_user: result.value });
   };
 
+  // GET /api/admin/system-users/:id - Um usuário de sistema
+  const getSystemUser: Handler<SystemUser, IdParams> = async (req, res) => {
+    const result = await systemUsers.get(toId(req.params.id));
+    if (!result.ok) { sendFailure(res, result); return; }
+    res.status(200).json(result.value);
+  };
+
+  // PATCH /api/admin/system-users/:id - Edita nome, e-mail e cargo (o próprio cargo não)
+  const updateSystemUser: Handler<SystemUserResponse, IdParams> = async (req, res) => {
+    const changes = parseAdminSystemUserUpdate(toBody(req.body));
+    if (!changes.ok) { sendFailure(res, changes); return; }
+
+    const result = await systemUsers.updateByAdmin(systemUserId(res.locals.principal), toId(req.params.id), changes.value);
+    if (!result.ok) { sendFailure(res, result); return; }
+    res.status(200).json({ message: 'System user updated successfully!', system_user: result.value });
+  };
+
   return {
     listUsers,
     getUser,
@@ -126,6 +146,8 @@ export function createAdminController({ admin, farmers, workers, photos, systemU
     adminDeleteWorker,
     adminDeleteWorkerPhoto,
     listSystemUsers,
-    createSystemUser
+    createSystemUser,
+    getSystemUser,
+    updateSystemUser
   };
 }

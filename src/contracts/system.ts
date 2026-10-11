@@ -29,6 +29,15 @@ export interface SystemUserInput {
   password: string; // 8 a 128 caracteres; nunca volta nas respostas
 }
 
+// PATCH /auth/system/me: o próprio usuário de sistema edita o perfil (o cargo só o administrador muda).
+export type SystemUserUpdate = Partial<Pick<SystemUserInput, 'name' | 'email'>>;
+
+// PATCH /admin/system-users/:id: o administrador edita outro usuário de sistema, inclusive o cargo
+// (o próprio cargo não: a equipe não pode ficar sem administrador).
+export interface AdminSystemUserUpdate extends SystemUserUpdate {
+  role?: SystemRole;
+}
+
 export interface SystemUserResponse {
   message: string;
   system_user: SystemUser;

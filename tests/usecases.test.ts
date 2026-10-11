@@ -731,6 +731,26 @@ describe('SystemUserUseCases', () => {
     assert.equal(again.ok ? '' : again.kind, 'conflict');
   });
 
+  it('edita o perfil; e-mail repetido dá conflito; o administrador não muda o próprio cargo', async () => {
+    const c = setup();
+    const admin = unwrap(await c.useCases.systemUsers.create({ email: 'admin@exemplo.com', name: 'Ana', role: 'admin', password: PASSWORD }));
+    const tutor = unwrap(await c.useCases.systemUsers.create({ email: 'tutor@exemplo.com', name: 'Tiago', role: 'tutor', password: PASSWORD }));
+
+    const own = unwrap(await c.useCases.systemUsers.updateOwn(tutor.id, { name: 'Tiago Souza', email: 'tiago@exemplo.com' }));
+    assert.deepEqual([own.name, own.email, own.role], ['Tiago Souza', 'tiago@exemplo.com', 'tutor']);
+    assert.ok((await c.useCases.systemUsers.login({ email: 'tiago@exemplo.com', password: PASSWORD })).ok);
+
+    const taken = await c.useCases.systemUsers.updateOwn(tutor.id, { email: 'admin@exemplo.com' });
+    assert.equal(taken.ok ? '' : taken.kind, 'conflict');
+
+    const ownRole = await c.useCases.systemUsers.updateByAdmin(admin.id, admin.id, { role: 'tutor' });
+    assert.equal(ownRole.ok ? '' : ownRole.kind, 'conflict');
+    assert.equal(unwrap(await c.useCases.systemUsers.get(admin.id)).role, 'admin');
+
+    const promoted = unwrap(await c.useCases.systemUsers.updateByAdmin(admin.id, tutor.id, { role: 'admin' }));
+    assert.equal(promoted.role, 'admin');
+  });
+
   it('o administrador inicial é criado uma vez só', async () => {
     const c = setup();
     const input = { email: 'admin@exemplo.com', password: PASSWORD, name: 'Admin' };

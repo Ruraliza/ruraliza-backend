@@ -170,6 +170,7 @@ Rotas públicas: login e redefinição de senha, cadastro (`POST /api/farmers` e
 | PATCH | `/api/farmers/:id/password` e `/api/workers/:id/password` | Troca com a conta aberta, sem código por e-mail: `{ current_password, new_password }`; 401 se a atual estiver errada, 400 se a nova for igual à atual. Cancela uma redefinição pendente |
 | POST | `/api/auth/system/login` | Login da equipe (usuários de sistema): `{ email, password }` → `{ message, user, token }`. Separado das contas do app |
 | GET | `/api/auth/system/me` | O usuário de sistema do token, com o cargo atual |
+| PATCH | `/api/auth/system/me` | O usuário de sistema edita o próprio perfil: `name`, `email` (o cargo só um administrador muda) |
 
 ### Conta (`/api/accounts`)
 
@@ -245,6 +246,8 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 | DELETE | `/api/admin/farmers/:id/photo` e `/api/admin/workers/:id/photo` | Remove a foto de perfil (ex.: imagem imprópria); a imagem é apagada e a pessoa pode enviar outra |
 | GET | `/api/admin/system-users` | A equipe (administradores e tutores) |
 | POST | `/api/admin/system-users` | Cadastra usuário de sistema: `{ email, name, role: "admin" \| "tutor", password }`; 409 se o e-mail já existe na equipe |
+| GET | `/api/admin/system-users/:id` | Um usuário de sistema |
+| PATCH | `/api/admin/system-users/:id` | Edita `name`, `email` e `role` de um membro da equipe; 409 se o e-mail já existe ou se o administrador tentar mudar o próprio cargo (a equipe nunca fica sem administrador) |
 
 ### Outros
 | Método | Rota | Descrição |

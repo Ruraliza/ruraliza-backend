@@ -78,5 +78,7 @@ export type ContractParity = [
   Expect<Equals<Api.SystemLoginResponse, FrontSystem.SystemLoginResponse>>,
   Expect<Equals<Api.SystemUserInput, FrontSystem.SystemUserInput>>,
   Expect<Equals<Api.SystemUserResponse, FrontSystem.SystemUserResponse>>,
-  Expect<Equals<Api.AdminUser, FrontSystem.AdminUser>>
+  Expect<Equals<Api.AdminUser, FrontSystem.AdminUser>>,
+  Expect<Equals<Api.SystemUserUpdate, FrontSystem.SystemUserUpdate>>,
+  Expect<Equals<Api.AdminSystemUserUpdate, FrontSystem.AdminSystemUserUpdate>>
 ];

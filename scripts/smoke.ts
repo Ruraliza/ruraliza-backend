@@ -878,7 +878,7 @@ async function administration({ ana, outro, carla, farmer, other, worker, worker
 
   console.log('\nEquipe');
   actAs(admin);
-  await step<SystemUserResponse>('cadastrar tutor', 'POST', '/admin/system-users',
+  const { system_user: tutorUser } = await step<SystemUserResponse>('cadastrar tutor', 'POST', '/admin/system-users',
     { email: 'Tutor@Exemplo.com', name: ' Tiago Tutor ', role: 'tutor', password: PW }, 201,
     (b) => assert.deepEqual([b.system_user.email, b.system_user.name, b.system_user.role], ['tutor@exemplo.com', 'Tiago Tutor', 'tutor']));
   await step('e-mail repetido na equipe', 'POST', '/admin/system-users', { email: 'tutor@exemplo.com', name: 'X', role: 'admin', password: PW }, 409);
@@ -893,6 +893,35 @@ async function administration({ ana, outro, carla, farmer, other, worker, worker
   await step<SystemUser>('sessão do tutor', 'GET', '/auth/system/me', undefined, 200, (b) => assert.equal(b.role, 'tutor'));
   await step('tutor não gerencia contas', 'GET', '/admin/users', undefined, 403);
   await step('tutor não cadastra equipe', 'POST', '/admin/system-users', { email: 'y@exemplo.com', name: 'Y', role: 'admin', password: PW }, 403);
+
+  console.log('\nPerfil dos usuários de sistema');
+  await step<SystemUserResponse>('tutor edita o próprio perfil', 'PATCH', '/auth/system/me', { name: ' Tiago Souza ', email: 'Tiago@Exemplo.com' }, 200,
+    (b) => assert.deepEqual([b.system_user.name, b.system_user.email, b.system_user.role], ['Tiago Souza', 'tiago@exemplo.com', 'tutor']));
+  await step<SystemUser>('a sessão já mostra os dados novos', 'GET', '/auth/system/me', undefined, 200, (b) => assert.equal(b.name, 'Tiago Souza'));
+  await step('tutor não muda o próprio cargo', 'PATCH', '/auth/system/me', { role: 'admin' }, 400);
+  await step('senha não muda pelo perfil', 'PATCH', '/auth/system/me', { password: 'outra-senha-1' }, 400);
+  await step('nome vazio', 'PATCH', '/auth/system/me', { name: '  ' }, 400);
+  await step('e-mail de outro membro', 'PATCH', '/auth/system/me', { email: 'admin@exemplo.com' }, 409);
+  await step('tutor não edita outro membro', 'PATCH', `/admin/system-users/${tutorUser.id}`, { name: 'X' }, 403);
+  await step('tutor entra com o e-mail novo', 'POST', '/auth/system/login', { email: 'tiago@exemplo.com', password: PW }, 200);
+  actAs(ana);
+  await step('conta do app não edita perfil de sistema', 'PATCH', '/auth/system/me', { name: 'X' }, 403);
+
+  actAs(admin);
+  const adminUser = await step<SystemUser>('sessão do administrador', 'GET', '/auth/system/me', undefined, 200);
+  await step<SystemUser>('detalhe de um membro', 'GET', `/admin/system-users/${tutorUser.id}`, undefined, 200,
+    (b) => assert.equal(b.email, 'tiago@exemplo.com'));
+  await step('detalhe de membro inexistente', 'GET', '/admin/system-users/999', undefined, 404);
+  await step<SystemUserResponse>('administrador promove o tutor', 'PATCH', `/admin/system-users/${tutorUser.id}`, { role: 'admin', name: 'Tiago Admin' }, 200,
+    (b) => assert.deepEqual([b.system_user.role, b.system_user.name], ['admin', 'Tiago Admin']));
+  await step('e-mail de outro membro na edição', 'PATCH', `/admin/system-users/${tutorUser.id}`, { email: 'admin@exemplo.com' }, 409);
+  await step('cargo inválido na edição', 'PATCH', `/admin/system-users/${tutorUser.id}`, { role: 'gerente' }, 400);
+  await step('editar membro inexistente', 'PATCH', '/admin/system-users/999', { name: 'X' }, 404);
+  await step('administrador não muda o próprio cargo', 'PATCH', `/admin/system-users/${adminUser.id}`, { role: 'tutor' }, 409);
+  await step<SystemUserResponse>('administrador edita o próprio nome pela equipe', 'PATCH', `/admin/system-users/${adminUser.id}`, { name: 'Ana Admin', role: 'admin' }, 200,
+    (b) => assert.equal(b.system_user.name, 'Ana Admin'));
+  actAs(tutor);
+  await step<SystemUser[]>('o tutor promovido já gerencia a equipe', 'GET', '/admin/system-users', undefined, 200);
 }
 
 function errorMessage(error: unknown): string {
