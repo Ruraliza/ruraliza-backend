@@ -1,8 +1,8 @@
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
+import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
 import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
 import { type Properties, type RefTo, type Schema, id, input, isoDate, nullableId, object, refTo } from '#shared/infra/docs/schema-kit';
-import { APPLICATION_STATUS, PAYMENT_STATUS } from '../constants/status';
 
 // Registro dos schemas OpenAPI do contrato (src/contracts): os genéricos (#shared/infra/docs),
 // os dos módulos já migrados e, aqui mesmo, os das partes ainda não migradas para src/modules.
@@ -12,18 +12,15 @@ import { APPLICATION_STATUS, PAYMENT_STATUS } from '../constants/status';
 export type SchemaName =
   | CoreSchemaName
   | ServiceSchemaName
-  | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
+  | HiringSchemaName
   | 'HealthResponse' | 'MapsConfig' | 'PushConfig'
   | FarmSchemaName
   | 'Farmer' | 'Worker'
-  | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
   | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate'
-  | 'AnalyzeInput' | 'WorkerActionInput'
   | 'UserRole' | 'SessionUser' | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
   | 'ProfileCreateInput' | 'ActiveRoleInput' | 'PushSubscriptionInput' | 'PushUnsubscribeInput'
   | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
   | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse'
-  | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse'
   | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
 const photoUrl: Schema = {
@@ -47,15 +44,7 @@ const ref: RefTo<SchemaName> = refTo;
 
 // --- Propriedades reaproveitadas ---
 
-const applicationProps: Properties = {
-  id,
-  service_id: id,
-  worker_id: id,
-  status: ref('ApplicationStatus'),
-  auto_rejected: { type: 'boolean', description: 'Recusada pelo aceite de outro candidato; volta a Pending se o aceito desistir.' },
-  insertion_date: isoDate
-};
-const applicationRequired = ['id', 'service_id', 'worker_id', 'status', 'insertion_date'];
+
 
 const cpf: Schema = {
   type: 'string',
@@ -126,10 +115,6 @@ const workerSchema: Schema = object(
 
 export const schemas = {
   // --- Status ---
-  ApplicationStatus: { type: 'string', enum: Object.values(APPLICATION_STATUS), example: 'Pending' },
-  PaymentStatus: { type: 'string', enum: Object.values(PAYMENT_STATUS) },
-  AnalyzeAction: { type: 'string', enum: ['Accept', 'Reject'] },
-
   // --- Respostas genéricas ---
   ...coreSchemas,
   HealthResponse: object({ message: { type: 'string' } }, ['message']),
@@ -152,27 +137,7 @@ export const schemas = {
   Worker: workerSchema,
   ...farmSchemas,
   ...serviceSchemas,
-  ServiceApplication: object(applicationProps, applicationRequired),
-  ApplicationWithWorker: object(
-    { ...applicationProps, worker: ref('Worker') },
-    [...applicationRequired, 'worker'],
-    'O CPF do trabalhador vem mascarado.'
-  ),
-  ApplicationWithService: object({ ...applicationProps, service: ref('OpenService') }, [...applicationRequired, 'service']),
-  Payment: object(
-    {
-      id,
-      service_id: id,
-      farmer_id: id,
-      worker_id: id,
-      value: { type: 'number', example: 900 },
-      status: ref('PaymentStatus'),
-      insertion_date: isoDate
-    },
-    ['id', 'service_id', 'farmer_id', 'worker_id', 'value', 'status', 'insertion_date'],
-    'Pagamento simulado: nenhum dinheiro é movimentado.'
-  ),
-
+  ...hiringSchemas,
   // --- Entradas ---
   FarmerInput: input(profileInputProps, ['email', 'name', 'phone', 'cpf', 'password'], 'Cadastro de produtor.'),
   FarmerUpdate: input(
@@ -199,13 +164,6 @@ export const schemas = {
     [],
     'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
   ),
-  AnalyzeInput: input(
-    { application_id: id, action: ref('AnalyzeAction') },
-    ['application_id', 'action'],
-    'Accept: o serviço passa a In Progress e as demais candidaturas pendentes são recusadas.'
-  ),
-  WorkerActionInput: input({ worker_id: id }, ['worker_id'], 'Trabalhador que executa a ação.'),
-
   // --- Acesso ---
   UserRole: { type: 'string', enum: ['farmer', 'worker'], example: 'farmer', description: 'Tipo de perfil. Uma conta pode ter um de cada.' },
   SessionUser: object(
@@ -299,23 +257,6 @@ export const schemas = {
     ['message', 'worker', 'user', 'token'],
     'Cadastro concluído: a conta foi criada e já está aberta (`user`, `token`).'
   ),
-  ApplicationResponse: object(
-    { message: { type: 'string', example: 'Application sent successfully!' }, application: ref('ServiceApplication') },
-    ['message', 'application']
-  ),
-  AnalyzeResponse: object(
-    {
-      message: { type: 'string', example: 'Worker accepted successfully. Service is now in progress!' },
-      application: ref('ServiceApplication'),
-      service: { allOf: [ref('Service')], description: 'Só no Accept.' }
-    },
-    ['message', 'application']
-  ),
-  PaymentResponse: object(
-    { message: { type: 'string', example: 'Payment released and service completed successfully!' }, service: ref('Service'), payment: ref('Payment') },
-    ['message', 'service', 'payment']
-  ),
-
   // --- Usuários de sistema e administração ---
   SystemRole: {
     type: 'string',

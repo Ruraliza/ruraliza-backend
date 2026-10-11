@@ -1,12 +1,12 @@
 import { type FarmRepository, findActiveFarm } from '#modules/farms';
+import type { ApplicationRepository } from '#modules/hiring';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, conflict, invalid, notFound, ok } from '#shared/domain/result';
-import type { ApplicationRepository } from '../../../domain/repositories';
-import type { Service, ServiceUpdate } from '../service.contract';
-import type { ServiceRepository } from '../domain/service.repository';
 import { SERVICE_STATUS } from '../domain/service-status';
+import type { ServiceRepository } from '../domain/service.repository';
 import { checkExpiry } from '../domain/service.rules';
+import type { Service, ServiceUpdate } from '../service.contract';
 import { notifyApplicants } from './notify-applicants';
 
 export interface UpdateServiceDeps {

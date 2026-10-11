@@ -2,8 +2,8 @@ import { invalid } from '#shared/domain/result';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { FarmerServiceItem, ServiceResponse, ServiceStatus, ServiceWithFarm } from '../service.contract';
 import { isServiceStatus, serviceStatusList } from '../domain/service-status';
+import type { FarmerServiceItem, ServiceResponse, ServiceStatus, ServiceWithFarm } from '../service.contract';
 import type { ServiceUseCases } from '../services.module';
 import { parseServiceInput, parseServiceUpdate } from './service.parsers';
 

@@ -1,8 +1,8 @@
 import type { FarmRepository } from '#modules/farms';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { OpenService } from '../service.contract';
 import type { ServiceRepository } from '../domain/service.repository';
 import { toOpenService } from '../domain/service.rules';
+import type { OpenService } from '../service.contract';
 
 export interface GetOpenServiceDeps {
   farms: FarmRepository;

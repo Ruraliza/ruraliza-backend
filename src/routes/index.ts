@@ -1,17 +1,17 @@
 import { createFarmRoutes } from '#modules/farms';
+import { createHiringRoutes } from '#modules/hiring';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
+import type { RouteGroup } from '#shared/infra/http/route';
 import type { Container } from '../container';
 import { createAccountController } from '../controllers/AccountController';
 import { createAdminController } from '../controllers/AdminController';
 import { createAuthController } from '../controllers/AuthController';
 import { createEventController } from '../controllers/EventController';
 import { createFarmerController } from '../controllers/FarmerController';
-import { createHiringController } from '../controllers/HiringController';
 import { createPhotoController } from '../controllers/PhotoController';
 import { createResumeController } from '../controllers/ResumeController';
 import { createWorkerController } from '../controllers/WorkerController';
 import { createAccess } from '../http/access';
-import type { RouteGroup } from '#shared/infra/http/route';
 import { accountRoutes } from './accountRoutes';
 import { adminRoutes } from './adminRoutes';
 import { authRoutes } from './authRoutes';
@@ -28,19 +28,19 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const auth = createAuthController(useCases.auth, useCases.systemUsers, tokens);
   const accounts = createAccountController(useCases.accounts, useCases.push);
   const farmers = createFarmerController(useCases.farmers, tokens);
-  const hiring = createHiringController(useCases.hiring);
   const workers = createWorkerController(useCases.workers, tokens);
   const photos = createPhotoController(useCases.photos);
   const resumes = createResumeController(useCases.resumes);
-  const events = createEventController(useCases.hiring, useCases.workers);
+  const events = createEventController(useCases.workers);
+  const hiring = createHiringRoutes(useCases.hiring, access);
   const services = createServiceRoutes(useCases.services, access);
   const admin = createAdminController({ admin: useCases.admin, farmers: useCases.farmers, workers: useCases.workers, photos: useCases.photos, systemUsers: useCases.systemUsers });
 
   return [
     { prefix: '/api/auth', routes: authRoutes(auth, access) },
     { prefix: '/api/accounts', routes: accountRoutes(accounts, access) },
-    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, hiring, photos, auth, events }, { farms: createFarmRoutes(useCases.farms, access), services }, access) },
-    { prefix: '/api/workers', routes: workerRoutes({ workers, hiring, photos, resumes, auth, events }, { services }, access) },
+    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, photos, auth }, { farms: createFarmRoutes(useCases.farms, access), services, hiring }, access) },
+    { prefix: '/api/workers', routes: workerRoutes({ workers, photos, resumes, auth, events }, { services, hiring }, access) },
     { prefix: '/api/admin', routes: adminRoutes(admin, access) },
     { prefix: '/api/images', routes: imageRoutes(photos) },
     { prefix: '/api/documents', routes: documentRoutes(resumes) },

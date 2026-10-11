@@ -6,12 +6,10 @@ export type * from './api';
 export type * from './auth';
 export type * from './config';
 export type * from './farmer';
-export type * from './payment';
 export type * from './push';
-export type * from './service-application';
-export type * from './status';
 export type * from './system';
 export type * from './worker';
 
 export type * from '../modules/farms/farm.contract';
 export type * from '../modules/services/service.contract';
+export type * from '../modules/hiring/hiring.contract';

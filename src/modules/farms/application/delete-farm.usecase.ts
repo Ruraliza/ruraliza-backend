@@ -5,7 +5,8 @@ import type { FarmerRepository } from '../../../domain/repositories';
 import type { FarmRepository } from '../domain/farm.repository';
 import { findOwnFarm } from './find-own-farm';
 
-const ACTIVE_SERVICE: readonly ServiceStatus[] = [SERVICE_STATUS.PENDING, SERVICE_STATUS.IN_PROGRESS];
+// Lido na chamada, não no carregamento: farms e services se importam (ver README, "Camadas e módulos").
+const isActive = (status: ServiceStatus): boolean => status === SERVICE_STATUS.PENDING || status === SERVICE_STATUS.IN_PROGRESS;
 
 export interface DeleteFarmDeps {
   farmers: FarmerRepository;
@@ -30,7 +31,7 @@ export class DeleteFarmUseCase {
 
     const { farmer, farm } = found.value;
     const farmServices = await this.deps.services.find({ farm_id: farm.id });
-    if (farmServices.some((s) => ACTIVE_SERVICE.includes(s.status))) {
+    if (farmServices.some((s) => isActive(s.status))) {
       return conflict('Não é possível remover: a fazenda tem serviços abertos ou em andamento. Cancele ou conclua-os antes.');
     }
 

@@ -1,8 +1,5 @@
-import type { ServiceResponse } from '#modules/services';
 import type { SessionUser } from './auth';
 import type { Farmer } from './farmer';
-import type { Payment } from './payment';
-import type { ServiceApplication } from './service-application';
 import type { Worker } from './worker';
 
 // Todo erro da API: status HTTP 400/401/403/404/409/500/503 com este corpo.
@@ -32,17 +29,6 @@ export interface FarmerSignupResponse extends FarmerResponse {
 export interface WorkerSignupResponse extends WorkerResponse {
   user: SessionUser;
   token: string;
-}
-
-export interface ApplicationResponse extends MessageResponse {
-  application: ServiceApplication;
-}
-
-// PATCH /farmers/services/:id/analyze: o aceite também devolve o serviço (agora In Progress).
-export type AnalyzeResponse = ApplicationResponse | (ApplicationResponse & ServiceResponse);
-
-export interface PaymentResponse extends ServiceResponse {
-  payment: Payment;
 }
 
 export interface HealthResponse {

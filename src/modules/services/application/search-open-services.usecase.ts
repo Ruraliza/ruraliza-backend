@@ -1,12 +1,11 @@
 import type { FarmRepository } from '#modules/farms';
+import { APPLICATION_STATUS, type ApplicationRepository } from '#modules/hiring';
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
-import { APPLICATION_STATUS } from '../../../constants/status';
-import type { ApplicationRepository } from '../../../domain/repositories';
-import type { JobFilters, OpenService } from '../service.contract';
-import type { ServiceRepository } from '../domain/service.repository';
 import { SERVICE_STATUS } from '../domain/service-status';
+import type { ServiceRepository } from '../domain/service.repository';
 import { isExpired, toOpenService } from '../domain/service.rules';
+import type { JobFilters, OpenService } from '../service.contract';
 
 export interface SearchOpenServicesDeps {
   farms: FarmRepository;

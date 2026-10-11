@@ -46,15 +46,15 @@ describe('HiringUseCases', () => {
       await worker(c, 'w2@exemplo.com', '39053344705'),
       await worker(c, 'w3@exemplo.com', '93541134780')
     ];
-    const a1 = unwrap(await c.useCases.hiring.apply(serviceId, w1));
-    const a2 = unwrap(await c.useCases.hiring.apply(serviceId, w2));
-    const a3 = unwrap(await c.useCases.hiring.apply(serviceId, w3));
+    const a1 = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w1 }));
+    const a2 = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w2 }));
+    const a3 = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w3 }));
 
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: a3.id, action: 'Reject' }));
-    const accepted = unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: a1.id, action: 'Accept' }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a3.id, action: 'Reject' }));
+    const accepted = unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a1.id, action: 'Accept' }));
     assert.equal(accepted.service?.status, 'In Progress');
 
-    const withdrawn = unwrap(await c.useCases.hiring.withdraw(serviceId, w1));
+    const withdrawn = unwrap(await c.useCases.hiring.withdrawFromService.execute({ serviceId: serviceId, workerId: w1 }));
     assert.equal(withdrawn.undone, 'service');
     assert.equal(withdrawn.service.status, 'Pending');
     assert.equal(withdrawn.service.worker_id, null);
@@ -72,10 +72,10 @@ describe('HiringUseCases', () => {
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
 
-    const app = unwrap(await c.useCases.hiring.apply(serviceId, w));
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Reject' }));
+    const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Reject' }));
 
-    const reapply = await c.useCases.hiring.apply(serviceId, w);
+    const reapply = await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w });
     assert.equal(reapply.ok ? 'ok' : reapply.kind, 'conflict');
   });
 
@@ -86,8 +86,8 @@ describe('HiringUseCases', () => {
     const w1 = await worker(c, 'w1@exemplo.com', '11144477735');
     const w2 = await worker(c, 'w2@exemplo.com', '39053344705');
 
-    const app = unwrap(await c.useCases.hiring.apply(serviceId, w1));
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Reject' }));
+    const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w1 }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Reject' }));
 
     const forRejected = await c.useCases.services.searchOpenServices.execute({ worker_id: w1 });
     assert.equal(forRejected.some((s) => s.id === serviceId), false);
@@ -102,12 +102,12 @@ describe('HiringUseCases', () => {
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
 
-    const early = await c.useCases.hiring.pay(serviceId);
+    const early = await c.useCases.hiring.payService.execute({ serviceId: serviceId });
     assert.equal(early.ok ? 'ok' : early.kind, 'conflict');
 
-    const app = unwrap(await c.useCases.hiring.apply(serviceId, w));
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Accept' }));
-    const { service, payment } = unwrap(await c.useCases.hiring.pay(serviceId));
+    const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
+    const { service, payment } = unwrap(await c.useCases.hiring.payService.execute({ serviceId: serviceId }));
     assert.equal(service.status, 'Completed');
     assert.equal(payment.value, 200);
     assert.equal(payment.worker_id, w);
@@ -149,9 +149,9 @@ describe('Localização da fazenda para o trabalhador', () => {
     assert.equal(open?.farm.latitude, undefined);
     assert.equal(unwrap(await c.useCases.services.getOpenService.execute({ serviceId: serviceId, viewerWorkerId: accepted })).farm.latitude, undefined);
 
-    const app = unwrap(await c.useCases.hiring.apply(serviceId, accepted));
-    unwrap(await c.useCases.hiring.apply(serviceId, other));
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Accept' }));
+    const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: accepted }));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: other }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
 
     const seen = unwrap(await c.useCases.services.getOpenService.execute({ serviceId: serviceId, viewerWorkerId: accepted })).farm;
     assert.deepEqual([seen.latitude, seen.longitude], [-22.1165, -43.2092]);
@@ -172,8 +172,8 @@ describe('Localização da fazenda para o trabalhador', () => {
     await c.repos.farms.update({ ...farm, latitude: null, longitude: null });
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'a@exemplo.com', '11144477735');
-    const app = unwrap(await c.useCases.hiring.apply(serviceId, w));
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Accept' }));
+    const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
 
     assert.equal('latitude' in unwrap(await c.useCases.services.getOpenService.execute({ serviceId: serviceId, viewerWorkerId: w })).farm, false);
   });
@@ -185,13 +185,13 @@ describe('FarmerUseCases', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    const app = unwrap(await c.useCases.hiring.apply(serviceId, w));
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: app.id, action: 'Accept' }));
+    const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
 
     const blocked = await c.useCases.farmers.delete(farmerId);
     assert.equal(blocked.ok ? 'ok' : blocked.kind, 'conflict');
 
-    unwrap(await c.useCases.hiring.pay(serviceId));
+    unwrap(await c.useCases.hiring.payService.execute({ serviceId: serviceId }));
     unwrap(await c.useCases.farmers.delete(farmerId));
 
     assert.equal(await c.repos.farmers.findById(farmerId), undefined);
@@ -208,9 +208,9 @@ describe('FarmerUseCases', () => {
     const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
     const session = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
 
-    const own = await c.useCases.hiring.apply(serviceId, session.id);
+    const own = await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: session.id });
     assert.equal(own.ok ? '' : own.message, 'Você não pode se candidatar a um serviço que você mesmo publicou.');
-    unwrap(await c.useCases.hiring.apply(serviceId, await worker(c, 'outro@exemplo.com', '11144477735')));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId, workerId: await worker(c, 'outro@exemplo.com', '11144477735') }));
   });
 });
 
@@ -421,7 +421,7 @@ describe('Validade das vagas (expires_at)', () => {
     // 02/10 à 00h01 de Brasília: venceu.
     setNow('2026-10-02T03:01:00.000Z');
     assert.equal((await c.useCases.services.searchOpenServices.execute()).some((s) => s.id === service.id), false);
-    const late = await c.useCases.hiring.apply(service.id, w);
+    const late = await c.useCases.hiring.applyForService.execute({ serviceId: service.id, workerId: w });
     assert.equal(late.ok ? '' : late.kind, 'conflict');
     assert.equal((await c.useCases.services.getService.execute({ serviceId: service.id })).ok, true); // continua existindo, Pending
 
@@ -430,7 +430,7 @@ describe('Validade das vagas (expires_at)', () => {
     assert.equal(past.ok ? '' : past.kind, 'invalid');
     unwrap(await c.useCases.services.updateService.execute({ serviceId: service.id, changes: { expires_at: '2026-10-10' } }));
     assert.ok((await c.useCases.services.searchOpenServices.execute()).some((s) => s.id === service.id));
-    unwrap(await c.useCases.hiring.apply(service.id, w));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: service.id, workerId: w }));
   });
 });
 
@@ -504,9 +504,9 @@ describe('Currículo', () => {
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     const url = unwrap(await c.useCases.resumes.setWorkerResume(w, PDF())).resume_url;
-    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
 
-    const [application] = unwrap(await c.useCases.hiring.listApplications(serviceId));
+    const [application] = unwrap(await c.useCases.hiring.listServiceApplications.execute({ serviceId: serviceId }));
     assert.equal(application?.worker.resume_url, url);
   });
 
@@ -525,7 +525,7 @@ describe('Avisos em tempo real (SSE)', () => {
     let calls = 0;
     const listener = (): void => { calls++; };
     const stop = unwrap(kind === 'service'
-      ? await c.useCases.hiring.watchApplications(id, listener)
+      ? await c.useCases.hiring.watchServiceApplications.execute({ serviceId: id, listener: listener })
       : await c.useCases.workers.watchApplications(id, listener));
     return { count: () => calls, stop };
   }
@@ -537,13 +537,13 @@ describe('Avisos em tempo real (SSE)', () => {
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     const farmerScreen = await watch(c, 'service', serviceId);
 
-    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
     assert.equal(farmerScreen.count(), 1);
-    unwrap(await c.useCases.hiring.withdraw(serviceId, w));
+    unwrap(await c.useCases.hiring.withdrawFromService.execute({ serviceId: serviceId, workerId: w }));
     assert.equal(farmerScreen.count(), 2);
 
     farmerScreen.stop();
-    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
     assert.equal(farmerScreen.count(), 2); // parou de acompanhar
   });
 
@@ -552,14 +552,14 @@ describe('Avisos em tempo real (SSE)', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const [w1, w2] = [await worker(c, 'w1@exemplo.com', '11144477735'), await worker(c, 'w2@exemplo.com', '39053344705')];
-    const a1 = unwrap(await c.useCases.hiring.apply(serviceId, w1));
-    unwrap(await c.useCases.hiring.apply(serviceId, w2));
+    const a1 = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w1 }));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w2 }));
     const [screen1, screen2] = [await watch(c, 'worker', w1), await watch(c, 'worker', w2)];
 
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: a1.id, action: 'Accept' }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a1.id, action: 'Accept' }));
     assert.deepEqual([screen1.count(), screen2.count()], [1, 1]); // aceito e recusado pelo aceite
 
-    unwrap(await c.useCases.hiring.withdraw(serviceId, w1));
+    unwrap(await c.useCases.hiring.withdrawFromService.execute({ serviceId: serviceId, workerId: w1 }));
     assert.deepEqual([screen1.count(), screen2.count()], [2, 2]); // a do 2º volta a Pending
 
     unwrap(await c.useCases.services.cancelService.execute({ serviceId: serviceId }));
@@ -569,7 +569,7 @@ describe('Avisos em tempo real (SSE)', () => {
   it('acompanhar serviço ou trabalhador inexistente dá not_found', async () => {
     const c = setup();
     const noop = (): void => undefined;
-    const service = await c.useCases.hiring.watchApplications(999, noop);
+    const service = await c.useCases.hiring.watchServiceApplications.execute({ serviceId: 999, listener: noop });
     const w = await c.useCases.workers.watchApplications(999, noop);
     assert.deepEqual([service.ok ? '' : service.kind, w.ok ? '' : w.kind], ['not_found', 'not_found']);
   });
@@ -609,8 +609,8 @@ describe('Notificações push', () => {
     unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w1 }), { endpoint: 'https://push.exemplo.com/w1', keys: KEYS }));
     unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w2 }), { endpoint: 'https://push.exemplo.com/w2', keys: KEYS }));
 
-    const a1 = unwrap(await c.useCases.hiring.apply(serviceId, w1));
-    unwrap(await c.useCases.hiring.apply(serviceId, w2));
+    const a1 = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w1 }));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w2 }));
     await c.useCases.push.idle();
     assert.deepEqual(sent.map((s) => [s.endpoint, s.url]), [
       ['https://push.exemplo.com/produtor', `produtor/servicos/${serviceId}`],
@@ -618,7 +618,7 @@ describe('Notificações push', () => {
     ]);
 
     sent.length = 0;
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: a1.id, action: 'Accept' }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a1.id, action: 'Accept' }));
     await c.useCases.push.idle();
     assert.deepEqual(sent.map((s) => [s.endpoint, s.title]), [
       ['https://push.exemplo.com/w1', 'Você foi aceito!'],
@@ -638,7 +638,7 @@ describe('Notificações push', () => {
     assert.equal((await c.repos.pushSubscriptions.find()).length, 1);
 
     unwrap(await c.useCases.push.subscribe(await accountOf(c, { worker_id: w }), { endpoint: ENDPOINT, keys: KEYS }));
-    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
     await c.useCases.push.idle();
     assert.equal(sent.length, 0); // o aparelho agora é do trabalhador, não do produtor
   });
@@ -650,7 +650,7 @@ describe('Notificações push', () => {
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     unwrap(await c.useCases.push.subscribe(await accountOf(c, { farmer_id: farmerId }), { endpoint: ENDPOINT, keys: KEYS }));
 
-    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
     await c.useCases.push.idle();
     assert.equal((await c.repos.pushSubscriptions.find()).length, 0);
   });
@@ -664,7 +664,7 @@ describe('Notificações push', () => {
     unwrap(await c.useCases.push.subscribe(farmerAccount, { endpoint: ENDPOINT, keys: KEYS }));
     unwrap(await c.useCases.push.unsubscribe(farmerAccount, ENDPOINT));
 
-    unwrap(await c.useCases.hiring.apply(serviceId, w));
+    unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
     await c.useCases.push.idle();
     assert.equal(sent.length, 0);
 
@@ -682,7 +682,7 @@ describe('Notificações push', () => {
     const original = console.error;
     console.error = () => {};
     try {
-      unwrap(await c.useCases.hiring.apply(serviceId, w));
+      unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
       await c.useCases.push.idle();
     } finally {
       console.error = original;
@@ -793,8 +793,8 @@ describe('AdminUseCases', () => {
     unwrap(await c.useCases.accounts.addProfile(id, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
-    const application = unwrap(await c.useCases.hiring.apply(serviceId, w));
-    unwrap(await c.useCases.hiring.analyze(serviceId, { application_id: application.id, action: 'Accept' }));
+    const application = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: application.id, action: 'Accept' }));
 
     const blocked = await c.useCases.admin.deleteUser(id);
     assert.equal(blocked.ok ? '' : blocked.kind, 'conflict');

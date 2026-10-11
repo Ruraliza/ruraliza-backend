@@ -1,7 +1,7 @@
 import { type FarmRepository, farmOf } from '#modules/farms';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { ServiceWithFarm } from '../service.contract';
 import type { ServiceRepository } from '../domain/service.repository';
+import type { ServiceWithFarm } from '../service.contract';
 
 export interface GetServiceDeps {
   farms: FarmRepository;

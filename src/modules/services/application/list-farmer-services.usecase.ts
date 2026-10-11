@@ -1,9 +1,9 @@
 import { type FarmRepository, farmOf } from '#modules/farms';
+import { APPLICATION_STATUS, type ApplicationRepository } from '#modules/hiring';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import { APPLICATION_STATUS } from '../../../constants/status';
-import type { ApplicationRepository, FarmerRepository } from '../../../domain/repositories';
-import type { FarmerServiceItem, ServiceStatus } from '../service.contract';
+import type { FarmerRepository } from '../../../domain/repositories';
 import type { ServiceRepository } from '../domain/service.repository';
+import type { FarmerServiceItem, ServiceStatus } from '../service.contract';
 
 export interface ListFarmerServicesDeps {
   farmers: FarmerRepository;

@@ -1,5 +1,5 @@
+import type { ApplicationRepository } from '#modules/hiring';
 import { type ChangeFeed, serviceApplications, workerApplications } from '#shared/domain/changes';
-import type { ApplicationRepository } from '../../../domain/repositories';
 
 // Avisa a tela de candidaturas do serviço e a de todos os candidatos dele
 // (as candidaturas do trabalhador mostram nome, valor e cidade do serviço).

@@ -1,17 +1,15 @@
 import type { AuthController } from '../controllers/AuthController';
-import type { EventController } from '../controllers/EventController';
 import type { FarmerController } from '../controllers/FarmerController';
-import type { HiringController } from '../controllers/HiringController';
 import type { PhotoController } from '../controllers/PhotoController';
 import { IMAGE_UPLOAD, TAGS, operation, pathParam } from '../docs/operations';
 import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
+import type { HiringRoutes } from '#modules/hiring';
 import type { ServiceRoutes } from '#modules/services';
 import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/farmers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
 
 const farmerId = pathParam('id', 'ID do produtor.');
-const serviceId = pathParam('id', 'ID do serviço.');
 const farmId = pathParam('farmId', 'ID da fazenda (ativa e do produtor da rota).');
 const photoId = { name: 'photoId', in: 'path' as const, required: true, description: 'Id da foto (`farm.photos[].id`).', schema: { type: 'string' as const } };
 const uploadErrors = {
@@ -21,68 +19,21 @@ const uploadErrors = {
 
 export interface FarmerRouteControllers {
   farmers: FarmerController;
-  hiring: HiringController;
   photos: PhotoController;
   auth: AuthController;
-  events: EventController;
 }
 
 export function farmerRoutes(
-  { farmers, hiring, photos, auth, events }: FarmerRouteControllers,
-  modules: { farms: readonly RouteDef[]; services: ServiceRoutes },
+  { farmers, photos, auth }: FarmerRouteControllers,
+  modules: { farms: readonly RouteDef[]; services: ServiceRoutes; hiring: HiringRoutes },
   access: AccessPolicies
 ): readonly RouteDef[] {
   return [
     // --- SERVIÇOS ---
 
-    // Publicar, ver, editar e cancelar vêm do módulo (src/modules/services); candidaturas, aceite e pagamento, daqui.
+    // Publicar, ver, editar e cancelar (src/modules/services); candidaturas, aceite e pagamento (src/modules/hiring).
     ...modules.services.services,
-
-    route('get', '/services/:id/applications', hiring.listServiceApplications, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Candidaturas do serviço',
-      params: [serviceId],
-      success: { status: 200, description: 'Candidaturas com o trabalhador embutido (CPF mascarado).', schema: { listOf: 'ApplicationWithWorker' } },
-      errors: { 404: 'Serviço não encontrado.' }
-    }), access.farmerOfService()),
-
-    route('get', '/services/:id/events', events.serviceApplicationEvents, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Acompanhar candidaturas em tempo real (SSE)',
-      description:
-        'Server-Sent Events (`text/event-stream`), para usar com `EventSource` no navegador. A conexão fica aberta e ' +
-        '`event: applications` (com `data: {}`) chega a cada mudança; o aviso não traz dados: busque a lista de novo em `GET /api/farmers/services/{id}/applications`. ' +
-        'Avisa quando alguém se candidata ou desiste, quando uma candidatura é aceita/recusada e quando o serviço é editado, cancelado ou pago. ' +
-        'A cada 25 s vai um comentário (`: ping`) para manter a conexão viva.',
-      params: [serviceId],
-      success: { status: 200, description: 'Stream de eventos aberto.', eventStream: true },
-      errors: { 404: 'Serviço não encontrado.' }
-    }), access.farmerOfService('id', { tokenInQuery: true })),
-
-    route('patch', '/services/:id/analyze', hiring.analyzeOffer, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Aceitar ou recusar candidatura (RF03)',
-      description:
-        '**Accept**: a candidatura é aceita, o serviço vai para `In Progress` com o trabalhador, e as demais pendentes são recusadas (`auto_rejected`).\n\n' +
-        '**Reject**: só a candidatura é recusada.',
-      params: [serviceId],
-      body: 'AnalyzeInput',
-      success: { status: 200, description: 'Candidatura analisada. No Accept, traz também o serviço.', schema: 'AnalyzeResponse' },
-      errors: {
-        400: '`action` diferente de Accept/Reject; `application_id` faltando; candidatura de outro serviço.',
-        404: 'Serviço ou candidatura não encontrados.',
-        409: 'O serviço não está mais `Pending`; a candidatura já foi analisada.'
-      }
-    }), access.farmerOfService()),
-
-    route('post', '/services/:id/payment', hiring.processPayment, operation({
-      tag: TAGS.farmerServices,
-      summary: 'Liberar pagamento (RF04)',
-      description: 'Simulação: registra o pagamento do valor do serviço e o conclui (`Completed`). Nenhum dinheiro é movimentado.',
-      params: [serviceId],
-      success: { status: 200, description: 'Pagamento registrado e serviço concluído.', schema: 'PaymentResponse' },
-      errors: { 404: 'Serviço não encontrado.', 409: 'O serviço não está `In Progress`.' }
-    }), access.farmerOfService()),
+    ...modules.hiring.farmer,
 
     // --- PRODUTORES ---
 

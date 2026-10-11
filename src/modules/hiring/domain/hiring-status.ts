@@ -1,6 +1,6 @@
-import type { ApplicationStatus, PaymentStatus } from '../contracts';
+import type { ApplicationStatus, PaymentStatus } from '../hiring.contract';
 
-// Status em inglês na API; a tradução acontece só na UI. (SERVICE_STATUS fica em src/modules/services.)
+// Status em inglês na API; a tradução acontece só na UI.
 export const APPLICATION_STATUS = Object.freeze({
   PENDING: 'Pending',
   ACCEPTED: 'Accepted',

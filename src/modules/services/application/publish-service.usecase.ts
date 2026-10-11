@@ -2,10 +2,10 @@ import { type FarmRepository, findActiveFarm } from '#modules/farms';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, invalid, notFound, ok } from '#shared/domain/result';
 import type { FarmerRepository } from '../../../domain/repositories';
-import type { Service, ServiceInput } from '../service.contract';
-import type { ServiceRepository } from '../domain/service.repository';
 import { SERVICE_STATUS } from '../domain/service-status';
+import type { ServiceRepository } from '../domain/service.repository';
 import { checkExpiry } from '../domain/service.rules';
+import type { Service, ServiceInput } from '../service.contract';
 
 export interface PublishServiceDeps {
   farmers: FarmerRepository;

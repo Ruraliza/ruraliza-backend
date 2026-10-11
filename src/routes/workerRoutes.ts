@@ -1,22 +1,20 @@
 import type { AuthController } from '../controllers/AuthController';
 import type { EventController } from '../controllers/EventController';
-import type { HiringController } from '../controllers/HiringController';
 import type { PhotoController } from '../controllers/PhotoController';
 import type { ResumeController } from '../controllers/ResumeController';
 import type { WorkerController } from '../controllers/WorkerController';
 import { IMAGE_UPLOAD, PDF_UPLOAD, TAGS, operation, pathParam } from '../docs/operations';
 import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
+import type { HiringRoutes } from '#modules/hiring';
 import type { ServiceRoutes } from '#modules/services';
 import { type RouteDef, route } from '#shared/infra/http/route';
 
 // Montadas em /api/workers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
 
 const workerId = pathParam('id', 'ID do trabalhador.');
-const serviceId = pathParam('id', 'ID do serviço (vaga).');
 
 export interface WorkerRouteControllers {
   workers: WorkerController;
-  hiring: HiringController;
   photos: PhotoController;
   resumes: ResumeController;
   auth: AuthController;
@@ -24,46 +22,16 @@ export interface WorkerRouteControllers {
 }
 
 export function workerRoutes(
-  { workers, hiring, photos, resumes, auth, events }: WorkerRouteControllers,
-  modules: { services: ServiceRoutes },
+  { workers, photos, resumes, auth, events }: WorkerRouteControllers,
+  modules: { services: ServiceRoutes; hiring: HiringRoutes },
   access: AccessPolicies
 ): readonly RouteDef[] {
   return [
     // --- VAGAS ---
 
-    // Buscar e ver vêm do módulo (src/modules/services); candidatura e desistência, daqui.
+    // Buscar e ver (src/modules/services); candidatura e desistência (src/modules/hiring).
     ...modules.services.jobs,
-
-    route('post', '/services/:id/apply', hiring.applyForService, operation({
-      tag: TAGS.jobs,
-      summary: 'Candidatar-se (RF02)',
-      params: [serviceId],
-      body: 'WorkerActionInput',
-      success: { status: 201, description: 'Candidatura `Pending` criada.', schema: 'ApplicationResponse' },
-      errors: {
-        400: '`worker_id` faltando.',
-        404: 'Serviço ou trabalhador não encontrados.',
-        409: 'A vaga não está aberta; o prazo da vaga (`expires_at`) terminou; o trabalhador já se candidatou; o serviço foi publicado pelo perfil de produtor da mesma conta.'
-      }
-    }), access.workerInBody()),
-
-    route('patch', '/services/:id/withdraw', hiring.withdrawFromService, operation({
-      tag: TAGS.jobs,
-      summary: 'Desistir (candidatura ou serviço aceito)',
-      description:
-        'Volta uma etapa:\n\n' +
-        '- **Candidatura `Pending`**: é removida (pode se candidatar de novo).\n' +
-        '- **Já aceito (serviço `In Progress`)**: o serviço volta a `Pending` sem trabalhador, e as candidaturas ' +
-        'recusadas pelo aceite (`auto_rejected`) voltam a `Pending`. As recusadas pelo produtor continuam recusadas.',
-      params: [serviceId],
-      body: 'WorkerActionInput',
-      success: { status: 200, description: 'Desistência registrada. Traz o serviço atualizado.', schema: 'ServiceResponse' },
-      errors: {
-        400: '`worker_id` faltando.',
-        404: 'Serviço não encontrado; o trabalhador não tem candidatura neste serviço.',
-        409: 'A candidatura já foi recusada ou o serviço já foi encerrado.'
-      }
-    }), access.workerInBody()),
+    ...modules.hiring.worker,
 
     // --- TRABALHADORES ---
 

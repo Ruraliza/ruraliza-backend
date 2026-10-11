@@ -1,23 +1,17 @@
 import { type Farm, createInMemoryFarmRepository } from '#modules/farms';
 import type { ChangeTopic } from '#shared/domain/changes';
-import type { ApplicationStatus, Farmer, ServiceApplication, UserRole } from '../../../contracts';
-import type { PushMessage } from '../../../domain/push';
+import { type SentPush, adjustableClock, recordingChangeFeed, recordingPush } from '#shared/testing/recorders';
+import type { ApplicationStatus, Farmer, ServiceApplication } from '../../../contracts';
 import { createInMemoryRepositories } from '../../../infra/memory';
+import { createInMemoryServiceRepository } from '../infra/in-memory-service.repository';
 import type { Service } from '../service.contract';
 import type { ServicesModuleDeps } from '../services.module';
-import { createInMemoryServiceRepository } from '../infra/in-memory-service.repository';
 
 // Dependências dos casos de uso de serviço, todas em memória, com relógio ajustável e
 // avisos (SSE) e pushes gravados para conferir; e dados mínimos para montar cada cenário.
 
 // 30/09/2026 ao meio-dia em Brasília (15h UTC): "hoje" é 2026-09-30.
 export const NOW = '2026-09-30T15:00:00.000Z';
-
-export interface SentPush {
-  role: UserRole;
-  profileId: number;
-  message: PushMessage;
-}
 
 export interface ServicesTestbed extends ServicesModuleDeps {
   setNow(iso: string): void;
@@ -27,20 +21,20 @@ export interface ServicesTestbed extends ServicesModuleDeps {
 
 export function servicesTestbed(): ServicesTestbed {
   const { farmers, applications } = createInMemoryRepositories();
-  let now = NOW;
-  const published: ChangeTopic[][] = [];
-  const pushes: SentPush[] = [];
+  const clock = adjustableClock(NOW);
+  const changes = recordingChangeFeed();
+  const push = recordingPush();
   return {
     farmers,
     farms: createInMemoryFarmRepository(),
     services: createInMemoryServiceRepository(),
     applications,
-    clock: { now: () => now },
-    changes: { publish: (topics) => { published.push([...topics]); }, subscribe: () => () => undefined },
-    push: { notify: (role, profileId, message) => { pushes.push({ role, profileId, message }); } },
-    setNow: (iso) => { now = iso; },
-    published,
-    pushes
+    clock,
+    changes,
+    push,
+    setNow: clock.set,
+    published: changes.published,
+    pushes: push.sent
   };
 }
 

@@ -1,27 +1,27 @@
+import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
+import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
+import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
+import { authTokenSecret } from '#shared/config';
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Clock, systemClock } from '#shared/domain/clock';
 import type { DocumentStore } from '#shared/domain/documents';
 import type { ImageProcessor, ImageStore } from '#shared/domain/images';
-import type { ResetTokens } from './domain/passwords';
 import type { PasswordHasher } from '#shared/domain/passwords';
-import type { PushSender } from './domain/push';
 import type { SessionTokens } from '#shared/domain/tokens';
-import type { Repositories } from './domain/repositories';
-import { authTokenSecret } from '#shared/config';
 import { createHmacSessionTokens, randomResetTokens, scryptPasswordHasher } from '#shared/infra/crypto/node-crypto';
-import { SharpImageProcessor } from '#shared/infra/images/sharp-image-processor';
-import { createInMemoryRepositories } from './infra/memory';
-import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
 import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-document-store';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
+import { SharpImageProcessor } from '#shared/infra/images/sharp-image-processor';
+import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
 import { WebPushSender } from '#shared/infra/push/web-push-sender';
-import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
-import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
+import type { ResetTokens } from './domain/passwords';
+import type { PushSender } from './domain/push';
+import type { Repositories } from './domain/repositories';
+import { createInMemoryRepositories } from './infra/memory';
 import { AccountUseCases } from './usecases/AccountUseCases';
 import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
 import { FarmerUseCases } from './usecases/FarmerUseCases';
-import { HiringUseCases } from './usecases/HiringUseCases';
 import { PhotoUseCases } from './usecases/PhotoUseCases';
 import { PushUseCases } from './usecases/PushUseCases';
 import { ResumeUseCases } from './usecases/ResumeUseCases';
@@ -106,7 +106,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       workers: workerUseCases,
       farms: createFarmUseCases({ farmers, farms, services, clock }),
       services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: pushUseCases }),
-      hiring: new HiringUseCases({ services, applications, workers, payments, accounts }, clock, changes, pushUseCases),
+      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: pushUseCases }),
       photos: new PhotoUseCases({ farmers, workers, farms }, { processor: imageProcessor, store: images }),
       resumes: new ResumeUseCases({ workers }, documents),
       push: pushUseCases,
