@@ -8,7 +8,7 @@ import { dayOf } from '#shared/domain/dates';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { Repositories } from './domain/repositories';
 import { SERVICE_STATUS } from '#modules/services';
-import { createAccount } from './usecases/accounts';
+import { createAccount } from '#modules/accounts';
 
 export const SEED_PASSWORD = 'ruraliza123';
 

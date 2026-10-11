@@ -1,3 +1,4 @@
+import { type AccountUseCases, type ProfileFactory, createAccountUseCases } from '#modules/accounts';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
@@ -18,7 +19,6 @@ import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
 import type { ResetTokens } from './domain/passwords';
 import type { Repositories } from './domain/repositories';
 import { createInMemoryRepositories } from './infra/memory';
-import { AccountUseCases } from './usecases/AccountUseCases';
 import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
 import { FarmerUseCases } from './usecases/FarmerUseCases';
@@ -91,6 +91,12 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const notifier = createPushDispatcher(pushDeps);
   const farmerUseCases = new FarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions }, clock, images, passwords, changes);
   const workerUseCases = new WorkerUseCases({ workers, farmers, services, applications, farms, accounts, pushSubscriptions }, clock, { images, documents }, passwords, changes);
+  // O segundo perfil de uma conta (src/modules/accounts) é criado pelos casos de uso dos perfis.
+  const profiles: ProfileFactory = {
+    create: (role, { bio, certificates, courses, experience, ...base }) => role === 'farmer'
+      ? farmerUseCases.createProfile(base)
+      : workerUseCases.createProfile({ ...base, bio, certificates, courses, experience })
+  };
 
   return {
     repos,
@@ -103,7 +109,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
     notifier,
     useCases: {
       auth: new AuthUseCases({ farmers, workers, accounts }, clock, { hasher: passwords, resetTokens }),
-      accounts: new AccountUseCases({ accounts, farmers, workers }, { farmers: farmerUseCases, workers: workerUseCases }),
+      accounts: createAccountUseCases({ accounts, farmers, workers, profiles }),
       farmers: farmerUseCases,
       workers: workerUseCases,
       farms: createFarmUseCases({ farmers, farms, services, clock }),

@@ -1,3 +1,4 @@
+import { createInMemoryAccountRepository } from '#modules/accounts';
 import { createInMemoryFarmRepository } from '#modules/farms';
 import { createInMemoryApplicationRepository, createInMemoryPaymentRepository } from '#modules/hiring';
 import { createInMemoryPushSubscriptionRepository } from '#modules/notifications';
@@ -14,7 +15,7 @@ export function createInMemoryRepositories(): Repositories {
     services: createInMemoryServiceRepository(),
     applications: createInMemoryApplicationRepository(),
     payments: createInMemoryPaymentRepository(),
-    accounts: new InMemoryRepository(['email', 'farmer_id', 'worker_id', 'reset_token_digest'], (data, id) => ({ id, ...data })),
+    accounts: createInMemoryAccountRepository(),
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
     systemUsers: new InMemoryRepository(['email'], (data, id) => ({ id, ...data }))
   };

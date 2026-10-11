@@ -1,9 +1,10 @@
+import { type AccountSchemaName, accountSchemas } from '#modules/accounts';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
 import { type PushSchemaName, pushSchemas } from '#modules/notifications';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
 import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
-import { type Properties, type RefTo, type Schema, id, input, isoDate, nullableId, object, refTo } from '#shared/infra/docs/schema-kit';
+import { type Properties, type RefTo, type Schema, id, input, isoDate, object, refTo } from '#shared/infra/docs/schema-kit';
 
 // Registro dos schemas OpenAPI do contrato (src/contracts): os genéricos (#shared/infra/docs),
 // os dos módulos já migrados e, aqui mesmo, os das partes ainda não migradas para src/modules.
@@ -19,9 +20,10 @@ export type SchemaName =
   | FarmSchemaName
   | 'Farmer' | 'Worker'
   | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate'
-  | 'UserRole' | 'SessionUser' | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
-  | 'ProfileCreateInput' | 'ActiveRoleInput'
-  | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
+  | AccountSchemaName
+  | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
+  | 'ProfileCreateInput'
+  | 'LoginResponse' | 'PasswordResetRequestResponse'
   | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse'
   | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
@@ -162,17 +164,7 @@ export const schemas = {
     'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
   ),
   // --- Acesso ---
-  UserRole: { type: 'string', enum: ['farmer', 'worker'], example: 'farmer', description: 'Tipo de perfil. Uma conta pode ter um de cada.' },
-  SessionUser: object(
-    {
-      account_id: id,
-      role: ref('UserRole'),
-      id,
-      profiles: object({ farmer: nullableId, worker: nullableId }, ['farmer', 'worker'], 'Perfis da conta (null = ainda não tem).')
-    },
-    ['account_id', 'role', 'id', 'profiles'],
-    'Quem entrou. `role`/`id` são o perfil ativo (o painel aberto): o id é do produtor ou do trabalhador, conforme `role`.'
-  ),
+  ...accountSchemas,
   LoginInput: input(
     {
       email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' },
@@ -207,12 +199,10 @@ export const schemas = {
     ['role', 'name', 'phone', 'cpf'],
     'Segundo perfil na mesma conta: o e-mail e a senha são os da conta. `bio`, `certificates`, `courses` e `experience` só valem para trabalhador.'
   ),
-  ActiveRoleInput: input({ role: ref('UserRole') }, ['role'], 'Painel a abrir. A conta precisa ter esse perfil.'),
   LoginResponse: object(
     { message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SessionUser'), token: sessionToken },
     ['message', 'user', 'token']
   ),
-  SessionResponse: object({ message: { type: 'string', example: 'Profile created successfully!' }, user: ref('SessionUser') }, ['message', 'user']),
   PasswordResetRequestResponse: object(
     {
       message: { type: 'string', example: 'Password reset requested (simulation: the e-mail was not sent).' },

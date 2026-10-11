@@ -1,9 +1,9 @@
-import type { SessionResponse, SessionUser } from '../contracts';
 import { toBody } from '#shared/infra/http/body';
-import { parseActiveRole, parseProfileCreate } from '../http/parsers';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { AccountUseCases } from '../usecases/AccountUseCases';
+import type { SessionResponse, SessionUser } from '../accounts.contract';
+import type { AccountUseCases } from '../accounts.module';
+import { parseActiveRole, parseProfileCreate } from './account.parsers';
 
 // HTTP da conta: sessão atual, segundo perfil e troca de painel. As inscrições de push ficam em src/modules/notifications.
 export interface AccountController {
@@ -15,7 +15,7 @@ export interface AccountController {
 export function createAccountController(accounts: AccountUseCases): AccountController {
   // GET /api/accounts/:id - Sessão da conta (perfis e painel aberto)
   const getAccount: Handler<SessionUser, IdParams> = async (req, res) => {
-    const result = await accounts.get(toId(req.params.id));
+    const result = await accounts.getAccount.execute({ accountId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json(result.value);
   };
@@ -25,7 +25,7 @@ export function createAccountController(accounts: AccountUseCases): AccountContr
     const input = parseProfileCreate(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
-    const result = await accounts.addProfile(toId(req.params.id), input.value);
+    const result = await accounts.addProfile.execute({ accountId: toId(req.params.id), input: input.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(201).json({ message: 'Profile created successfully!', user: result.value });
   };
@@ -35,7 +35,7 @@ export function createAccountController(accounts: AccountUseCases): AccountContr
     const input = parseActiveRole(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
-    const result = await accounts.setActiveRole(toId(req.params.id), input.value.role);
+    const result = await accounts.setActiveRole.execute({ accountId: toId(req.params.id), role: input.value.role });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Active profile changed successfully!', user: result.value });
   };

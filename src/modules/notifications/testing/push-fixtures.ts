@@ -1,5 +1,5 @@
+import type { Account } from '#modules/accounts';
 import { fixedClock } from '#shared/testing/fixed-clock';
-import type { Account } from '../../../domain/passwords';
 import { createInMemoryRepositories } from '../../../infra/memory';
 import type { PushDelivery, PushMessage, PushSubscriptionRecord } from '../domain/push';
 import { createInMemoryPushSubscriptionRepository } from '../infra/in-memory-push-subscription.repository';

@@ -1,5 +1,5 @@
+import type { AccountRepository } from '#modules/accounts';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { AccountRepository } from '../../../domain/repositories';
 import type { PushSubscriptionRepository } from '../domain/push-subscription.repository';
 
 export interface UnsubscribePushDeps {

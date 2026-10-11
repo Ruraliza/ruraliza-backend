@@ -1,5 +1,4 @@
 import type {
-  ActiveRoleInput,
   AdminSystemUserUpdate,
   LoginInput,
   FarmerInput,
@@ -7,10 +6,8 @@ import type {
   PasswordChangeInput,
   PasswordResetInput,
   PasswordResetRequestInput,
-  ProfileCreateInput,
   SystemUserInput,
   SystemUserUpdate,
-  UserRole,
   WorkerUpdate
 } from '../contracts';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '#shared/domain/passwords';
@@ -79,7 +76,7 @@ export function parseProfileUpdate(body: Body): Result<FarmerUpdate> {
 }
 
 // Texto opcional do perfil (certificados, experiência): vazio vira null no cadastro.
-function optionalText(value: unknown): string | null {
+export function optionalText(value: unknown): string | null {
   return value ? text(value) : null;
 }
 
@@ -88,14 +85,14 @@ function nullableText(value: unknown): string | null {
   return value === null ? null : text(value);
 }
 
-const WORKER_TEXTS = [
+export const WORKER_TEXTS = [
   ['bio', 'A apresentação', MAX_BIO],
   ['certificates', 'Certificados', MAX_LONG_TEXT],
   ['courses', 'Cursos', MAX_LONG_TEXT],
   ['experience', 'Experiência', MAX_LONG_TEXT]
 ] as const;
 
-function workerTextProblem(values: Partial<Record<(typeof WORKER_TEXTS)[number][0], string | null>>): string | null {
+export function workerTextProblem(values: Partial<Record<(typeof WORKER_TEXTS)[number][0], string | null>>): string | null {
   for (const [field, label, max] of WORKER_TEXTS) {
     const problem = tooLong(label, values[field], max);
     if (problem) return problem;
@@ -130,13 +127,6 @@ export function parseWorkerUpdate(body: Body): Result<WorkerUpdate> {
 }
 
 // --- Acesso ---
-
-const USER_ROLES: readonly UserRole[] = ['farmer', 'worker'];
-
-function parseRole(value: unknown): Result<UserRole> {
-  const role = USER_ROLES.find((r) => r === value);
-  return role ? ok(role) : invalid("O tipo de perfil (role) deve ser 'farmer' ou 'worker'.");
-}
 
 export function parseLoginInput(body: Body): Result<LoginInput> {
   const missing = missingFields(body, ['email', 'password']);
@@ -216,38 +206,6 @@ export function parsePasswordResetRequest(body: Body): Result<PasswordResetReque
   const email = normalizeEmail(body['email']);
   if (!isValidEmail(email)) return invalid('E-mail inválido. Use o formato nome@dominio.com.');
   return ok({ email });
-}
-
-// --- Conta (segundo perfil e troca de painel) ---
-
-// Segundo perfil: o e-mail e a senha são os da conta, então não vêm aqui.
-export function parseProfileCreate(body: Body): Result<ProfileCreateInput> {
-  const missing = missingFields(body, ['role', 'name', 'phone', 'cpf']);
-  if (missing.length > 0) return invalid(missingMessage(missing));
-  if (body['email'] !== undefined || body['password'] !== undefined) {
-    return invalid('O e-mail e a senha são os da sua conta e não são enviados aqui.');
-  }
-
-  const role = parseRole(body['role']);
-  if (!role.ok) return role;
-  const cpf = body['cpf'];
-  if (!isValidCpf(cpf)) return invalid('CPF inválido. Envie os 11 dígitos, só números, e confira se estão corretos.');
-
-  const profile: ProfileCreateInput = { role: role.value, name: text(body['name']).trim(), phone: text(body['phone']), cpf };
-  if (role.value === 'worker') {
-    for (const [field] of WORKER_TEXTS) profile[field] = optionalText(body[field]);
-    const problem = workerTextProblem(profile);
-    if (problem) return invalid(problem);
-  }
-  return ok(profile);
-}
-
-export function parseActiveRole(body: Body): Result<ActiveRoleInput> {
-  const missing = missingFields(body, ['role']);
-  if (missing.length > 0) return invalid(missingMessage(missing));
-
-  const role = parseRole(body['role']);
-  return role.ok ? ok({ role: role.value }) : role;
 }
 
 export function parsePasswordReset(body: Body): Result<PasswordResetInput> {

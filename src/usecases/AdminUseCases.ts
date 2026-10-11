@@ -1,9 +1,9 @@
-import type { AdminUser } from '../contracts';
-import type { Account } from '../domain/passwords';
-import type { AccountRepository, FarmerRepository, WorkerRepository } from '../domain/repositories';
+import type { Account, AccountRepository } from '#modules/accounts';
 import { SERVICE_STATUS, type ServiceRepository } from '#modules/services';
 import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';
+import type { AdminUser } from '../contracts';
+import type { FarmerRepository, WorkerRepository } from '../domain/repositories';
 import type { FarmerUseCases } from './FarmerUseCases';
 import type { WorkerUseCases } from './WorkerUseCases';
 

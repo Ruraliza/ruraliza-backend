@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
+import type { Account } from '#modules/accounts';
 import type { ApiError } from '../../../contracts';
-import type { Account } from '../../../domain/passwords';
 import type { SystemUserRecord } from '../../../domain/system-users';
 
 // Parâmetros de rota (sempre string na URL).

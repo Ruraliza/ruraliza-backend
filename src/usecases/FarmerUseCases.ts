@@ -1,3 +1,4 @@
+import { type AccountRepository, changeAccountEmail, checkNewAccount, createAccount, toSession, unlinkProfile } from '#modules/accounts';
 import type { FarmRepository } from '#modules/farms';
 import type { ApplicationRepository } from '#modules/hiring';
 import type { PushSubscriptionRepository } from '#modules/notifications';
@@ -9,12 +10,7 @@ import type { PasswordHasher } from '#shared/domain/passwords';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';
 import type { Farmer, FarmerInput, FarmerUpdate, SessionUser } from '../contracts';
-import type {
-  AccountRepository,
-  FarmerRepository,
-  WorkerRepository
-} from '../domain/repositories';
-import { changeAccountEmail, checkNewAccount, createAccount, toSession, unlinkProfile } from './accounts';
+import type { FarmerRepository, WorkerRepository } from '../domain/repositories';
 import { checkProfileUnique } from './shared';
 
 // Dados do perfil de produtor (a senha é da conta).

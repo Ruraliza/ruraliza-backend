@@ -1,7 +1,6 @@
+import type { AccountRepository, UserRole } from '#modules/accounts';
+import { findAccountOf } from '#modules/accounts';
 import type { PushMessage, PushNotifier, PushSender } from '#modules/notifications';
-import type { UserRole } from '../../../contracts';
-import type { AccountRepository } from '../../../domain/repositories';
-import { findAccountOf } from '../../../usecases/accounts';
 import type { PushSubscriptionRepository } from '../domain/push-subscription.repository';
 
 export interface PushDispatcherDeps {

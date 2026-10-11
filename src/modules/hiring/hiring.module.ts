@@ -1,8 +1,9 @@
+import type { AccountRepository } from '#modules/accounts';
 import type { PushNotifier } from '#modules/notifications';
 import type { ServiceRepository } from '#modules/services';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
-import type { AccountRepository, WorkerRepository } from '../../domain/repositories';
+import type { WorkerRepository } from '../../domain/repositories';
 import type { AccessPolicies } from '../../http/access';
 import { AnalyzeApplicationUseCase } from './application/analyze-application.usecase';
 import { ApplyForServiceUseCase } from './application/apply-for-service.usecase';

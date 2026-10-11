@@ -1,14 +1,17 @@
-import type { AccountController } from '../controllers/AccountController';
-import { TAGS, operation, pathParam } from '../docs/operations';
-import type { AccessPolicies } from '../http/access';
+import { TAGS, operation, pathParam } from '#shared/infra/docs/operations';
 import { type RouteDef, route } from '#shared/infra/http/route';
+import type { AccessPolicies } from '../../../http/access';
+import type { AccountController } from './account.controller';
+import type { AccountSchemaName } from './account.schemas';
 
 const accountId = pathParam('id', 'ID da conta (`account_id` da sessão).');
+// 'ProfileCreateInput' ainda é do registro legado (montado com as peças dos schemas de perfil).
+const accountOperation = operation<AccountSchemaName | 'ProfileCreateInput'>;
 
 // Montadas em /api/accounts. Uma conta tem um e-mail, uma senha e até um perfil de cada tipo.
 export function accountRoutes(accounts: AccountController, pushRoutes: readonly RouteDef[], access: AccessPolicies): readonly RouteDef[] {
   return [
-    route('get', '/:id', accounts.getAccount, operation({
+    route('get', '/:id', accounts.getAccount, accountOperation({
       tag: TAGS.auth,
       summary: 'Sessão da conta',
       description: 'Os perfis da conta e o painel aberto, no mesmo formato do login.',
@@ -17,7 +20,7 @@ export function accountRoutes(accounts: AccountController, pushRoutes: readonly 
       errors: { 404: 'Conta não encontrada.' }
     }), access.ownAccount()),
 
-    route('post', '/:id/profiles', accounts.createAccountProfile, operation({
+    route('post', '/:id/profiles', accounts.createAccountProfile, accountOperation({
       tag: TAGS.auth,
       summary: 'Criar o outro perfil na conta',
       description:
@@ -33,7 +36,7 @@ export function accountRoutes(accounts: AccountController, pushRoutes: readonly 
       }
     }), access.ownAccount()),
 
-    route('patch', '/:id/active-role', accounts.setActiveRole, operation({
+    route('patch', '/:id/active-role', accounts.setActiveRole, accountOperation({
       tag: TAGS.auth,
       summary: 'Trocar o painel aberto',
       description: 'Também define o painel que abre no próximo login.',

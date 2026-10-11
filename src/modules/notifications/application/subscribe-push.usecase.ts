@@ -1,8 +1,8 @@
+import type { AccountRepository } from '#modules/accounts';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { AccountRepository } from '../../../domain/repositories';
-import type { PushSubscriptionInput } from '../push.contract';
 import type { PushSubscriptionRepository } from '../domain/push-subscription.repository';
+import type { PushSubscriptionInput } from '../push.contract';
 
 export interface SubscribePushDeps {
   accounts: AccountRepository;

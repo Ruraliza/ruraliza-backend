@@ -206,7 +206,7 @@ describe('FarmerUseCases', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
-    const session = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
+    const session = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } }));
 
     const own = await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: session.id });
     assert.equal(own.ok ? '' : own.message, 'Você não pode se candidatar a um serviço que você mesmo publicou.');
@@ -234,18 +234,18 @@ describe('Contas', () => {
     const first = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD }));
     assert.deepEqual(first, { account_id: first.account_id, role: 'farmer', id: farmerId, profiles: { farmer: farmerId, worker: null } });
 
-    const both = unwrap(await c.useCases.accounts.addProfile(first.account_id, { role: 'worker', ...workerProfile, experience: '3 anos' }));
+    const both = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: first.account_id, input: { role: 'worker', ...workerProfile, experience: '3 anos' } }));
     assert.equal(both.role, 'worker');
     assert.deepEqual(both.profiles, { farmer: farmerId, worker: both.id });
     const created = await c.repos.workers.findById(both.id);
     assert.deepEqual([created?.email, created?.experience], ['ana@exemplo.com', '3 anos']);
 
-    const again = await c.useCases.accounts.addProfile(first.account_id, { role: 'worker', ...workerProfile });
+    const again = await c.useCases.accounts.addProfile.execute({ accountId: first.account_id, input: { role: 'worker', ...workerProfile } });
     assert.equal(again.ok ? '' : again.kind, 'conflict');
 
     // A mesma senha abre o último painel usado; trocar de painel muda o próximo login.
     assert.equal(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).role, 'worker');
-    assert.equal(unwrap(await c.useCases.accounts.setActiveRole(first.account_id, 'farmer')).id, farmerId);
+    assert.equal(unwrap(await c.useCases.accounts.setActiveRole.execute({ accountId: first.account_id, role: 'farmer' })).id, farmerId);
     assert.equal(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).role, 'farmer');
   });
 
@@ -255,7 +255,7 @@ describe('Contas', () => {
     await worker(c, 'w@exemplo.com', '11144477735');
     const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
 
-    const taken = await c.useCases.accounts.addProfile(accountId, { role: 'worker', ...workerProfile, cpf: '11144477735' });
+    const taken = await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', ...workerProfile, cpf: '11144477735' } });
     assert.equal(taken.ok ? '' : taken.kind, 'conflict');
   });
 
@@ -264,9 +264,9 @@ describe('Contas', () => {
     await farmerWithFarm(c);
     const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
 
-    const missing = await c.useCases.accounts.setActiveRole(accountId, 'worker');
+    const missing = await c.useCases.accounts.setActiveRole.execute({ accountId: accountId, role: 'worker' });
     assert.equal(missing.ok ? '' : missing.kind, 'not_found');
-    const ghost = await c.useCases.accounts.setActiveRole(999, 'farmer');
+    const ghost = await c.useCases.accounts.setActiveRole.execute({ accountId: 999, role: 'farmer' });
     assert.equal(ghost.ok ? '' : ghost.kind, 'not_found');
   });
 
@@ -274,7 +274,7 @@ describe('Contas', () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
     const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
-    const workerId = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', ...workerProfile })).id;
+    const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', ...workerProfile } })).id;
     await worker(c, 'w@exemplo.com', '11144477735');
 
     const taken = await c.useCases.farmers.update(farmerId, { email: 'w@exemplo.com' });
@@ -289,7 +289,7 @@ describe('Contas', () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
     const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
-    const workerId = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', ...workerProfile })).id;
+    const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', ...workerProfile } })).id;
 
     unwrap(await c.useCases.workers.delete(workerId));
     assert.deepEqual(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).profiles, { farmer: farmerId, worker: null });
@@ -359,7 +359,7 @@ describe('AuthUseCases', () => {
     const { farmerId } = await farmerWithFarm(c);
     const { reset_token } = unwrap(await c.useCases.auth.requestReset({ email: 'ana@exemplo.com' }));
     const accountId = unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
-    const workerId = unwrap(await c.useCases.accounts.addProfile(accountId, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' })).id;
+    const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } })).id;
 
     const wrong = await c.useCases.auth.changePassword('farmer', farmerId, { current_password: 'errada-123', new_password: 'nova-senha-1' });
     assert.equal(wrong.ok ? '' : wrong.kind, 'unauthorized');
@@ -764,7 +764,7 @@ describe('AdminUseCases', () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
     const id = await accountId(c, { farmer_id: farmerId });
-    const session = unwrap(await c.useCases.accounts.addProfile(id, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
+    const session = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: id, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } }));
 
     unwrap(await c.useCases.workers.delete(session.profiles.worker ?? 0));
     const user = unwrap(await c.useCases.admin.getUser(id));
@@ -775,7 +775,7 @@ describe('AdminUseCases', () => {
     const c = setup();
     const { farmerId } = await farmerWithFarm(c);
     const id = await accountId(c, { farmer_id: farmerId });
-    unwrap(await c.useCases.accounts.addProfile(id, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
+    unwrap(await c.useCases.accounts.addProfile.execute({ accountId: id, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } }));
     unwrap(await c.useCases.push.subscribe.execute({ accountId: id, input: { endpoint: 'https://push.exemplo.com/ana', keys: { p256dh: 'p', auth: 'a' } } }));
 
     unwrap(await c.useCases.admin.deleteUser(id));
@@ -790,7 +790,7 @@ describe('AdminUseCases', () => {
     const { farmerId, farmId } = await farmerWithFarm(c);
     const id = await accountId(c, { farmer_id: farmerId });
     // A conta também é trabalhadora (perfil sem bloqueio): não pode sumir sozinha.
-    unwrap(await c.useCases.accounts.addProfile(id, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' }));
+    unwrap(await c.useCases.accounts.addProfile.execute({ accountId: id, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } }));
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     const application = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));

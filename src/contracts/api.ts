@@ -1,4 +1,4 @@
-import type { SessionUser } from './auth';
+import type { SessionUser } from '#modules/accounts';
 import type { Farmer } from './farmer';
 import type { Worker } from './worker';
 
