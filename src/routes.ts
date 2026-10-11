@@ -11,6 +11,7 @@ import { platformRoutes } from '#modules/platform';
 import { createReviewRoutes } from '#modules/reviews';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
 import { createSystemUserRoutes } from '#modules/system-users';
+import { createTrackRoutes } from '#modules/tracks';
 import { createWorkerRoutes } from '#modules/workers';
 import type { RouteGroup } from '#shared/infra/http/route';
 import type { Container } from './container';
@@ -31,6 +32,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const hiring = createHiringRoutes(useCases.hiring, access);
   const reviews = createReviewRoutes(useCases.reviews, access);
   const chat = createChatRoutes(useCases.chat, access);
+  const tracks = createTrackRoutes(useCases.tracks, access);
 
   return [
     { prefix: '/api/auth', routes: [...auth.auth, ...systemUsers.auth] },
@@ -54,6 +56,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
       prefix: '/api/workers',
       routes: [
         ...services.jobs, // buscar e ver vagas
+        ...tracks.learning, // trilhas de estudo: lista, detalhe e matrícula
         ...hiring.worker, // candidatura e desistência
         ...reviews.worker, // avaliar a fazenda e o que falta avaliar
         ...chat.worker, // conversas do trabalhador
@@ -61,15 +64,17 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
         ...auth.workerPassword,
         ...photos.worker,
         ...workers.resume,
-        ...workers.tracking // candidaturas, avisos e serviços aceitos
+        ...workers.tracking, // candidaturas, avisos e serviços aceitos
+        ...tracks.progress // estudo da trilha, aulas concluídas e certificados
       ]
     },
     { prefix: '/api/chats', routes: chat.chats },
     { prefix: '/api/reviews', routes: reviews.reputation },
-    { prefix: '/api/admin', routes: createAdminRoutes(useCases, systemUsers.admin, access) },
+    { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage] },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },
     { prefix: '/api/categories', routes: categoryRoutes },
+    { prefix: '/api/certificates', routes: tracks.certificates },
     { prefix: '/api', routes: [...platformRoutes, ...push.config] }
   ];
 }

@@ -11,8 +11,10 @@ API do **Ruraliza**: conecta produtores rurais a trabalhadores para serviços na
 - **Sessão**: \`POST /api/auth/login\` (produtor/trabalhador) e \`POST /api/auth/system/login\` (equipe) devolvem um \`token\`
   que vale 12 horas. As rotas com cadeado exigem \`Authorization: Bearer <token>\` (botão **Authorize**) e só deixam
   cada conta mexer no que é dela. As contas de teste usam a senha \`ruraliza123\`: \`produtor@exemplo.com\`,
-  \`trabalhador@exemplo.com\`, \`ambos@exemplo.com\` e, na equipe, \`admin@exemplo.com\`.
+  \`trabalhador@exemplo.com\`, \`ambos@exemplo.com\` e, na equipe, \`admin@exemplo.com\` e \`tutor@exemplo.com\`.
 - **Usuários de sistema** (cargos \`admin\` e \`tutor\`) não se cadastram pelo app: um administrador cria em \`/api/admin/system-users\`.
+- **Trilhas de estudo**: os tutores montam em \`/api/admin/tracks\`; os trabalhadores estudam em \`/api/workers/tracks\` e ganham um
+  certificado, validado por qualquer pessoa em \`/api/certificates/{code}\`. Trilhas nunca são removidas, só descontinuadas.
 - Erros sempre em \`{ "error": "mensagem" }\`: 400 validação, 401 sem sessão (ou e-mail/senha incorretos), 403 sem permissão,
   404 não encontrado, 409 conflito de estado.
 - Status em inglês: serviço \`Pending → In Progress → Completed\` (ou \`Cancelled\`); candidatura \`Pending → Accepted | Rejected\`.
@@ -32,6 +34,9 @@ const TAG_DESCRIPTIONS: Record<(typeof TAGS)[keyof typeof TAGS], string> = {
   [TAGS.documents]: 'Currículos dos trabalhadores (PDF, até 5 MB).',
   [TAGS.reviews]: 'Avaliação dupla depois do serviço concluído: o produtor avalia o trabalhador, o trabalhador avalia a fazenda. As notas só aparecem quando os dois avaliaram (ou o prazo acaba).',
   [TAGS.chat]: 'Conversa do serviço entre o produtor e o trabalhador aceito, com o WhatsApp protegido até os dois liberarem.',
+  [TAGS.tracks]: 'Trilhas de estudo do lado dos tutores: criar, montar módulos e aulas, publicar e descontinuar (não há remoção).',
+  [TAGS.learning]: 'Trilhas de estudo do lado do trabalhador: listar por categoria, começar, concluir aulas e certificados.',
+  [TAGS.certificates]: 'Validação pública dos certificados de conclusão pelo código.',
   [TAGS.admin]: 'Gerenciamento das contas do app e da equipe, pelos usuários de sistema com cargo de administrador.'
 };
 

@@ -71,4 +71,15 @@ describe('políticas de acesso', () => {
     assert.equal(await outcome(manageUsers.authorize(request(tokens.issue({ kind: 'system', id: tutor.id })))), 'forbidden');
     assert.equal(await outcome(manageUsers.authorize(request(tokens.issue({ kind: 'system', id: admin.id })))), 'ok');
   });
+
+  it('lista de permissões: qualquer uma libera (trilhas: tutor e administrador)', async () => {
+    const tutor = await t.systemUsers.create({ email: 't@exemplo.com', name: 'T', role: 'tutor', password_hash: 'h', insertion_date: NOW });
+    const admin = await t.systemUsers.create({ email: 'a@exemplo.com', name: 'A', role: 'admin', password_hash: 'h', insertion_date: NOW });
+    const tracks = access.system(['tracks:manage', 'tracks:oversee']);
+
+    assert.equal(tracks.rule, 'Usuário de sistema com a permissão `tracks:manage` ou `tracks:oversee`.');
+    assert.equal(await outcome(tracks.authorize(request(tokens.issue({ kind: 'system', id: tutor.id })))), 'ok');
+    assert.equal(await outcome(tracks.authorize(request(tokens.issue({ kind: 'system', id: admin.id })))), 'ok');
+    assert.equal(await outcome(access.system('tracks:manage').authorize(request(tokens.issue({ kind: 'system', id: admin.id })))), 'forbidden');
+  });
 });

@@ -4,7 +4,7 @@
 import Ajv, { type ValidateFunction } from 'ajv-draft-04';
 import type { OpenAPIV3 } from 'openapi-types';
 
-type Method = 'get' | 'post' | 'patch' | 'delete';
+type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 interface Operation {
   method: Method;
@@ -17,7 +17,7 @@ interface Operation {
 // Devolve uma mensagem de erro, ou null se a resposta bate com a documentação.
 export type OpenApiChecker = (method: string, path: string, status: number, body: unknown) => string | null;
 
-const METHODS: readonly Method[] = ['get', 'post', 'patch', 'delete'];
+const METHODS: readonly Method[] = ['get', 'post', 'put', 'patch', 'delete'];
 
 function collectOperations(document: OpenAPIV3.Document): Operation[] {
   const operations: Operation[] = [];

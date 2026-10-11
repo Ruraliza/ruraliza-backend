@@ -2,8 +2,9 @@
 // As datas são relativas ao relógio, então a demonstração vale em qualquer dia: há vagas publicadas em
 // dias diferentes (filtros from/to e sort=recent) e com todos os casos de prazo (sem prazo, vence em
 // alguns dias, vence hoje e já vencida). As contas de teste entram com a senha SEED_PASSWORD:
-// uma só de produtor, uma só de trabalhador e uma com os dois perfis; e, na equipe, um administrador.
-// Depois das vagas abertas vem o histórico das avaliações e da conversa (src/seed-history.ts).
+// uma só de produtor, uma só de trabalhador e uma com os dois perfis; e, na equipe, um administrador
+// e um tutor (com as trilhas de demonstração de src/seed-tracks.ts). Depois das vagas abertas vem o
+// histórico das avaliações e da conversa (src/seed-history.ts).
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
 import type { PasswordHasher } from '#shared/domain/passwords';
@@ -11,6 +12,7 @@ import type { Repositories } from './repositories';
 import { SERVICE_STATUS } from '#modules/services';
 import { createAccount } from '#modules/accounts';
 import { seedHistory } from './seed-history';
+import { seedTracks } from './seed-tracks';
 
 export const SEED_PASSWORD = 'ruraliza123';
 
@@ -35,6 +37,13 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
     email: 'admin@exemplo.com',
     name: 'Ana Administradora',
     role: 'admin',
+    password_hash: await passwords.hash(SEED_PASSWORD),
+    insertion_date: now
+  });
+  const tutor = await repos.systemUsers.create({
+    email: 'tutor@exemplo.com',
+    name: 'Tiago Tutor',
+    role: 'tutor',
     password_hash: await passwords.hash(SEED_PASSWORD),
     insertion_date: now
   });
@@ -149,4 +158,5 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   await seedHistory(repos, now, passwords, SEED_PASSWORD, {
     farmerId: farmer.id, farmSaoJose: farmSaoJose.id, farmBoaVista: farmBoaVista.id, mariaId: worker.id, carlosWorkerId: bothWorker.id
   });
+  await seedTracks(repos, now, tutor.id, worker.id);
 }

@@ -11,7 +11,7 @@ export {
   toSystemUser
 } from './domain/system-user';
 export { createInMemorySystemUserRepository } from './infra/in-memory-system-user.repository';
-export { systemUserId } from './presentation/system-principal';
+export { systemActor, systemUserId } from './presentation/system-principal';
 export type { SystemUserRoutes } from './presentation/system-user.routes';
 export { type SystemUserSchemaName, systemUserSchemas } from './presentation/system-user.schemas';
 export { type SystemUserUseCases, type SystemUsersModuleDeps, createSystemUserRoutes, createSystemUserUseCases } from './system-users.module';

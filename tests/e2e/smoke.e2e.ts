@@ -44,7 +44,17 @@ import type {
   SystemUserResponse,
   AdminUser,
   WorkerResponse,
-  WorkerSignupResponse
+  WorkerSignupResponse,
+  Certificate,
+  EnrolledTrack,
+  EnrolledTrackResponse,
+  LessonCompletionResponse,
+  ManagedTrack,
+  ManagedTrackResponse,
+  ManagedTrackSummary,
+  TrackDetail,
+  TrackTutor,
+  WorkerTrackSummary
 } from '../../src/contracts';
 import { FRONTEND_ORIGIN } from '#shared/config';
 import { isRecord } from '#shared/infra/http/body';
@@ -58,7 +68,7 @@ const container = createContainer();
 const { app, document } = createApi(container);
 const checkAgainstOpenApi = createOpenApiChecker(document);
 
-type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 interface CallResult {
   status: number;
@@ -1074,6 +1084,135 @@ async function administration({ ana, outro, carla, farmer, other, worker, worker
     (b) => assert.equal(b.system_user.name, 'Ana Admin'));
   actAs(tutor);
   await step<SystemUser[]>('o tutor promovido já gerencia a equipe', 'GET', '/admin/system-users', undefined, 200);
+
+  await tracksFlow(admin);
+}
+
+// Trilhas de estudo: o tutor monta e publica, o trabalhador estuda e ganha o certificado,
+// qualquer pessoa valida, e a trilha descontinuada continua para quem já começou.
+async function tracksFlow(admin: string): Promise<void> {
+  console.log('\nTrilhas de estudo (tutor)');
+  actAs(admin);
+  const tutorIds: number[] = [];
+  for (const [email, name] of [['rita@exemplo.com', 'Rita Tutora'], ['caio@exemplo.com', 'Caio Tutor']] as const) {
+    const { system_user } = await step<SystemUserResponse>(`cadastrar tutor ${name}`, 'POST', '/admin/system-users', { email, name, role: 'tutor', password: PW }, 201);
+    tutorIds.push(system_user.id);
+  }
+  const { token: rita } = await step<SystemLoginResponse>('tutora entra', 'POST', '/auth/system/login', { email: 'rita@exemplo.com', password: PW }, 200);
+  const { token: caio } = await step<SystemLoginResponse>('outro tutor entra', 'POST', '/auth/system/login', { email: 'caio@exemplo.com', password: PW }, 200);
+
+  actAs(rita);
+  await step<TrackTutor[]>('tutores disponíveis', 'GET', '/admin/tracks/tutors', undefined, 200,
+    (b) => assert.deepEqual(b.map((x) => x.name), ['Caio Tutor', 'Rita Tutora']));
+  await step('trilha sem categoria', 'POST', '/admin/tracks', { title: 'Café', description: 'Curso', categories: [] }, 400);
+  await step('categoria fora da lista', 'POST', '/admin/tracks', { title: 'Café', description: 'Curso', categories: ['Pescaria'] }, 400);
+  const { track: draft } = await step<ManagedTrackResponse>('criar trilha', 'POST', '/admin/tracks',
+    { title: 'Colheita de café', description: 'Do pé à saca.', categories: ['Colheita'] }, 201,
+    (b) => assert.deepEqual([b.track.status, b.track.is_tutor, b.track.tutors.map((x) => x.name)], ['draft', true, ['Rita Tutora']]));
+  await step('publicar sem aulas', 'PATCH', `/admin/tracks/${draft.id}/status`, { status: 'published' }, 409);
+  await step('vídeo de outro site', 'PUT', `/admin/tracks/${draft.id}/content`,
+    { modules: [{ title: 'M', lessons: [{ title: 'A', video_url: 'https://exemplo.com/a.mp4', duration_minutes: 5 }] }] }, 400);
+  await step('aula sem vídeo nem texto', 'PUT', `/admin/tracks/${draft.id}/content`, { modules: [{ title: 'M', lessons: [{ title: 'A', duration_minutes: 5 }] }] }, 400);
+  const { track: filled } = await step<ManagedTrackResponse>('salvar módulos e aulas', 'PUT', `/admin/tracks/${draft.id}/content`, {
+    modules: [
+      { title: 'Antes de colher', lessons: [
+        { title: 'O ponto do grão', video_url: 'https://youtu.be/dQw4w9WgXcQ', content: '## Cereja', duration_minutes: 30 },
+        { title: 'Segurança', content: 'Luvas e botina.', duration_minutes: 30 }
+      ] },
+      { title: 'Na lavoura', lessons: [{ title: 'Derriça', content: 'No pano.', duration_minutes: 45 }] }
+    ]
+  }, 200, (b) => {
+    assert.equal(b.track.workload_minutes, 105);
+    assert.equal(b.track.modules[0]?.lessons[0]?.video_url, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  });
+  const lessonIds = filled.modules.flatMap((m) => m.lessons.map((l) => l.id));
+  await step('id que não existe na trilha', 'PUT', `/admin/tracks/${draft.id}/content`, { modules: [{ id: 999, title: 'M', lessons: [] }] }, 400);
+  await step('sem rascunho de volta', 'PATCH', `/admin/tracks/${draft.id}/status`, { status: 'draft' }, 400);
+  await step<ManagedTrackResponse>('publicar', 'PATCH', `/admin/tracks/${draft.id}/status`, { status: 'published' }, 200,
+    (b) => assert.equal(b.track.status, 'published'));
+  await step('esvaziar trilha publicada', 'PUT', `/admin/tracks/${draft.id}/content`, { modules: [] }, 409);
+
+  actAs(caio);
+  await step<ManagedTrack>('outro tutor vê a trilha', 'GET', `/admin/tracks/${draft.id}`, undefined, 200, (b) => assert.equal(b.is_tutor, false));
+  await step('outro tutor não edita', 'PATCH', `/admin/tracks/${draft.id}`, { title: 'X' }, 403);
+  actAs(rita);
+  await step<ManagedTrackResponse>('tutora adiciona o colega', 'PATCH', `/admin/tracks/${draft.id}`, { tutor_ids: tutorIds }, 200,
+    (b) => assert.deepEqual(b.track.tutors.map((x) => x.name), ['Rita Tutora', 'Caio Tutor']));
+  await step('campo que não se edita', 'PATCH', `/admin/tracks/${draft.id}`, { status: 'discontinued' }, 400);
+  await step<ManagedTrackSummary[]>('lista dos tutores', 'GET', '/admin/tracks', undefined, 200, (b) => assert.equal(b.length, 1));
+
+  console.log('\nTrilhas de estudo (administrador)');
+  actAs(admin);
+  await step<ManagedTrackSummary[]>('administrador vê todas as trilhas', 'GET', '/admin/tracks', undefined, 200,
+    (b) => assert.deepEqual(b.map((x) => [x.is_tutor, x.can_edit]), [[false, true]]));
+  await step<ManagedTrackResponse>('administrador edita a trilha da tutora', 'PATCH', `/admin/tracks/${draft.id}`, { description: 'Do pé à saca, com segurança.' }, 200,
+    (b) => assert.equal(b.track.description, 'Do pé à saca, com segurança.'));
+  await step('administrador cria sem escolher tutores', 'POST', '/admin/tracks', { title: 'Trator', description: 'Seguro.', categories: ['Operação de máquinas'] }, 400);
+  await step<ManagedTrackResponse>('administrador cria escolhendo o tutor', 'POST', '/admin/tracks',
+    { title: 'Trator', description: 'Seguro.', categories: ['Operação de máquinas'], tutor_ids: [tutorIds[1]] }, 201,
+    (b) => assert.deepEqual([b.track.tutors.map((x) => x.name), b.track.is_tutor], [['Caio Tutor'], false]));
+  actAs(caio);
+  await step('tutor continua sem gerenciar contas', 'GET', '/admin/users', undefined, 403);
+  actAs(rita);
+
+  console.log('\nTrilhas de estudo (trabalhador)');
+  actAs(null);
+  const { worker: aluna, token: lia } = await step<WorkerSignupResponse>('cadastrar aluna', 'POST', '/workers',
+    { name: 'Lia Aluna', email: 'lia@exemplo.com', phone: '24911111111', cpf: '24681357928', password: PW }, 201);
+  const { worker: outro, token: teo } = await step<WorkerSignupResponse>('cadastrar outro trabalhador', 'POST', '/workers',
+    { name: 'Teo', email: 'teo@exemplo.com', phone: '24922222222', cpf: '13579246828', password: PW }, 201);
+  await step('trilhas sem token', 'GET', '/workers/tracks', undefined, 401);
+  actAs(rita);
+  await step('usuário de sistema não estuda', 'GET', '/workers/tracks', undefined, 403);
+
+  actAs(lia);
+  await step<WorkerTrackSummary[]>('trilhas por categoria', 'GET', `/workers/tracks?category=Colheita&worker_id=${aluna.id}`, undefined, 200,
+    (b) => assert.deepEqual(b.map((x) => [x.title, x.progress]), [['Colheita de café', null]]));
+  await step<WorkerTrackSummary[]>('outra categoria', 'GET', '/workers/tracks?category=Plantio', undefined, 200, (b) => assert.deepEqual(b, []));
+  await step<TrackDetail>('detalhe antes de começar (sem o conteúdo)', 'GET', `/workers/tracks/${draft.id}?worker_id=${aluna.id}`, undefined, 200,
+    (b) => assert.deepEqual(b.modules[0]?.lessons[0], { id: lessonIds[0], title: 'O ponto do grão', duration_minutes: 30, has_video: true }));
+  await step('estudar sem começar', 'GET', `/workers/${aluna.id}/tracks/${draft.id}`, undefined, 403);
+  await step('começar em nome de outro', 'POST', `/workers/tracks/${draft.id}/enroll`, { worker_id: outro.id }, 403);
+  await step<EnrolledTrackResponse>('começar a trilha', 'POST', `/workers/tracks/${draft.id}/enroll`, { worker_id: aluna.id }, 200,
+    (b) => assert.equal(b.track.progress.total_lessons, 3));
+  await step<EnrolledTrackResponse>('começar de novo devolve a mesma matrícula', 'POST', `/workers/tracks/${draft.id}/enroll`, { worker_id: aluna.id }, 200,
+    (b) => assert.equal(b.message, 'Already enrolled.'));
+  await step<EnrolledTrack>('estudar a trilha', 'GET', `/workers/${aluna.id}/tracks/${draft.id}`, undefined, 200,
+    (b) => assert.equal(b.modules[0]?.lessons[1]?.content, 'Luvas e botina.'));
+  const lessonPath = (id: number | undefined): string => `/workers/${aluna.id}/tracks/${draft.id}/lessons/${id ?? 0}/completion`;
+  await step<LessonCompletionResponse>('concluir aula', 'PUT', lessonPath(lessonIds[0]), undefined, 200,
+    (b) => assert.deepEqual([b.track.progress.percent, b.issued_certificate], [33, null]));
+  await step<EnrolledTrackResponse>('desmarcar aula', 'DELETE', lessonPath(lessonIds[0]), undefined, 200, (b) => assert.equal(b.track.progress.percent, 0));
+  await step('aula que não existe', 'PUT', lessonPath(999), undefined, 404);
+  actAs(teo);
+  await step('aula de outro trabalhador', 'PUT', lessonPath(lessonIds[0]), undefined, 403);
+
+  actAs(admin);
+  await step<ManagedTrackResponse>('administrador desabilita (descontinua) a trilha', 'PATCH', `/admin/tracks/${draft.id}/status`, { status: 'discontinued' }, 200,
+    (b) => assert.equal(b.track.status, 'discontinued'));
+  actAs(teo);
+  await step<WorkerTrackSummary[]>('descontinuada some para quem não começou', 'GET', `/workers/tracks?worker_id=${outro.id}`, undefined, 200,
+    (b) => assert.deepEqual(b, []));
+  await step('descontinuada sem detalhe para quem não começou', 'GET', `/workers/tracks/${draft.id}?worker_id=${outro.id}`, undefined, 404);
+  await step('descontinuada não aceita aluno novo', 'POST', `/workers/tracks/${draft.id}/enroll`, { worker_id: outro.id }, 409);
+
+  actAs(lia);
+  await step<WorkerTrackSummary[]>('a aluna ainda vê a trilha', 'GET', `/workers/tracks?worker_id=${aluna.id}`, undefined, 200, (b) => assert.equal(b.length, 1));
+  let certificate: Certificate | null = null;
+  for (const id of lessonIds) {
+    ({ issued_certificate: certificate } = await step<LessonCompletionResponse>(`concluir aula ${id}`, 'PUT', lessonPath(id), undefined, 200));
+  }
+  assert.ok(certificate, 'a última aula emite o certificado');
+  assert.deepEqual([certificate.worker_name, certificate.track_title, certificate.workload_minutes], ['Lia Aluna', 'Colheita de café', 105]);
+  await step<Certificate[]>('certificados da aluna', 'GET', `/workers/${aluna.id}/certificates`, undefined, 200, (b) => assert.equal(b.length, 1));
+  actAs(teo);
+  await step('certificados de outro trabalhador', 'GET', `/workers/${aluna.id}/certificates`, undefined, 403);
+
+  console.log('\nCertificados (público)');
+  actAs(null);
+  await step<Certificate>('validar certificado sem token', 'GET', `/certificates/${certificate.code.toLowerCase()}`, undefined, 200,
+    (b) => assert.equal(b.worker_name, 'Lia Aluna'));
+  await step('código inexistente', 'GET', '/certificates/RZ-0000-0000-00', undefined, 404);
 }
 
 function errorMessage(error: unknown): string {

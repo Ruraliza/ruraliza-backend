@@ -16,6 +16,9 @@ export const TAGS = {
   documents: 'Documentos',
   reviews: 'Avaliações',
   chat: 'Conversas',
+  tracks: 'Trilhas (tutor)',
+  learning: 'Trilhas (trabalhador)',
+  certificates: 'Certificados',
   admin: 'Administração'
 } as const;
 export type Tag = (typeof TAGS)[keyof typeof TAGS];

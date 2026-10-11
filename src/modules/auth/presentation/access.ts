@@ -56,7 +56,7 @@ export interface AccessPolicies {
   worker(query?: string): Access;
   chatParticipant(param?: string, options?: AccessOptions): Access;
   anyAccount: Access;
-  system(permission: SystemPermission): Access;
+  system(permission: SystemPermission | readonly SystemPermission[]): Access;
   anySystemUser: Access;
 }
 
@@ -157,17 +157,19 @@ export function createAccess({ repos, tokens }: AccessDeps): AccessPolicies {
     // Qualquer conta do app (ex.: ver a reputação publicada de um trabalhador ou de uma fazenda).
     anyAccount: account('Qualquer conta do app.', () => ok(null)),
 
-    // Usuário de sistema cujo cargo tem a permissão.
-    system(permission: SystemPermission): Access {
+    // Usuário de sistema cujo cargo tem a permissão (com uma lista, qualquer uma delas).
+    system(permission: SystemPermission | readonly SystemPermission[]): Access {
+      const accepted: readonly SystemPermission[] = typeof permission === 'string' ? [permission] : permission;
       return {
         audience: 'system',
-        rule: `Usuário de sistema com a permissão \`${permission}\`.`,
+        rule: `Usuário de sistema com a permissão ${accepted.map((p) => `\`${p}\``).join(' ou ')}.`,
         tokenInQuery: false,
         async authorize(req) {
           const principal = await authenticate(req, false);
           if (!principal.ok) return principal;
           if (principal.value.kind !== 'system') return forbidden(STAFF_ONLY);
-          return canDo(principal.value.user.role, permission) ? principal : forbidden(ROLE_NOT_ALLOWED);
+          const role = principal.value.user.role;
+          return accepted.some((p) => canDo(role, p)) ? principal : forbidden(ROLE_NOT_ALLOWED);
         }
       };
     },

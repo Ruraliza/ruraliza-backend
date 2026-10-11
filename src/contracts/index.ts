@@ -17,3 +17,4 @@ export type * from '../modules/reviews/reviews.contract';
 export type * from '../modules/chat/chat.contract';
 export type * from '../modules/notifications/push.contract';
 export type * from '../modules/platform/platform.contract';
+export type * from '../modules/tracks/track.contract';
