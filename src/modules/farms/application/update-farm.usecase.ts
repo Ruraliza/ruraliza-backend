@@ -1,7 +1,7 @@
+import type { FarmerRepository } from '#modules/farmers';
 import { type Result, ok } from '#shared/domain/result';
-import type { FarmerRepository } from '../../../domain/repositories';
-import type { Farm, FarmUpdate } from '../farm.contract';
 import type { FarmRepository } from '../domain/farm.repository';
+import type { Farm, FarmUpdate } from '../farm.contract';
 import { findOwnFarm } from './find-own-farm';
 
 export interface UpdateFarmDeps {

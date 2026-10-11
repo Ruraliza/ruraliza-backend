@@ -1,8 +1,8 @@
+import type { FarmerRepository } from '#modules/farmers';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { FarmerRepository } from '../../../domain/repositories';
-import type { Farm, FarmInput } from '../farm.contract';
 import type { FarmRepository } from '../domain/farm.repository';
+import type { Farm, FarmInput } from '../farm.contract';
 
 export interface CreateFarmDeps {
   farmers: FarmerRepository;

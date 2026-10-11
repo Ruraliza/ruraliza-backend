@@ -1,10 +1,11 @@
 import type { Account, AccountRepository } from '#modules/accounts';
+import type { FarmerRepository } from '#modules/farmers';
+import type { FarmerUseCases } from '#modules/farmers';
 import { SERVICE_STATUS, type ServiceRepository } from '#modules/services';
 import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';
 import type { AdminUser } from '../contracts';
-import type { FarmerRepository, WorkerRepository } from '../domain/repositories';
-import type { FarmerUseCases } from './FarmerUseCases';
+import type { WorkerRepository } from '../domain/repositories';
 import type { WorkerUseCases } from './WorkerUseCases';
 
 const ACCOUNT_NOT_FOUND = 'Conta não encontrada.';
@@ -57,7 +58,7 @@ export class AdminUseCases {
 
     // TODO(db): numa transação.
     if (account.farmer_id !== null) {
-      const removed = await this.profiles.farmers.delete(account.farmer_id);
+      const removed = await this.profiles.farmers.deleteFarmer.execute({ farmerId: account.farmer_id });
       if (!removed.ok) return removed;
     }
     if (account.worker_id !== null) {

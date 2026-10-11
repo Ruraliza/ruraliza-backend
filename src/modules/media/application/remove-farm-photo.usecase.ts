@@ -1,7 +1,7 @@
+import type { FarmerRepository } from '#modules/farmers';
 import { type Farm, type FarmRepository, findOwnFarm } from '#modules/farms';
 import type { ImageStore } from '#shared/domain/images';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { FarmerRepository } from '../../../domain/repositories';
 
 export interface RemoveFarmPhotoDeps {
   farmers: FarmerRepository;

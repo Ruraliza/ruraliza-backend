@@ -1,8 +1,8 @@
 import { type Result, invalid, ok } from '#shared/domain/result';
 import { type Body, missingMessage } from '#shared/infra/http/body';
 import { isValidCpf, missingFields, text } from '#shared/utils/validation';
-import { WORKER_TEXTS, optionalText, workerTextProblem } from '../../../http/parsers';
 import type { ActiveRoleInput, ProfileCreateInput, UserRole } from '../accounts.contract';
+import { WORKER_TEXTS, optionalText, workerTextProblem } from './profile.parsers';
 
 // Formato dos corpos das rotas da conta (400).
 

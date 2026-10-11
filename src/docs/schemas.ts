@@ -1,10 +1,20 @@
-import { type AccountSchemaName, accountSchemas } from '#modules/accounts';
+import {
+  type AccountSchemaName,
+  accountSchemas,
+  cpf,
+  optionalTextSchema,
+  photoUrl,
+  profileEditableProps,
+  profileInputProps,
+  workerTextProps
+} from '#modules/accounts';
+import { type FarmerSchemaName, farmerSchema, farmerSchemas } from '#modules/farmers';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
 import { type PushSchemaName, pushSchemas } from '#modules/notifications';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
 import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
-import { type Properties, type RefTo, type Schema, id, input, isoDate, object, refTo } from '#shared/infra/docs/schema-kit';
+import { type RefTo, type Schema, id, input, isoDate, newPassword, object, refTo, sessionToken } from '#shared/infra/docs/schema-kit';
 
 // Registro dos schemas OpenAPI do contrato (src/contracts): os genéricos (#shared/infra/docs),
 // os dos módulos já migrados e, aqui mesmo, os das partes ainda não migradas para src/modules.
@@ -18,31 +28,20 @@ export type SchemaName =
   | 'HealthResponse' | 'MapsConfig'
   | PushSchemaName
   | FarmSchemaName
-  | 'Farmer' | 'Worker'
-  | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate'
+  | FarmerSchemaName
+  | 'Worker'
+  | 'WorkerInput' | 'WorkerUpdate'
   | AccountSchemaName
   | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
-  | 'ProfileCreateInput'
   | 'LoginResponse' | 'PasswordResetRequestResponse'
-  | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse'
+  | 'WorkerResponse' | 'WorkerSignupResponse'
   | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
-const photoUrl: Schema = {
-  type: 'string',
-  nullable: true,
-  example: '/api/images/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.webp',
-  description: 'Foto de perfil (WebP quadrado, no máximo 1000×1000px). null quando não há foto. Relativa à API.'
-};
 const resumeUrl: Schema = {
   type: 'string',
   nullable: true,
   example: '/api/documents/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.pdf',
   description: 'Currículo em PDF. null quando não há currículo. Relativa à API.'
-};
-const sessionToken: Schema = {
-  type: 'string',
-  example: 'eyJraW5kIjoiYWNjb3VudCIsImlkIjoxLCJleHAiOjE3OTk5OTk5OTk5OTl9.p0dTqW…',
-  description: 'Token de sessão (12 horas). Envie em `Authorization: Bearer <token>`.'
 };
 const ref: RefTo<SchemaName> = refTo;
 
@@ -50,64 +49,15 @@ const ref: RefTo<SchemaName> = refTo;
 
 
 
-const cpf: Schema = {
-  type: 'string',
-  example: '52998224725',
-  description: '11 dígitos, só números. Completo no GET do próprio perfil; mascarado (***.982.247-**) em listas e respostas embutidas.'
-};
-
-// Campos editáveis dos dois perfis (o cpf só entra no cadastro).
-const profileEditableProps: Properties = {
-  email: { type: 'string', format: 'email', example: 'ana@exemplo.com', description: 'Guardado em minúsculas. É o e-mail da conta: único entre as contas e o mesmo nos dois perfis dela.' },
-  name: { type: 'string', example: 'Ana Produtora' },
-  phone: { type: 'string', example: '24999990000', description: 'Com DDD, só números.' }
-};
-const newPassword: Schema = {
-  type: 'string',
-  format: 'password',
-  minLength: 8,
-  maxLength: 128,
-  example: 'minhasenha123',
-  description: 'De 8 a 128 caracteres (espaços contam). Guardada só como hash; nunca volta nas respostas.'
-};
-const profileInputProps: Properties = {
-  ...profileEditableProps,
-  cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Pertence a uma conta só.' },
-  password: newPassword
-};
-
-const optionalText: Schema = { type: 'string', nullable: true };
-const workerTextProps: Properties = {
-  bio: { ...optionalText, maxLength: 500, description: 'Breve apresentação. Vazio vira null.' },
-  certificates: { ...optionalText, maxLength: 1000, example: 'NR-31, curso de tratorista', description: 'Vazio vira null.' },
-  courses: { ...optionalText, maxLength: 1000, example: 'Operação de trator (SENAR)', description: 'Vazio vira null.' },
-  experience: { ...optionalText, maxLength: 1000, example: '5 anos em colheita de café', description: 'Vazio vira null.' }
-};
-
-// Perfis: também aparecem como `nullable` dentro de AdminUser (allOf + nullable não aceita null).
-const farmerSchema: Schema = object(
-  {
-    id,
-    email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' },
-    name: { type: 'string', example: 'João Produtor' },
-    farms: { type: 'array', items: { type: 'integer' }, example: [1, 2], description: 'IDs das fazendas ativas.' },
-    phone: { type: 'string', example: '24999999999' },
-    cpf,
-    photo_url: photoUrl,
-    insertion_date: isoDate
-  },
-  ['id', 'email', 'name', 'farms', 'phone', 'cpf', 'photo_url', 'insertion_date']
-);
-
 const workerSchema: Schema = object(
   {
     id,
     email: { type: 'string', format: 'email', example: 'trabalhador@exemplo.com' },
     name: { type: 'string', example: 'Maria Trabalhadora' },
-    bio: { ...optionalText, maxLength: 500, example: 'Trabalho com colheita de café há 5 anos. Disponível nos fins de semana.' },
-    certificates: { ...optionalText, example: 'Certificado de Tratorista' },
-    courses: { ...optionalText, example: 'NR-31 (SENAR, 2024)' },
-    experience: { ...optionalText, example: '5 anos' },
+    bio: { ...optionalTextSchema, maxLength: 500, example: 'Trabalho com colheita de café há 5 anos. Disponível nos fins de semana.' },
+    certificates: { ...optionalTextSchema, example: 'Certificado de Tratorista' },
+    courses: { ...optionalTextSchema, example: 'NR-31 (SENAR, 2024)' },
+    experience: { ...optionalTextSchema, example: '5 anos' },
     phone: { type: 'string', example: '24988888888' },
     cpf,
     photo_url: photoUrl,
@@ -131,19 +81,13 @@ export const schemas = {
     'Configuração do Google Maps para o frontend.'
   ),
   // --- Entidades ---
-  Farmer: farmerSchema,
   Worker: workerSchema,
+  ...farmerSchemas,
   ...farmSchemas,
   ...serviceSchemas,
   ...hiringSchemas,
   ...pushSchemas,
   // --- Entradas ---
-  FarmerInput: input(profileInputProps, ['email', 'name', 'phone', 'cpf', 'password'], 'Cadastro de produtor.'),
-  FarmerUpdate: input(
-    profileEditableProps,
-    [],
-    'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
-  ),
   WorkerInput: input(
     {
       ...profileInputProps,
@@ -155,10 +99,10 @@ export const schemas = {
   WorkerUpdate: input(
     {
       ...profileEditableProps,
-      bio: { ...optionalText, maxLength: 500, description: 'null limpa o campo.' },
-      certificates: { ...optionalText, maxLength: 1000, description: 'null limpa o campo.' },
-      courses: { ...optionalText, maxLength: 1000, description: 'null limpa o campo.' },
-      experience: { ...optionalText, maxLength: 1000, description: 'null limpa o campo.' }
+      bio: { ...optionalTextSchema, maxLength: 500, description: 'null limpa o campo.' },
+      certificates: { ...optionalTextSchema, maxLength: 1000, description: 'null limpa o campo.' },
+      courses: { ...optionalTextSchema, maxLength: 1000, description: 'null limpa o campo.' },
+      experience: { ...optionalTextSchema, maxLength: 1000, description: 'null limpa o campo.' }
     },
     [],
     'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
@@ -188,17 +132,6 @@ export const schemas = {
     ['current_password', 'new_password'],
     'Troca de senha com a conta aberta. A nova precisa ser diferente da atual.'
   ),
-  ProfileCreateInput: input(
-    {
-      role: ref('UserRole'),
-      name: profileEditableProps['name'] as Schema,
-      phone: profileEditableProps['phone'] as Schema,
-      cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Não pode ser de outra conta.' },
-      ...workerTextProps
-    },
-    ['role', 'name', 'phone', 'cpf'],
-    'Segundo perfil na mesma conta: o e-mail e a senha são os da conta. `bio`, `certificates`, `courses` e `experience` só valem para trabalhador.'
-  ),
   LoginResponse: object(
     { message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SessionUser'), token: sessionToken },
     ['message', 'user', 'token']
@@ -216,13 +149,7 @@ export const schemas = {
   ),
 
   // --- Respostas das escritas ---
-  FarmerResponse: object({ message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer') }, ['message', 'farmer']),
   WorkerResponse: object({ message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker') }, ['message', 'worker']),
-  FarmerSignupResponse: object(
-    { message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer'), user: ref('SessionUser'), token: sessionToken },
-    ['message', 'farmer', 'user', 'token'],
-    'Cadastro concluído: a conta foi criada e já está aberta (`user`, `token`).'
-  ),
   WorkerSignupResponse: object(
     { message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker'), user: ref('SessionUser'), token: sessionToken },
     ['message', 'worker', 'user', 'token'],

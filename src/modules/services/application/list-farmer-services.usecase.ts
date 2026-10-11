@@ -1,7 +1,7 @@
+import type { FarmerRepository } from '#modules/farmers';
 import { type FarmRepository, farmOf } from '#modules/farms';
 import { APPLICATION_STATUS, type ApplicationRepository } from '#modules/hiring';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import type { FarmerRepository } from '../../../domain/repositories';
 import type { ServiceRepository } from '../domain/service.repository';
 import type { FarmerServiceItem, ServiceStatus } from '../service.contract';
 

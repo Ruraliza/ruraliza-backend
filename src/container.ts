@@ -1,4 +1,5 @@
 import { type AccountUseCases, type ProfileFactory, createAccountUseCases } from '#modules/accounts';
+import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
@@ -21,7 +22,6 @@ import type { Repositories } from './domain/repositories';
 import { createInMemoryRepositories } from './infra/memory';
 import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
-import { FarmerUseCases } from './usecases/FarmerUseCases';
 import { ResumeUseCases } from './usecases/ResumeUseCases';
 import { SystemUserUseCases } from './usecases/SystemUserUseCases';
 import { WorkerUseCases } from './usecases/WorkerUseCases';
@@ -89,12 +89,12 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers } = repos;
   const pushDeps = { accounts, pushSubscriptions, clock, sender: options.push ?? new WebPushSender() };
   const notifier = createPushDispatcher(pushDeps);
-  const farmerUseCases = new FarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions }, clock, images, passwords, changes);
+  const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes });
   const workerUseCases = new WorkerUseCases({ workers, farmers, services, applications, farms, accounts, pushSubscriptions }, clock, { images, documents }, passwords, changes);
   // O segundo perfil de uma conta (src/modules/accounts) é criado pelos casos de uso dos perfis.
   const profiles: ProfileFactory = {
     create: (role, { bio, certificates, courses, experience, ...base }) => role === 'farmer'
-      ? farmerUseCases.createProfile(base)
+      ? farmerUseCases.createFarmerProfile.execute(base)
       : workerUseCases.createProfile({ ...base, bio, certificates, courses, experience })
   };
 

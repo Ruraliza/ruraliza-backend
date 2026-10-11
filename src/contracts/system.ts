@@ -1,4 +1,4 @@
-import type { Farmer } from './farmer';
+import type { Farmer } from '#modules/farmers';
 import type { Worker } from './worker';
 
 // Usuários de sistema: a equipe do Ruraliza. Não se cadastram pela tela pública; quem cria é

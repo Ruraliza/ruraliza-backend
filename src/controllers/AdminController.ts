@@ -1,11 +1,12 @@
+import { parseProfileUpdate } from '#modules/accounts';
+import type { FarmerUseCases } from '#modules/farmers';
 import type { PhotoUseCases } from '#modules/media';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { AdminUser, FarmerResponse, MessageResponse, SystemUser, SystemUserResponse, WorkerResponse } from '../contracts';
-import { parseAdminSystemUserUpdate, parseProfileUpdate, parseSystemUserInput, parseWorkerUpdate } from '../http/parsers';
+import { parseAdminSystemUserUpdate, parseSystemUserInput, parseWorkerUpdate } from '../http/parsers';
 import type { AdminUseCases } from '../usecases/AdminUseCases';
-import type { FarmerUseCases } from '../usecases/FarmerUseCases';
 import type { SystemUserUseCases } from '../usecases/SystemUserUseCases';
 import type { WorkerUseCases } from '../usecases/WorkerUseCases';
 import { systemUserId } from './AuthController';
@@ -60,14 +61,14 @@ export function createAdminController({ admin, farmers, workers, photos, systemU
     const changes = parseProfileUpdate(toBody(req.body));
     if (!changes.ok) { sendFailure(res, changes); return; }
 
-    const result = await farmers.update(toId(req.params.id), changes.value);
+    const result = await farmers.updateFarmer.execute({ farmerId: toId(req.params.id), changes: changes.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Farmer updated successfully!', farmer: result.value });
   };
 
   // DELETE /api/admin/farmers/:id - Remove o perfil de produtor (a conta fica se tiver o outro perfil)
   const adminDeleteFarmer: Handler<MessageResponse, IdParams> = async (req, res) => {
-    const result = await farmers.delete(toId(req.params.id));
+    const result = await farmers.deleteFarmer.execute({ farmerId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Farmer deleted successfully!' });
   };

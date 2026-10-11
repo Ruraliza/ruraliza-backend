@@ -1,7 +1,7 @@
+import type { FarmerRepository } from '#modules/farmers';
 import { releaseImage } from '#shared/domain/images';
 import { type Result, notFound, ok } from '#shared/domain/result';
 import type { Farmer } from '../../../contracts';
-import type { FarmerRepository } from '../../../domain/repositories';
 import { type PhotoStorage, storeProfilePhoto } from './store-profile-photo';
 
 export interface SetFarmerPhotoDeps {

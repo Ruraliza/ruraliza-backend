@@ -1,3 +1,5 @@
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '../domain/passwords';
+import { type Result, invalid, ok } from '../domain/result';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isValidEmail(email: unknown): email is string {
@@ -55,4 +57,12 @@ export function missingFields<K extends string>(body: Readonly<Record<string, un
 // Mensagem de erro se o texto passar do limite (null quando está dentro).
 export function tooLong(label: string, value: string | null | undefined, max: number): string | null {
   return value && value.length > max ? `${label} pode ter no máximo ${max} caracteres.` : null;
+}
+
+// Senha nova, como chegou (sem trim: espaços contam). `label` aparece na mensagem de erro.
+export function parseNewPassword(value: unknown, label: string): Result<string> {
+  if (typeof value !== 'string') return invalid(`${label} deve ser um texto.`);
+  if (value.length < PASSWORD_MIN_LENGTH) return invalid(`${label} precisa ter pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`);
+  if (value.length > PASSWORD_MAX_LENGTH) return invalid(`${label} pode ter no máximo ${PASSWORD_MAX_LENGTH} caracteres.`);
+  return ok(value);
 }

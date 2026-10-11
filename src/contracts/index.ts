@@ -5,11 +5,11 @@
 export type * from './api';
 export type * from './auth';
 export type * from './config';
-export type * from './farmer';
 export type * from './system';
 export type * from './worker';
 
 export type * from '../modules/accounts/accounts.contract';
+export type * from '../modules/farmers/farmer.contract';
 export type * from '../modules/farms/farm.contract';
 export type * from '../modules/services/service.contract';
 export type * from '../modules/hiring/hiring.contract';

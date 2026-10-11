@@ -1,4 +1,5 @@
-import { type AccountRepository, changeAccountEmail, checkNewAccount, createAccount, toSession, unlinkProfile } from '#modules/accounts';
+import { type AccountRepository, changeAccountEmail, checkNewAccount, checkProfileUnique, createAccount, toSession, unlinkProfile } from '#modules/accounts';
+import type { FarmerRepository } from '#modules/farmers';
 import type { FarmRepository } from '#modules/farms';
 import type { ApplicationRepository } from '#modules/hiring';
 import type { PushSubscriptionRepository } from '#modules/notifications';
@@ -11,9 +12,8 @@ import type { PasswordHasher } from '#shared/domain/passwords';
 import { type Result, conflict, notFound, ok, requireFound } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';
 import type { ApplicationWithService, OpenService, SessionUser, Worker, WorkerUpdate } from '../contracts';
-import type { FarmerRepository, WorkerRepository } from '../domain/repositories';
+import type { WorkerRepository } from '../domain/repositories';
 import { releaseDocument } from './ResumeUseCases';
-import { checkProfileUnique } from './shared';
 
 // Dados de cadastro já validados (textos opcionais vazios viram null).
 export interface NewWorker {

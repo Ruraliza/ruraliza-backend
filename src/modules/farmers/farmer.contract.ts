@@ -1,3 +1,6 @@
+import type { SessionUser } from '#modules/accounts';
+import type { MessageResponse } from '../../contracts/api';
+
 export interface Farmer {
   id: number;
   email: string;
@@ -20,3 +23,13 @@ export interface FarmerInput {
 
 // PATCH /farmers/:id (id e cpf não podem ser alterados; a senha muda em PATCH /farmers/:id/password)
 export type FarmerUpdate = Partial<Omit<FarmerInput, 'cpf' | 'password'>>;
+
+export interface FarmerResponse extends MessageResponse {
+  farmer: Farmer;
+}
+
+// Cadastro: a conta já fica aberta (`user`, `token`).
+export interface FarmerSignupResponse extends FarmerResponse {
+  user: SessionUser;
+  token: string;
+}

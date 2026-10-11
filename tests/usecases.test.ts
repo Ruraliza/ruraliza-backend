@@ -21,7 +21,7 @@ function unwrap<T>(result: Result<T>): T {
 }
 
 async function farmerWithFarm(c: Container): Promise<{ farmerId: number; farmId: number }> {
-  const { farmer } = unwrap(await c.useCases.farmers.create({ email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: PASSWORD }));
+  const { farmer } = unwrap(await c.useCases.farmers.registerFarmer.execute({ email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: PASSWORD }));
   const farm = unwrap(await c.useCases.farms.createFarm.execute({ farmerId: farmer.id, input: { address: 'Sítio', city: 'Três Rios', state: 'RJ', latitude: -22.1165, longitude: -43.2092 } }));
   return { farmerId: farmer.id, farmId: farm.id };
 }
@@ -130,7 +130,7 @@ describe('Fazendas com serviços', () => {
     unwrap(await c.useCases.farms.deleteFarm.execute({ farmerId, farmId }));
 
     assert.deepEqual(unwrap(await c.useCases.farms.listFarms.execute({ farmerId })), []);
-    assert.deepEqual(unwrap(await c.useCases.farmers.get(farmerId)).farms, []);
+    assert.deepEqual(unwrap(await c.useCases.farmers.getFarmer.execute({ farmerId: farmerId })).farms, []);
     const service = unwrap(await c.useCases.services.getService.execute({ serviceId: serviceId }));
     assert.equal(service.farm.deleted_at, NOW);
   });
@@ -188,11 +188,11 @@ describe('FarmerUseCases', () => {
     const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
     unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
 
-    const blocked = await c.useCases.farmers.delete(farmerId);
+    const blocked = await c.useCases.farmers.deleteFarmer.execute({ farmerId: farmerId });
     assert.equal(blocked.ok ? 'ok' : blocked.kind, 'conflict');
 
     unwrap(await c.useCases.hiring.payService.execute({ serviceId: serviceId }));
-    unwrap(await c.useCases.farmers.delete(farmerId));
+    unwrap(await c.useCases.farmers.deleteFarmer.execute({ farmerId: farmerId }));
 
     assert.equal(await c.repos.farmers.findById(farmerId), undefined);
     assert.deepEqual(await c.repos.farms.find({ farmer_id: farmerId }), []);
@@ -219,10 +219,10 @@ describe('Contas', () => {
 
   it('um e-mail e um CPF abrem uma conta só, em qualquer tipo de perfil', async () => {
     const c = setup();
-    unwrap(await c.useCases.farmers.create({ email: 'a@exemplo.com', name: 'A', phone: '1', cpf: '52998224725', password: PASSWORD }));
+    unwrap(await c.useCases.farmers.registerFarmer.execute({ email: 'a@exemplo.com', name: 'A', phone: '1', cpf: '52998224725', password: PASSWORD }));
 
     const sameEmail = await c.useCases.workers.create({ ...workerProfile, email: 'a@exemplo.com', cpf: '11144477735', password: PASSWORD });
-    const sameCpf = await c.useCases.farmers.create({ email: 'b@exemplo.com', name: 'B', phone: '1', cpf: '52998224725', password: PASSWORD });
+    const sameCpf = await c.useCases.farmers.registerFarmer.execute({ email: 'b@exemplo.com', name: 'B', phone: '1', cpf: '52998224725', password: PASSWORD });
     const sameCpfOtherRole = await c.useCases.workers.create({ ...workerProfile, email: 'b@exemplo.com', password: PASSWORD });
     for (const r of [sameEmail, sameCpf, sameCpfOtherRole]) assert.equal(r.ok ? '' : r.kind, 'conflict');
     assert.equal(sameEmail.ok ? '' : sameEmail.message, 'Já existe uma conta com este e-mail. Entre com ela e ative o outro perfil pelo menu.');
@@ -277,10 +277,10 @@ describe('Contas', () => {
     const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', ...workerProfile } })).id;
     await worker(c, 'w@exemplo.com', '11144477735');
 
-    const taken = await c.useCases.farmers.update(farmerId, { email: 'w@exemplo.com' });
+    const taken = await c.useCases.farmers.updateFarmer.execute({ farmerId: farmerId, changes: { email: 'w@exemplo.com' } });
     assert.equal(taken.ok ? '' : taken.kind, 'conflict');
 
-    unwrap(await c.useCases.farmers.update(farmerId, { email: 'nova@exemplo.com' }));
+    unwrap(await c.useCases.farmers.updateFarmer.execute({ farmerId: farmerId, changes: { email: 'nova@exemplo.com' } }));
     assert.equal((await c.repos.workers.findById(workerId))?.email, 'nova@exemplo.com');
     unwrap(await c.useCases.auth.login({ email: 'nova@exemplo.com', password: PASSWORD }));
   });
@@ -294,7 +294,7 @@ describe('Contas', () => {
     unwrap(await c.useCases.workers.delete(workerId));
     assert.deepEqual(unwrap(await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).profiles, { farmer: farmerId, worker: null });
 
-    unwrap(await c.useCases.farmers.delete(farmerId));
+    unwrap(await c.useCases.farmers.deleteFarmer.execute({ farmerId: farmerId }));
     assert.deepEqual(await c.repos.accounts.find(), []);
     assert.equal((await c.useCases.auth.login({ email: 'ana@exemplo.com', password: PASSWORD })).ok, false);
   });
@@ -448,7 +448,7 @@ describe('Fotos', () => {
     const ids = [c.images.idFromUrl(farmer.photo_url ?? ''), farm.photos[0]?.id].filter((id): id is string => id !== undefined);
     assert.equal(ids.length, 2);
 
-    unwrap(await c.useCases.farmers.delete(farmerId));
+    unwrap(await c.useCases.farmers.deleteFarmer.execute({ farmerId: farmerId }));
     for (const id of ids) assert.equal(await c.images.get(id), undefined);
   });
 

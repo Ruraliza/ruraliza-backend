@@ -5,8 +5,7 @@ import type { AccountController } from './account.controller';
 import type { AccountSchemaName } from './account.schemas';
 
 const accountId = pathParam('id', 'ID da conta (`account_id` da sessão).');
-// 'ProfileCreateInput' ainda é do registro legado (montado com as peças dos schemas de perfil).
-const accountOperation = operation<AccountSchemaName | 'ProfileCreateInput'>;
+const accountOperation = operation<AccountSchemaName>;
 
 // Montadas em /api/accounts. Uma conta tem um e-mail, uma senha e até um perfil de cada tipo.
 export function accountRoutes(accounts: AccountController, pushRoutes: readonly RouteDef[], access: AccessPolicies): readonly RouteDef[] {

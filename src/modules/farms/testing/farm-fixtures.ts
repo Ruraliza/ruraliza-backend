@@ -1,11 +1,11 @@
+import type { FarmerRepository } from '#modules/farmers';
+import type { ServiceRepository } from '#modules/services';
 import type { Clock } from '#shared/domain/clock';
 import { fixedClock } from '#shared/testing/fixed-clock';
 import type { Farmer, Service, ServiceStatus } from '../../../contracts';
-import type { ServiceRepository } from '#modules/services';
-import type { FarmerRepository } from '../../../domain/repositories';
 import { createInMemoryRepositories } from '../../../infra/memory';
-import type { Farm } from '../farm.contract';
 import type { FarmRepository } from '../domain/farm.repository';
+import type { Farm } from '../farm.contract';
 import { createInMemoryFarmRepository } from '../infra/in-memory-farm.repository';
 
 // Dependências dos casos de uso de fazenda, todas em memória, e dados mínimos para montar cada cenário.

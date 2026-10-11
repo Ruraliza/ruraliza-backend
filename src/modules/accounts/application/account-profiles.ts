@@ -1,7 +1,8 @@
+import type { FarmerRepository } from '#modules/farmers';
 import type { PushSubscriptionRepository } from '#modules/notifications';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import { type Result, conflict, ok, requireFound } from '#shared/domain/result';
-import type { FarmerRepository, WorkerRepository } from '../../../domain/repositories';
+import type { WorkerRepository } from '../../../domain/repositories';
 import type { UserRole } from '../accounts.contract';
 import type { Account, AccountRepository } from '../domain/account';
 import { CPF_TAKEN, EMAIL_TAKEN, ROLE_LABEL, findAccountByEmail, findAccountOf, hasProfile, otherRole, profileKey } from '../domain/account.rules';
@@ -91,4 +92,32 @@ export async function unlinkProfile(
     for (const sub of await pushSubscriptions.find({ account_id: account.id })) await pushSubscriptions.delete(sub.id);
     await accounts.delete(account.id);
   }
+}
+
+// Só o que a checagem de unicidade precisa (FarmerRepository e WorkerRepository cumprem).
+interface ProfileLookup {
+  find(criteria: { email?: string; cpf?: string }): Promise<{ id: number }[]>;
+}
+
+// Unicidade de e-mail/CPF entre perfis do MESMO tipo. Sem `currentId`: cadastro (confere e-mail e CPF).
+// Com `currentId`: edição (só o e-mail muda, e o próprio perfil não conta).
+export async function checkProfileUnique(
+  profiles: ProfileLookup,
+  email: string | undefined,
+  cpf: string | undefined,
+  currentId?: number
+): Promise<Result<null>> {
+  if (email !== undefined) {
+    const sameEmail = await profiles.find({ email });
+    if (sameEmail.some((p) => p.id !== currentId)) {
+      return conflict('Já existe um cadastro com este e-mail.');
+    }
+  }
+  if (cpf !== undefined) {
+    const sameCpf = await profiles.find({ cpf });
+    if (sameCpf.length > 0) {
+      return conflict('Já existe um cadastro com este CPF.');
+    }
+  }
+  return ok(null);
 }

@@ -1,4 +1,5 @@
 import { createAccountRoutes } from '#modules/accounts';
+import { createFarmerRoutes } from '#modules/farmers';
 import { createFarmRoutes } from '#modules/farms';
 import { createHiringRoutes } from '#modules/hiring';
 import { createPhotoRoutes } from '#modules/media';
@@ -9,7 +10,6 @@ import type { Container } from '../container';
 import { createAdminController } from '../controllers/AdminController';
 import { createAuthController } from '../controllers/AuthController';
 import { createEventController } from '../controllers/EventController';
-import { createFarmerController } from '../controllers/FarmerController';
 import { createResumeController } from '../controllers/ResumeController';
 import { createWorkerController } from '../controllers/WorkerController';
 import { createAccess } from '../http/access';
@@ -26,7 +26,6 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const access = createAccess({ repos, tokens });
   const auth = createAuthController(useCases.auth, useCases.systemUsers, tokens);
   const push = createPushRoutes(useCases.push, access);
-  const farmers = createFarmerController(useCases.farmers, tokens);
   const workers = createWorkerController(useCases.workers, tokens);
   const photos = createPhotoRoutes(useCases.photos, access);
   const resumes = createResumeController(useCases.resumes);
@@ -38,7 +37,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   return [
     { prefix: '/api/auth', routes: authRoutes(auth, access) },
     { prefix: '/api/accounts', routes: createAccountRoutes(useCases.accounts, push.account, access) },
-    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, auth }, { farms: createFarmRoutes(useCases.farms, access), services, hiring, photos }, access) },
+    { prefix: '/api/farmers', routes: farmerRoutes({ auth }, { farmers: createFarmerRoutes(useCases.farmers, tokens, access), farms: createFarmRoutes(useCases.farms, access), services, hiring, photos }, access) },
     { prefix: '/api/workers', routes: workerRoutes({ workers, resumes, auth, events }, { services, hiring, photos }, access) },
     { prefix: '/api/admin', routes: adminRoutes(admin, access) },
     { prefix: '/api/images', routes: photos.images },

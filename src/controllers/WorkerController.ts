@@ -1,11 +1,11 @@
-import type { ApplicationWithService, MessageResponse, OpenService, Worker, WorkerResponse, WorkerSignupResponse } from '../contracts';
+import { accountToken } from '#modules/accounts';
 import type { SessionTokens } from '#shared/domain/tokens';
 import { toBody } from '#shared/infra/http/body';
-import { parseWorkerInput, parseWorkerUpdate } from '../http/parsers';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
+import type { ApplicationWithService, MessageResponse, OpenService, Worker, WorkerResponse, WorkerSignupResponse } from '../contracts';
+import { parseWorkerInput, parseWorkerUpdate } from '../http/parsers';
 import type { WorkerUseCases } from '../usecases/WorkerUseCases';
-import { accountToken } from './AuthController';
 
 // HTTP do cadastro e acompanhamento do trabalhador.
 export interface WorkerController {

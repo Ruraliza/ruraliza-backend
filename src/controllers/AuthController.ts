@@ -1,18 +1,18 @@
+import { accountToken } from '#modules/accounts';
+import type { SessionTokens } from '#shared/domain/tokens';
+import { toBody } from '#shared/infra/http/body';
+import { sendFailure, toId } from '#shared/infra/http/respond';
+import type { Handler, IdParams, Principal } from '#shared/infra/http/types';
 import type {
   LoginResponse,
   MessageResponse,
   PasswordResetRequestResponse,
-  SessionUser,
   SystemLoginResponse,
   SystemUser,
   SystemUserResponse,
   UserRole
 } from '../contracts';
-import type { SessionTokens } from '#shared/domain/tokens';
-import { toBody } from '#shared/infra/http/body';
 import { parseLoginInput, parsePasswordChange, parsePasswordReset, parsePasswordResetRequest, parseSystemUserUpdate } from '../http/parsers';
-import { sendFailure, toId } from '#shared/infra/http/respond';
-import type { Handler, IdParams, Principal } from '#shared/infra/http/types';
 import type { AuthUseCases } from '../usecases/AuthUseCases';
 import type { SystemUserUseCases } from '../usecases/SystemUserUseCases';
 
@@ -35,10 +35,6 @@ export function systemUserId(principal: Principal | undefined): number {
 }
 
 // Token da conta aberta (vale para os dois perfis dela).
-export function accountToken(tokens: SessionTokens, user: SessionUser): string {
-  return tokens.issue({ kind: 'account', id: user.account_id });
-}
-
 export function createAuthController(auth: AuthUseCases, systemUsers: SystemUserUseCases, tokens: SessionTokens): AuthController {
   // POST /api/auth/login - Confere e-mail e senha do perfil
   const login: Handler<LoginResponse> = async (req, res) => {
