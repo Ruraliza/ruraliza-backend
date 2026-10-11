@@ -1,3 +1,5 @@
+import type { MessageResponse } from '../../contracts/api';
+
 // Foto guardada no ImageStore (WebP ≤ 1000px). `id` é usado para remover.
 export interface FarmPhoto {
   id: string;
@@ -28,6 +30,11 @@ export interface FarmInput {
 
 // PATCH /farmers/:id/farms/:farmId
 export type FarmUpdate = Partial<FarmInput>;
+
+// Resposta de POST/PATCH das fazendas (e do envio de fotos da fazenda).
+export interface FarmResponse extends MessageResponse {
+  farm: Farm;
+}
 
 // Local da fazenda exposto ao trabalhador (sem o endereço completo).
 export interface FarmLocation {

@@ -22,7 +22,7 @@ function unwrap<T>(result: Result<T>): T {
 
 async function farmerWithFarm(c: Container): Promise<{ farmerId: number; farmId: number }> {
   const { farmer } = unwrap(await c.useCases.farmers.create({ email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: PASSWORD }));
-  const farm = unwrap(await c.useCases.farms.create(farmer.id, { address: 'Sítio', city: 'Três Rios', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }));
+  const farm = unwrap(await c.useCases.farms.createFarm.execute({ farmerId: farmer.id, input: { address: 'Sítio', city: 'Três Rios', state: 'RJ', latitude: -22.1165, longitude: -43.2092 } }));
   return { farmerId: farmer.id, farmId: farm.id };
 }
 
@@ -115,31 +115,24 @@ describe('HiringUseCases', () => {
   });
 });
 
-describe('FarmUseCases', () => {
+// As regras de cada caso de uso de fazenda estão em src/modules/farms/application/*.spec.ts;
+// aqui fica só o fluxo que passa pelos serviços.
+describe('Fazendas com serviços', () => {
   it('remover fazenda arquiva, e o serviço encerrado continua mostrando a fazenda', async () => {
     const c = setup();
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
 
-    const blocked = await c.useCases.farms.delete(farmerId, farmId);
+    const blocked = await c.useCases.farms.deleteFarm.execute({ farmerId, farmId });
     assert.equal(blocked.ok ? 'ok' : blocked.kind, 'conflict');
 
     unwrap(await c.useCases.services.cancel(serviceId));
-    unwrap(await c.useCases.farms.delete(farmerId, farmId));
+    unwrap(await c.useCases.farms.deleteFarm.execute({ farmerId, farmId }));
 
-    assert.deepEqual(unwrap(await c.useCases.farms.list(farmerId)), []);
+    assert.deepEqual(unwrap(await c.useCases.farms.listFarms.execute({ farmerId })), []);
     assert.deepEqual(unwrap(await c.useCases.farmers.get(farmerId)).farms, []);
     const service = unwrap(await c.useCases.services.get(serviceId));
     assert.equal(service.farm.deleted_at, NOW);
-  });
-
-  it('editar o ponto no mapa troca latitude e longitude', async () => {
-    const c = setup();
-    const { farmerId, farmId } = await farmerWithFarm(c);
-
-    const farm = unwrap(await c.useCases.farms.update(farmerId, farmId, { latitude: -22.2, longitude: -43.3 }));
-    assert.deepEqual([farm.latitude, farm.longitude], [-22.2, -43.3]);
-    assert.equal(farm.address, 'Sítio');
   });
 });
 

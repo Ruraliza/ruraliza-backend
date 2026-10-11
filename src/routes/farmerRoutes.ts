@@ -1,6 +1,5 @@
 import type { AuthController } from '../controllers/AuthController';
 import type { EventController } from '../controllers/EventController';
-import type { FarmController } from '../controllers/FarmController';
 import type { FarmerController } from '../controllers/FarmerController';
 import type { PhotoController } from '../controllers/PhotoController';
 import type { ServiceController } from '../controllers/ServiceController';
@@ -22,7 +21,6 @@ const uploadErrors = {
 
 export interface FarmerRouteControllers {
   farmers: FarmerController;
-  farms: FarmController;
   services: ServiceController;
   photos: PhotoController;
   auth: AuthController;
@@ -30,7 +28,8 @@ export interface FarmerRouteControllers {
 }
 
 export function farmerRoutes(
-  { farmers, farms, services, photos, auth, events }: FarmerRouteControllers,
+  { farmers, services, photos, auth, events }: FarmerRouteControllers,
+  farmRoutes: readonly RouteDef[],
   access: AccessPolicies
 ): readonly RouteDef[] {
   return [
@@ -211,49 +210,8 @@ export function farmerRoutes(
 
     // --- FAZENDAS ---
 
-    route('get', '/:id/farms', farms.listFarms, operation({
-      tag: TAGS.farms,
-      summary: 'Fazendas do produtor',
-      description: 'Só as fazendas ativas (as removidas não aparecem).',
-      params: [farmerId],
-      success: { status: 200, description: 'Fazendas ativas.', schema: { listOf: 'Farm' } },
-      errors: { 404: 'Produtor não encontrado.' }
-    }), access.ownFarmer()),
-
-    route('post', '/:id/farms', farms.createFarm, operation({
-      tag: TAGS.farms,
-      summary: 'Cadastrar fazenda',
-      params: [farmerId],
-      body: 'FarmInput',
-      success: { status: 201, description: 'Fazenda cadastrada e adicionada a `farmer.farms`.', schema: 'FarmResponse' },
-      errors: { 400: 'Campo obrigatório faltando; latitude/longitude fora da faixa ou não numéricas.', 404: 'Produtor não encontrado.' }
-    }), access.ownFarmer()),
-
-    route('patch', '/:id/farms/:farmId', farms.updateFarm, operation({
-      tag: TAGS.farms,
-      summary: 'Editar fazenda',
-      params: [farmerId, farmId],
-      body: 'FarmUpdate',
-      success: { status: 200, description: 'Fazenda atualizada.', schema: 'FarmResponse' },
-      errors: {
-        400: 'Tentou alterar `id` ou `farmer_id`; campo enviado vazio; latitude sem longitude (ou o contrário); coordenadas inválidas.',
-        404: 'Produtor não encontrado; fazenda não encontrada, removida ou de outro produtor.'
-      }
-    }), access.ownFarmer()),
-
-    route('delete', '/:id/farms/:farmId', farms.deleteFarm, operation({
-      tag: TAGS.farms,
-      summary: 'Remover fazenda',
-      description:
-        'A fazenda é arquivada (`deleted_at`): sai das listas e de `farmer.farms` e não recebe mais serviços, ' +
-        'mas os serviços encerrados continuam mostrando onde aconteceram.',
-      params: [farmerId, farmId],
-      success: { status: 200, description: 'Fazenda removida.', schema: 'MessageResponse' },
-      errors: {
-        404: 'Produtor não encontrado; fazenda não encontrada, já removida ou de outro produtor.',
-        409: 'A fazenda tem serviço `Pending` ou `In Progress`.'
-      }
-    }), access.ownFarmer()),
+    // As da fazenda em si vêm do módulo (src/modules/farms); as fotos da fazenda continuam aqui.
+    ...farmRoutes,
 
     route('post', '/:id/farms/:farmId/photos', photos.addFarmPhoto, operation({
       tag: TAGS.farms,

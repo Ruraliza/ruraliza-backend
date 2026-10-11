@@ -16,14 +16,14 @@ import { type PushNotifier, WORKER_APPLICATIONS_URL } from '../domain/push';
 import { dayOf, isPastDay } from '#shared/domain/dates';
 import type {
   ApplicationRepository,
-  FarmRepository,
   FarmerRepository,
   ServiceRepository,
   WorkerRepository
 } from '../domain/repositories';
+import { type FarmRepository, farmOf, findActiveFarm } from '#modules/farms';
 import { type Result, conflict, invalid, notFound, ok, requireFound } from '#shared/domain/result';
 import { toPublicProfile } from '#shared/utils/profile';
-import { farmOf, findActiveFarm, isExpired, toOpenService } from './shared';
+import { isExpired, toOpenService } from './shared';
 
 // Texto para busca: sem acento e em minúsculas ("Colheita de Café" vira "colheita de cafe").
 function searchable(value: string): string {

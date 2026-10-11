@@ -1,8 +1,8 @@
 import type { Farm, FarmPhoto, Farmer, Worker } from '../contracts';
 import { type ImageProcessor, type ImageStore, MAX_FARM_PHOTOS, type StoredImage } from '#shared/domain/images';
-import type { FarmRepository, FarmerRepository, WorkerRepository } from '../domain/repositories';
+import type { FarmerRepository, WorkerRepository } from '../domain/repositories';
+import { type FarmRepository, findActiveFarm } from '#modules/farms';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
-import { findActiveFarm } from './shared';
 
 // Fotos de perfil (produtor e trabalhador) e da fazenda. Toda imagem passa pelo ImageProcessor
 // (≤ 1000px, WebP, sem metadados; perfil sempre quadrado) antes de ir para o ImageStore;

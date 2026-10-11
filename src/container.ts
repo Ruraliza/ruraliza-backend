@@ -15,10 +15,10 @@ import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
 import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-document-store';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { WebPushSender } from '#shared/infra/push/web-push-sender';
+import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { AccountUseCases } from './usecases/AccountUseCases';
 import { AdminUseCases } from './usecases/AdminUseCases';
 import { AuthUseCases } from './usecases/AuthUseCases';
-import { FarmUseCases } from './usecases/FarmUseCases';
 import { FarmerUseCases } from './usecases/FarmerUseCases';
 import { HiringUseCases } from './usecases/HiringUseCases';
 import { PhotoUseCases } from './usecases/PhotoUseCases';
@@ -104,7 +104,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       accounts: new AccountUseCases({ accounts, farmers, workers }, { farmers: farmerUseCases, workers: workerUseCases }),
       farmers: farmerUseCases,
       workers: workerUseCases,
-      farms: new FarmUseCases({ farmers, farms, services }, clock),
+      farms: createFarmUseCases({ farmers, farms, services, clock }),
       services: new ServiceUseCases({ farmers, workers, farms, services, applications }, clock, changes, pushUseCases),
       hiring: new HiringUseCases({ services, applications, workers, payments, accounts }, clock, changes, pushUseCases),
       photos: new PhotoUseCases({ farmers, workers, farms }, { processor: imageProcessor, store: images }),

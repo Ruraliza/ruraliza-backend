@@ -5,6 +5,6 @@
     "noEmit": false
   },
   "include": ["app.ts", "src/**/*.ts"],
-  // Testes unitários ficam ao lado dos casos de uso, mas não vão para dist/.
-  "exclude": ["src/**/*.spec.ts", "src/shared/testing/**"]
+  // Testes unitários (e as fixtures em testing/) ficam ao lado do código, mas não vão para dist/.
+  "exclude": ["src/**/*.spec.ts", "src/**/testing/**"]
 }

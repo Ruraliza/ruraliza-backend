@@ -1,8 +1,8 @@
-import type { Farm, FarmLocation, OpenService, Service } from '../contracts';
+import type { FarmLocation, OpenService, Service } from '../contracts';
 import { SERVICE_STATUS } from '../constants/status';
 import { isPastDay } from '#shared/domain/dates';
-import type { FarmRepository } from '../domain/repositories';
-import { type Result, conflict, ok, requireFound } from '#shared/domain/result';
+import { type FarmRepository, farmOf } from '#modules/farms';
+import { type Result, conflict, ok } from '#shared/domain/result';
 
 // --- Perfis (produtor e trabalhador) ---
 
@@ -32,24 +32,6 @@ export async function checkProfileUnique(
     }
   }
   return ok(null);
-}
-
-// --- Fazendas ---
-
-// Fazenda removida pelo produtor continua guardada (deleted_at) para o histórico dos serviços,
-// mas some das listas e não pode mais ser editada nem receber serviços.
-export function isActiveFarm(farm: Farm): boolean {
-  return farm.deleted_at === undefined;
-}
-
-export async function findActiveFarm(farms: FarmRepository, id: number): Promise<Farm | undefined> {
-  const farm = await farms.findById(id);
-  return farm && isActiveFarm(farm) ? farm : undefined;
-}
-
-// A fazenda de um serviço (mesmo arquivada) sempre existe enquanto o serviço existir.
-export async function farmOf(farms: FarmRepository, service: Service): Promise<Farm> {
-  return requireFound(await farms.findById(service.farm_id), `fazenda do serviço ${service.id}`);
 }
 
 // Cidade/UF e fotos da fazenda do serviço (o endereço completo não é exposto ao trabalhador).

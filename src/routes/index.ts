@@ -1,9 +1,9 @@
+import { createFarmRoutes } from '#modules/farms';
 import type { Container } from '../container';
 import { createAccountController } from '../controllers/AccountController';
 import { createAdminController } from '../controllers/AdminController';
 import { createAuthController } from '../controllers/AuthController';
 import { createEventController } from '../controllers/EventController';
-import { createFarmController } from '../controllers/FarmController';
 import { createFarmerController } from '../controllers/FarmerController';
 import { createJobController } from '../controllers/JobController';
 import { createPhotoController } from '../controllers/PhotoController';
@@ -29,7 +29,6 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const auth = createAuthController(useCases.auth, useCases.systemUsers, tokens);
   const accounts = createAccountController(useCases.accounts, useCases.push);
   const farmers = createFarmerController(useCases.farmers, tokens);
-  const farms = createFarmController(useCases.farms);
   const services = createServiceController(useCases.services, useCases.hiring);
   const workers = createWorkerController(useCases.workers, tokens);
   const jobs = createJobController(useCases.services, useCases.hiring);
@@ -41,7 +40,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   return [
     { prefix: '/api/auth', routes: authRoutes(auth, access) },
     { prefix: '/api/accounts', routes: accountRoutes(accounts, access) },
-    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, farms, services, photos, auth, events }, access) },
+    { prefix: '/api/farmers', routes: farmerRoutes({ farmers, services, photos, auth, events }, createFarmRoutes(useCases.farms, access), access) },
     { prefix: '/api/workers', routes: workerRoutes({ workers, jobs, photos, resumes, auth, events }, access) },
     { prefix: '/api/admin', routes: adminRoutes(admin, access) },
     { prefix: '/api/images', routes: imageRoutes(photos) },

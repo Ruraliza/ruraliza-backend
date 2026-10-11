@@ -1,5 +1,6 @@
 import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
-import { type Properties, type RefTo, type Schema, id, input, isoDate, latitude, longitude, object, refTo } from '#shared/infra/docs/schema-kit';
+import { type Properties, type RefTo, type Schema, id, input, isoDate, object, refTo } from '#shared/infra/docs/schema-kit';
+import { type FarmSchemaName, farmSchemas } from '#modules/farms';
 import { CATEGORIES } from '../constants/categories';
 import { APPLICATION_STATUS, PAYMENT_STATUS, SERVICE_STATUS } from '../constants/status';
 
@@ -12,15 +13,16 @@ export type SchemaName =
   | CoreSchemaName
   | 'ServiceStatus' | 'ApplicationStatus' | 'PaymentStatus' | 'AnalyzeAction'
   | 'HealthResponse' | 'MapsConfig' | 'PushConfig' | 'CategoryList'
-  | 'Farmer' | 'Worker' | 'Farm' | 'FarmPhoto' | 'FarmLocation'
+  | FarmSchemaName
+  | 'Farmer' | 'Worker'
   | 'Service' | 'ServiceWithFarm' | 'FarmerServiceItem' | 'OpenService'
   | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment'
-  | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate' | 'FarmInput' | 'FarmUpdate'
+  | 'FarmerInput' | 'FarmerUpdate' | 'WorkerInput' | 'WorkerUpdate'
   | 'ServiceInput' | 'ServiceUpdate' | 'AnalyzeInput' | 'WorkerActionInput'
   | 'UserRole' | 'SessionUser' | 'LoginInput' | 'PasswordResetRequestInput' | 'PasswordResetInput' | 'PasswordChangeInput'
   | 'ProfileCreateInput' | 'ActiveRoleInput' | 'PushSubscriptionInput' | 'PushUnsubscribeInput'
   | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
-  | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse' | 'FarmResponse' | 'ServiceResponse'
+  | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse' | 'ServiceResponse'
   | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse'
   | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemUserUpdate' | 'AdminSystemUserUpdate' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
@@ -53,20 +55,6 @@ const sessionToken: Schema = {
 const ref: RefTo<SchemaName> = refTo;
 
 // --- Propriedades reaproveitadas ---
-
-const farmProps: Properties = {
-  id,
-  farmer_id: id,
-  address: { type: 'string', example: 'Estrada de Terra, Km 2' },
-  city: { type: 'string', example: 'Três Rios' },
-  state: { type: 'string', example: 'RJ', description: 'UF' },
-  latitude: { ...latitude, nullable: true, description: 'Ponto marcado no mapa (null em fazendas cadastradas antes do mapa).' },
-  longitude: { ...longitude, nullable: true },
-  photos: { type: 'array', maxItems: 6, items: ref('FarmPhoto'), description: 'Até 6 fotos, na ordem de envio (a primeira é a capa).' },
-  insertion_date: isoDate,
-  deleted_at: { ...isoDate, description: 'Presente quando a fazenda foi removida (fica só no histórico dos serviços).' }
-};
-const farmRequired = ['id', 'farmer_id', 'address', 'city', 'state', 'latitude', 'longitude', 'photos', 'insertion_date'];
 
 const serviceProps: Properties = {
   id,
@@ -190,26 +178,7 @@ export const schemas = {
   // --- Entidades ---
   Farmer: farmerSchema,
   Worker: workerSchema,
-  Farm: object(farmProps, farmRequired),
-  FarmPhoto: object(
-    {
-      id: { type: 'string', example: '3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.webp', description: 'Usado para remover a foto.' },
-      url: { type: 'string', example: '/api/images/3f2c1b9e-8d7a-4c1e-9b1a-2f6e5d4c3b2a.webp' }
-    },
-    ['id', 'url'],
-    'Foto da fazenda (WebP, no máximo 1000px).'
-  ),
-  FarmLocation: object(
-    {
-      city: { type: 'string', example: 'Três Rios' },
-      state: { type: 'string', example: 'RJ' },
-      photos: { type: 'array', items: { type: 'string' }, example: ['/api/images/3f2c….webp'], description: 'URLs das fotos da fazenda (a primeira é a capa).' },
-      latitude: { ...latitude, description: 'Só para o trabalhador aceito no serviço.' },
-      longitude: { ...longitude, description: 'Só para o trabalhador aceito no serviço.' }
-    },
-    ['city', 'state', 'photos'],
-    'Local da fazenda exposto ao trabalhador (sem o endereço completo; o ponto no mapa só vai para o trabalhador aceito).'
-  ),
+  ...farmSchemas,
   Service: object(serviceProps, serviceRequired),
   ServiceWithFarm: object({ ...serviceProps, farm: ref('Farm') }, [...serviceRequired, 'farm']),
   FarmerServiceItem: object(
@@ -263,28 +232,6 @@ export const schemas = {
     },
     [],
     'Edição parcial: envie só o que muda. Enviar `id`, `cpf` ou `password` resulta em 400 (a senha muda em PATCH /:id/password).'
-  ),
-  FarmInput: input(
-    {
-      address: { type: 'string', example: 'Estrada Velha, Km 3' },
-      city: { type: 'string', example: 'Três Rios' },
-      state: { type: 'string', example: 'RJ' },
-      latitude,
-      longitude
-    },
-    ['address', 'city', 'state', 'latitude', 'longitude'],
-    'Cadastro de fazenda com o ponto marcado no mapa.'
-  ),
-  FarmUpdate: input(
-    {
-      address: { type: 'string', example: 'Estrada Velha, Km 5' },
-      city: { type: 'string' },
-      state: { type: 'string' },
-      latitude,
-      longitude
-    },
-    [],
-    'Edição parcial. Campos não podem ficar vazios; latitude e longitude vão sempre juntas; enviar `id` ou `farmer_id` resulta em 400.'
   ),
   ServiceInput: input(
     {
@@ -413,7 +360,6 @@ export const schemas = {
     ['message', 'worker', 'user', 'token'],
     'Cadastro concluído: a conta foi criada e já está aberta (`user`, `token`).'
   ),
-  FarmResponse: object({ message: { type: 'string', example: 'Farm registered successfully!' }, farm: ref('Farm') }, ['message', 'farm']),
   ServiceResponse: object({ message: { type: 'string', example: 'Service requested successfully!' }, service: ref('Service') }, ['message', 'service']),
   ApplicationResponse: object(
     { message: { type: 'string', example: 'Application sent successfully!' }, application: ref('ServiceApplication') },

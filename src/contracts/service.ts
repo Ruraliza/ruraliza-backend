@@ -1,4 +1,4 @@
-import type { Farm, FarmLocation } from './farm';
+import type { Farm, FarmLocation } from '#modules/farms';
 import type { ServiceStatus } from './status';
 
 export interface Service {

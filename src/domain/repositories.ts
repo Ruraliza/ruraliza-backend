@@ -1,4 +1,5 @@
-import type { Farm, Farmer, Payment, Service, ServiceApplication, Worker } from '../contracts';
+import type { FarmRepository } from '#modules/farms';
+import type { Farmer, Payment, Service, ServiceApplication, Worker } from '../contracts';
 import type { Account } from './passwords';
 import type { PushSubscriptionRecord } from './push';
 import type { SystemUserRecord } from './system-users';
@@ -10,7 +11,6 @@ import type { Repository } from '#shared/domain/repository';
 // TODO(db): e-mail e cpf viram restrições UNIQUE por tabela de perfil.
 export type FarmerRepository = Repository<Farmer, 'email' | 'cpf'>;
 export type WorkerRepository = Repository<Worker, 'email' | 'cpf'>;
-export type FarmRepository = Repository<Farm, 'farmer_id'>;
 export type ServiceRepository = Repository<Service, 'farmer_id' | 'worker_id' | 'farm_id' | 'status'>;
 // TODO(db): restrição UNIQUE (service_id, worker_id).
 export type ApplicationRepository = Repository<ServiceApplication, 'service_id' | 'worker_id' | 'status'>;
