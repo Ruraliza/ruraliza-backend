@@ -1,31 +1,28 @@
-import type { ChangeFeed } from './domain/changes';
-import { type Clock, systemClock } from './domain/clock';
-import type { DocumentStore } from './domain/documents';
-import type { ImageProcessor, ImageStore } from './domain/images';
-import type { PasswordHasher, ResetTokens } from './domain/passwords';
-import type { PushSender } from './domain/push';
-import type { SessionTokens } from './domain/tokens';
-import type { Repositories } from './domain/repositories';
-import { authTokenSecret } from './config';
-import { createHmacSessionTokens, randomResetTokens, scryptPasswordHasher } from './infra/crypto/NodeCrypto';
-import { SharpImageProcessor } from './infra/images/SharpImageProcessor';
-import { createInMemoryRepositories } from './infra/memory';
-import { InMemoryChangeFeed } from './infra/memory/InMemoryChangeFeed';
-import { InMemoryDocumentStore } from './infra/memory/InMemoryDocumentStore';
-import { InMemoryImageStore } from './infra/memory/InMemoryImageStore';
-import { WebPushSender } from './infra/push/WebPushSender';
-import { AccountUseCases } from './usecases/AccountUseCases';
-import { AdminUseCases } from './usecases/AdminUseCases';
-import { AuthUseCases } from './usecases/AuthUseCases';
-import { FarmUseCases } from './usecases/FarmUseCases';
-import { FarmerUseCases } from './usecases/FarmerUseCases';
-import { HiringUseCases } from './usecases/HiringUseCases';
-import { PhotoUseCases } from './usecases/PhotoUseCases';
-import { PushUseCases } from './usecases/PushUseCases';
-import { ResumeUseCases } from './usecases/ResumeUseCases';
-import { ServiceUseCases } from './usecases/ServiceUseCases';
-import { SystemUserUseCases } from './usecases/SystemUserUseCases';
-import { WorkerUseCases } from './usecases/WorkerUseCases';
+import { type AccountUseCases, type ProfileFactory, createAccountUseCases } from '#modules/accounts';
+import { type AdminUseCases, createAdminUseCases } from '#modules/admin';
+import { type AuthUseCases, createAuthUseCases } from '#modules/auth';
+import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
+import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
+import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
+import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
+import { type PushDispatcher, type PushSender, type PushUseCases, WebPushSender, createPushDispatcher, createPushUseCases } from '#modules/notifications';
+import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
+import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
+import { type WorkerUseCases, createWorkerUseCases } from '#modules/workers';
+import { authTokenSecret } from '#shared/config';
+import type { ChangeFeed } from '#shared/domain/changes';
+import { type Clock, systemClock } from '#shared/domain/clock';
+import type { DocumentStore } from '#shared/domain/documents';
+import type { ImageProcessor, ImageStore } from '#shared/domain/images';
+import type { PasswordHasher } from '#shared/domain/passwords';
+import type { ResetTokens, SessionTokens } from '#shared/domain/tokens';
+import { createHmacSessionTokens, randomResetTokens, scryptPasswordHasher } from '#shared/infra/crypto/node-crypto';
+import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-document-store';
+import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
+import { SharpImageProcessor } from '#shared/infra/images/sharp-image-processor';
+import { InMemoryChangeFeed } from '#shared/infra/memory/in-memory-change-feed';
+import type { Repositories } from './repositories';
+import { createInMemoryRepositories } from './repositories';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
 // Para trocar a persistência (ex.: PostgreSQL), passe outros `repos` aqui; para guardar as
@@ -45,7 +42,6 @@ export interface UseCases {
   services: ServiceUseCases;
   hiring: HiringUseCases;
   photos: PhotoUseCases;
-  resumes: ResumeUseCases;
   push: PushUseCases;
   systemUsers: SystemUserUseCases;
   admin: AdminUseCases;
@@ -59,6 +55,8 @@ export interface Container {
   clock: Clock;
   changes: ChangeFeed;
   tokens: SessionTokens;
+  // Envia os pushes dos casos de uso; `idle()` espera os envios em andamento (testes).
+  notifier: PushDispatcher;
   useCases: UseCases;
 }
 
@@ -86,9 +84,16 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const changes = options.changes ?? new InMemoryChangeFeed();
   const tokens = options.tokens ?? createHmacSessionTokens(authTokenSecret(), clock);
   const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers } = repos;
-  const pushUseCases = new PushUseCases({ accounts, pushSubscriptions }, clock, options.push ?? new WebPushSender());
-  const farmerUseCases = new FarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions }, clock, images, passwords, changes);
-  const workerUseCases = new WorkerUseCases({ workers, farmers, services, applications, farms, accounts, pushSubscriptions }, clock, { images, documents }, passwords, changes);
+  const pushDeps = { accounts, pushSubscriptions, clock, sender: options.push ?? new WebPushSender() };
+  const notifier = createPushDispatcher(pushDeps);
+  const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes });
+  const workerUseCases = createWorkerUseCases({ workers, farmers, farms, services, applications, accounts, pushSubscriptions, clock, images, documents, passwords, changes });
+  // O segundo perfil de uma conta (src/modules/accounts) é criado pelos casos de uso dos perfis.
+  const profiles: ProfileFactory = {
+    create: (role, { bio, certificates, courses, experience, ...base }) => role === 'farmer'
+      ? farmerUseCases.createFarmerProfile.execute(base)
+      : workerUseCases.createWorkerProfile.execute({ ...base, bio, certificates, courses, experience })
+  };
 
   return {
     repos,
@@ -98,19 +103,19 @@ export function createContainer(options: ContainerOptions = {}): Container {
     clock,
     changes,
     tokens,
+    notifier,
     useCases: {
-      auth: new AuthUseCases({ farmers, workers, accounts }, clock, { hasher: passwords, resetTokens }),
-      accounts: new AccountUseCases({ accounts, farmers, workers }, { farmers: farmerUseCases, workers: workerUseCases }),
+      auth: createAuthUseCases({ accounts, farmers, workers, clock, passwords, resetTokens }),
+      accounts: createAccountUseCases({ accounts, farmers, workers, profiles }),
       farmers: farmerUseCases,
       workers: workerUseCases,
-      farms: new FarmUseCases({ farmers, farms, services }, clock),
-      services: new ServiceUseCases({ farmers, workers, farms, services, applications }, clock, changes, pushUseCases),
-      hiring: new HiringUseCases({ services, applications, workers, payments, accounts }, clock, changes, pushUseCases),
-      photos: new PhotoUseCases({ farmers, workers, farms }, { processor: imageProcessor, store: images }),
-      resumes: new ResumeUseCases({ workers }, documents),
-      push: pushUseCases,
-      systemUsers: new SystemUserUseCases({ systemUsers }, clock, passwords),
-      admin: new AdminUseCases({ accounts, farmers, workers, services }, { farmers: farmerUseCases, workers: workerUseCases })
+      farms: createFarmUseCases({ farmers, farms, services, clock }),
+      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier }),
+      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier }),
+      photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
+      push: createPushUseCases(pushDeps),
+      systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),
+      admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases })
     }
   };
 }

@@ -4,5 +4,7 @@
   "compilerOptions": {
     "noEmit": false
   },
-  "include": ["app.ts", "src/**/*.ts"]
+  "include": ["app.ts", "src/**/*.ts"],
+  // Testes unitários (e as fixtures em testing/) ficam ao lado do código, mas não vão para dist/.
+  "exclude": ["src/**/*.spec.ts", "src/**/testing/**"]
 }

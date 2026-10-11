@@ -1,0 +1,35 @@
+import type { SessionUser } from '#modules/accounts';
+import type { MessageResponse } from '#shared/contracts/api';
+
+export interface Farmer {
+  id: number;
+  email: string;
+  name: string;
+  farms: number[]; // IDs das fazendas ativas
+  phone: string;
+  cpf: string; // completo só no GET do próprio perfil; mascarado em listas
+  photo_url: string | null; // foto de perfil (WebP quadrado ≤ 1000×1000px), enviada por POST /farmers/:id/photo
+  insertion_date: string;
+}
+
+// POST /farmers
+export interface FarmerInput {
+  email: string;
+  name: string;
+  phone: string;
+  cpf: string;
+  password: string; // 8 a 128 caracteres; nunca volta nas respostas
+}
+
+// PATCH /farmers/:id (id e cpf não podem ser alterados; a senha muda em PATCH /farmers/:id/password)
+export type FarmerUpdate = Partial<Omit<FarmerInput, 'cpf' | 'password'>>;
+
+export interface FarmerResponse extends MessageResponse {
+  farmer: Farmer;
+}
+
+// Cadastro: a conta já fica aberta (`user`, `token`).
+export interface FarmerSignupResponse extends FarmerResponse {
+  user: SessionUser;
+  token: string;
+}

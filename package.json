@@ -7,18 +7,29 @@
     "build": "tsc -p tsconfig.build.json",
     "prestart": "npm run build",
     "start": "node dist/app.js",
-    "dev": "tsx watch app.ts --dev",
+    "dev": "tsx watch --conditions=development app.ts --dev",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "check:contracts": "tsc -p tsconfig.contracts.json",
-    "smoke": "tsx scripts/smoke.ts",
-    "test:unit": "tsx --test tests/*.test.ts",
-    "test": "npm run typecheck && npm run lint && npm run test:unit && npm run smoke"
+    "test:unit": "tsx --conditions=development --test \"src/**/*.spec.ts\"",
+    "test:integration": "tsx --conditions=development --test \"tests/integration/**/*.test.ts\" \"tests/setup/**/*.test.ts\"",
+    "test:e2e": "tsx --conditions=development tests/e2e/smoke.e2e.ts",
+    "test": "npm run typecheck && npm run lint && npm run test:unit && npm run test:integration && npm run test:e2e"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "imports": {
+    "#shared/*": {
+      "development": "./src/shared/*.ts",
+      "default": "./dist/src/shared/*.js"
+    },
+    "#modules/*": {
+      "development": "./src/modules/*/index.ts",
+      "default": "./dist/src/modules/*/index.js"
+    }
+  },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^18.0.4",
