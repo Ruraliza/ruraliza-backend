@@ -1,9 +1,11 @@
 import type { ApplicationWithService, MessageResponse, OpenService, Worker, WorkerResponse, WorkerSignupResponse } from '../contracts';
+import type { SessionTokens } from '../domain/tokens';
 import { toBody } from '../http/body';
 import { parseWorkerInput, parseWorkerUpdate } from '../http/parsers';
 import { sendFailure, toId } from '../http/respond';
 import type { Handler, IdParams } from '../http/types';
 import type { WorkerUseCases } from '../usecases/WorkerUseCases';
+import { accountToken } from './AuthController';
 
 // HTTP do cadastro e acompanhamento do trabalhador.
 export interface WorkerController {
@@ -16,7 +18,7 @@ export interface WorkerController {
   listWorkerServices: Handler<OpenService[], IdParams>;
 }
 
-export function createWorkerController(workers: WorkerUseCases): WorkerController {
+export function createWorkerController(workers: WorkerUseCases, tokens: SessionTokens): WorkerController {
   // GET /api/workers - Lista os trabalhadores (CPF mascarado)
   const listWorkers: Handler<Worker[]> = async (_req, res) => {
     res.status(200).json(await workers.list());
@@ -29,7 +31,7 @@ export function createWorkerController(workers: WorkerUseCases): WorkerControlle
 
     const result = await workers.create(input.value);
     if (!result.ok) { sendFailure(res, result); return; }
-    res.status(201).json({ message: 'Worker created successfully!', worker: result.value.worker, user: result.value.user });
+    res.status(201).json({ message: 'Worker created successfully!', worker: result.value.worker, user: result.value.user, token: accountToken(tokens, result.value.user) });
   };
 
   // GET /api/workers/:id - Perfil completo do próprio trabalhador

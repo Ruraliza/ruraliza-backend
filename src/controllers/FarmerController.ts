@@ -1,9 +1,11 @@
 import type { Farmer, FarmerResponse, FarmerSignupResponse, MessageResponse } from '../contracts';
+import type { SessionTokens } from '../domain/tokens';
 import { toBody } from '../http/body';
 import { parseProfileInput, parseProfileUpdate } from '../http/parsers';
 import { sendFailure, toId } from '../http/respond';
 import type { Handler, IdParams } from '../http/types';
 import type { FarmerUseCases } from '../usecases/FarmerUseCases';
+import { accountToken } from './AuthController';
 
 // HTTP do cadastro de produtores: lê a requisição, chama o caso de uso, responde.
 export interface FarmerController {
@@ -14,7 +16,7 @@ export interface FarmerController {
   deleteFarmer: Handler<MessageResponse, IdParams>;
 }
 
-export function createFarmerController(farmers: FarmerUseCases): FarmerController {
+export function createFarmerController(farmers: FarmerUseCases, tokens: SessionTokens): FarmerController {
   // GET /api/farmers - Lista os produtores (CPF mascarado)
   const listFarmers: Handler<Farmer[]> = async (_req, res) => {
     res.status(200).json(await farmers.list());
@@ -27,7 +29,7 @@ export function createFarmerController(farmers: FarmerUseCases): FarmerControlle
 
     const result = await farmers.create(input.value);
     if (!result.ok) { sendFailure(res, result); return; }
-    res.status(201).json({ message: 'Farmer created successfully!', farmer: result.value.farmer, user: result.value.user });
+    res.status(201).json({ message: 'Farmer created successfully!', farmer: result.value.farmer, user: result.value.user, token: accountToken(tokens, result.value.user) });
   };
 
   // GET /api/farmers/:id - Perfil completo do próprio produtor

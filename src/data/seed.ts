@@ -2,7 +2,7 @@
 // As datas são relativas ao relógio, então a demonstração vale em qualquer dia: há vagas publicadas em
 // dias diferentes (filtros from/to e sort=recent) e com todos os casos de prazo (sem prazo, vence em
 // alguns dias, vence hoje e já vencida). As contas de teste entram com a senha SEED_PASSWORD:
-// uma só de produtor, uma só de trabalhador e uma com os dois perfis.
+// uma só de produtor, uma só de trabalhador e uma com os dois perfis; e, na equipe, um administrador.
 import { SERVICE_STATUS } from '../constants/status';
 import type { Clock } from '../domain/clock';
 import { dayOf } from '../domain/dates';
@@ -27,6 +27,15 @@ interface DemoService {
 
 export async function seed(repos: Repositories, clock: Clock, passwords: PasswordHasher): Promise<void> {
   const now = clock.now();
+
+  // Equipe: entra por POST /api/auth/system/login.
+  await repos.systemUsers.create({
+    email: 'admin@exemplo.com',
+    name: 'Ana Administradora',
+    role: 'admin',
+    password_hash: await passwords.hash(SEED_PASSWORD),
+    insertion_date: now
+  });
   const shift = (days: number): string => new Date(Date.parse(now) + days * DAY_MS).toISOString();
 
   // Cadastros mais antigos que qualquer vaga.

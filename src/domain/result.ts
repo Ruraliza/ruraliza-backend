@@ -1,5 +1,5 @@
 // Resultado de uma operação de negócio, sem nada de HTTP: quem chama decide o status.
-export type FailureKind = 'invalid' | 'unauthorized' | 'not_found' | 'conflict';
+export type FailureKind = 'invalid' | 'unauthorized' | 'forbidden' | 'not_found' | 'conflict';
 
 export interface Ok<T> {
   ok: true;
@@ -25,6 +25,11 @@ export function invalid(message: string): Failure {
 // Credenciais erradas (e-mail/senha no login, senha atual na troca).
 export function unauthorized(message: string): Failure {
   return { ok: false, kind: 'unauthorized', message };
+}
+
+// Entrou, mas não pode fazer isto (não é o dono do recurso, ou o cargo não permite).
+export function forbidden(message: string): Failure {
+  return { ok: false, kind: 'forbidden', message };
 }
 
 export function notFound(message: string): Failure {

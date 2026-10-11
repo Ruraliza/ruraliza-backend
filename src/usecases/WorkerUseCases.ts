@@ -5,7 +5,15 @@ import type { Clock } from '../domain/clock';
 import type { DocumentStore } from '../domain/documents';
 import type { ImageStore } from '../domain/images';
 import type { PasswordHasher } from '../domain/passwords';
-import type { AccountRepository, ApplicationRepository, FarmRepository, FarmerRepository, ServiceRepository, WorkerRepository } from '../domain/repositories';
+import type {
+  AccountRepository,
+  ApplicationRepository,
+  FarmRepository,
+  FarmerRepository,
+  PushSubscriptionRepository,
+  ServiceRepository,
+  WorkerRepository
+} from '../domain/repositories';
 import { type Result, conflict, notFound, ok, requireFound } from '../domain/result';
 import { toPublicProfile } from '../utils/profile';
 import { releaseImage } from './PhotoUseCases';
@@ -39,6 +47,7 @@ export class WorkerUseCases {
       farms: FarmRepository;
       farmers: FarmerRepository;
       accounts: AccountRepository;
+      pushSubscriptions: PushSubscriptionRepository;
     },
     private readonly clock: Clock,
     private readonly files: { images: ImageStore; documents: DocumentStore },
@@ -103,7 +112,7 @@ export class WorkerUseCases {
   // As candidaturas embutem o perfil do trabalhador, então saem junto com ele.
   // Bloqueado enquanto houver serviço em andamento atribuído a ele.
   async delete(id: number): Promise<Result<null>> {
-    const { workers, services, applications, accounts } = this.repos;
+    const { workers, services, applications } = this.repos;
     const worker = await workers.findById(id);
     if (!worker) return notFound('Trabalhador não encontrado.');
 
@@ -121,7 +130,7 @@ export class WorkerUseCases {
     this.changes.publish(own.map((a) => serviceApplications(a.service_id)));
     await releaseImage(this.files.images, worker.photo_url);
     await releaseDocument(this.files.documents, worker.resume_url);
-    await unlinkProfile(accounts, 'worker', worker.id);
+    await unlinkProfile(this.repos, 'worker', worker.id);
     await workers.delete(worker.id);
 
     return ok(null);

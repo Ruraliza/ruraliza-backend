@@ -1,5 +1,5 @@
 import type { OpenAPIV3 } from 'openapi-types';
-import { type RouteGroup, toOpenApiPath } from '../http/route';
+import { BEARER_AUTH, type RouteGroup, toOpenApiPath } from '../http/route';
 import { TAGS } from './operations';
 import { schemas } from './schemas';
 
@@ -8,9 +8,13 @@ API do **Ruraliza**: conecta produtores rurais a trabalhadores para serviços na
 
 - Os dados (e as fotos e currículos) ficam **em memória** e somem quando o servidor reinicia. Ao subir, há dados de teste
   (produtor 1 com as fazendas 1 e 2, trabalhador 1, serviços 1 a 7: um por categoria, publicados em dias diferentes, com e sem prazo; o 7 já venceu).
-- **Senha**: todo perfil tem senha (no cadastro). \`POST /api/auth/login\` confere e-mail e senha; os perfis de teste usam \`ruraliza123\`.
-  Ainda **não há token de sessão**: nas demais rotas, quem age é informado no corpo (\`farmer_id\`, \`worker_id\`) ou na URL.
-- Erros sempre em \`{ "error": "mensagem" }\`: 400 validação, 401 e-mail ou senha incorretos, 404 não encontrado, 409 conflito de estado.
+- **Sessão**: \`POST /api/auth/login\` (produtor/trabalhador) e \`POST /api/auth/system/login\` (equipe) devolvem um \`token\`
+  que vale 12 horas. As rotas com cadeado exigem \`Authorization: Bearer <token>\` (botão **Authorize**) e só deixam
+  cada conta mexer no que é dela. As contas de teste usam a senha \`ruraliza123\`: \`produtor@exemplo.com\`,
+  \`trabalhador@exemplo.com\`, \`ambos@exemplo.com\` e, na equipe, \`admin@exemplo.com\`.
+- **Usuários de sistema** (cargos \`admin\` e \`tutor\`) não se cadastram pelo app: um administrador cria em \`/api/admin/system-users\`.
+- Erros sempre em \`{ "error": "mensagem" }\`: 400 validação, 401 sem sessão (ou e-mail/senha incorretos), 403 sem permissão,
+  404 não encontrado, 409 conflito de estado.
 - Status em inglês: serviço \`Pending → In Progress → Completed\` (ou \`Cancelled\`); candidatura \`Pending → Accepted | Rejected\`.
 - O JSON deste documento está em \`/api/docs/openapi.json\`.
 `.trim();
@@ -25,7 +29,8 @@ const TAG_DESCRIPTIONS: Record<(typeof TAGS)[keyof typeof TAGS], string> = {
   [TAGS.workers]: 'Cadastro, perfil e acompanhamento do trabalhador.',
   [TAGS.jobs]: 'Vagas abertas (com filtros), candidatura e desistência.',
   [TAGS.images]: 'Fotos de perfil e de fazenda (WebP, no máximo 1000px).',
-  [TAGS.documents]: 'Currículos dos trabalhadores (PDF, até 5 MB).'
+  [TAGS.documents]: 'Currículos dos trabalhadores (PDF, até 5 MB).',
+  [TAGS.admin]: 'Gerenciamento das contas do app e da equipe, pelos usuários de sistema com cargo de administrador.'
 };
 
 export function buildOpenApiDocument(groups: readonly RouteGroup[]): OpenAPIV3.Document {
@@ -53,10 +58,15 @@ export function buildOpenApiDocument(groups: readonly RouteGroup[]): OpenAPIV3.D
     openapi: '3.0.3',
     info: { title: 'Ruraliza API', version: '1.0.0', description: DESCRIPTION, license: { name: 'ISC' } },
     servers: [{ url: '/', description: 'Este servidor' }],
-    // Sem token de sessão nesta fase (ver descrição).
+    // Cada operação declara a sua (ver route() em src/http/route.ts).
     security: [],
     tags: Object.entries(TAG_DESCRIPTIONS).map(([name, description]) => ({ name, description })),
     paths,
-    components: { schemas }
+    components: {
+      schemas,
+      securitySchemes: {
+        [BEARER_AUTH]: { type: 'http', scheme: 'bearer', description: 'O `token` de POST /api/auth/login ou /api/auth/system/login.' }
+      }
+    }
   };
 }

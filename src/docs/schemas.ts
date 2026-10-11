@@ -21,7 +21,8 @@ export type SchemaName =
   | 'ProfileCreateInput' | 'ActiveRoleInput' | 'PushSubscriptionInput' | 'PushUnsubscribeInput'
   | 'LoginResponse' | 'PasswordResetRequestResponse' | 'SessionResponse'
   | 'FarmerResponse' | 'WorkerResponse' | 'FarmerSignupResponse' | 'WorkerSignupResponse' | 'FarmResponse' | 'ServiceResponse'
-  | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse';
+  | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse'
+  | 'SystemRole' | 'SystemUser' | 'SystemUserInput' | 'SystemLoginResponse' | 'SystemUserResponse' | 'AdminUser';
 
 const id: Schema = { type: 'integer', minimum: 1, example: 1 };
 const nullableId: Schema = { type: 'integer', minimum: 1, nullable: true, example: null };
@@ -46,6 +47,11 @@ const lastDay: Schema = {
   description: 'Último dia (horário de Brasília) para receber candidaturas. null = sem prazo. Vencida, a vaga sai da busca e não aceita candidaturas, mas continua Pending: dá para renovar a data ou cancelar.'
 };
 const description: Schema = { type: 'string', nullable: true, maxLength: 2000, example: 'Colheita manual de café. Levar luvas e chapéu; almoço por conta da fazenda.' };
+const sessionToken: Schema = {
+  type: 'string',
+  example: 'eyJraW5kIjoiYWNjb3VudCIsImlkIjoxLCJleHAiOjE3OTk5OTk5OTk5OTl9.p0dTqW…',
+  description: 'Token de sessão (12 horas). Envie em `Authorization: Bearer <token>`.'
+};
 const ref = (name: SchemaName): OpenAPIV3.ReferenceObject => ({ $ref: `#/components/schemas/${name}` });
 
 function object(properties: Properties, required: readonly string[], description?: string): Schema {
@@ -143,6 +149,39 @@ const workerTextProps: Properties = {
   experience: { ...optionalText, maxLength: 1000, example: '5 anos em colheita de café', description: 'Vazio vira null.' }
 };
 
+// Perfis: também aparecem como `nullable` dentro de AdminUser (allOf + nullable não aceita null).
+const farmerSchema: Schema = object(
+  {
+    id,
+    email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' },
+    name: { type: 'string', example: 'João Produtor' },
+    farms: { type: 'array', items: { type: 'integer' }, example: [1, 2], description: 'IDs das fazendas ativas.' },
+    phone: { type: 'string', example: '24999999999' },
+    cpf,
+    photo_url: photoUrl,
+    insertion_date: isoDate
+  },
+  ['id', 'email', 'name', 'farms', 'phone', 'cpf', 'photo_url', 'insertion_date']
+);
+
+const workerSchema: Schema = object(
+  {
+    id,
+    email: { type: 'string', format: 'email', example: 'trabalhador@exemplo.com' },
+    name: { type: 'string', example: 'Maria Trabalhadora' },
+    bio: { ...optionalText, maxLength: 500, example: 'Trabalho com colheita de café há 5 anos. Disponível nos fins de semana.' },
+    certificates: { ...optionalText, example: 'Certificado de Tratorista' },
+    courses: { ...optionalText, example: 'NR-31 (SENAR, 2024)' },
+    experience: { ...optionalText, example: '5 anos' },
+    phone: { type: 'string', example: '24988888888' },
+    cpf,
+    photo_url: photoUrl,
+    resume_url: resumeUrl,
+    insertion_date: isoDate
+  },
+  ['id', 'email', 'name', 'bio', 'certificates', 'courses', 'experience', 'phone', 'cpf', 'photo_url', 'resume_url', 'insertion_date']
+);
+
 export const schemas = {
   // --- Status ---
   ServiceStatus: { type: 'string', enum: Object.values(SERVICE_STATUS), example: 'Pending' },
@@ -170,36 +209,8 @@ export const schemas = {
   CategoryList: { type: 'array', items: { type: 'string', enum: [...CATEGORIES] }, example: [...CATEGORIES] },
 
   // --- Entidades ---
-  Farmer: object(
-    {
-      id,
-      email: { type: 'string', format: 'email', example: 'produtor@exemplo.com' },
-      name: { type: 'string', example: 'João Produtor' },
-      farms: { type: 'array', items: { type: 'integer' }, example: [1, 2], description: 'IDs das fazendas ativas.' },
-      phone: { type: 'string', example: '24999999999' },
-      cpf,
-      photo_url: photoUrl,
-      insertion_date: isoDate
-    },
-    ['id', 'email', 'name', 'farms', 'phone', 'cpf', 'photo_url', 'insertion_date']
-  ),
-  Worker: object(
-    {
-      id,
-      email: { type: 'string', format: 'email', example: 'trabalhador@exemplo.com' },
-      name: { type: 'string', example: 'Maria Trabalhadora' },
-      bio: { ...optionalText, maxLength: 500, example: 'Trabalho com colheita de café há 5 anos. Disponível nos fins de semana.' },
-      certificates: { ...optionalText, example: 'Certificado de Tratorista' },
-      courses: { ...optionalText, example: 'NR-31 (SENAR, 2024)' },
-      experience: { ...optionalText, example: '5 anos' },
-      phone: { type: 'string', example: '24988888888' },
-      cpf,
-      photo_url: photoUrl,
-      resume_url: resumeUrl,
-      insertion_date: isoDate
-    },
-    ['id', 'email', 'name', 'bio', 'certificates', 'courses', 'experience', 'phone', 'cpf', 'photo_url', 'resume_url', 'insertion_date']
-  ),
+  Farmer: farmerSchema,
+  Worker: workerSchema,
   Farm: object(farmProps, farmRequired),
   FarmPhoto: object(
     {
@@ -393,7 +404,10 @@ export const schemas = {
     'Inscrição (navegador) a remover.'
   ),
   ActiveRoleInput: input({ role: ref('UserRole') }, ['role'], 'Painel a abrir. A conta precisa ter esse perfil.'),
-  LoginResponse: object({ message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SessionUser') }, ['message', 'user']),
+  LoginResponse: object(
+    { message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SessionUser'), token: sessionToken },
+    ['message', 'user', 'token']
+  ),
   SessionResponse: object({ message: { type: 'string', example: 'Profile created successfully!' }, user: ref('SessionUser') }, ['message', 'user']),
   PasswordResetRequestResponse: object(
     {
@@ -411,14 +425,14 @@ export const schemas = {
   FarmerResponse: object({ message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer') }, ['message', 'farmer']),
   WorkerResponse: object({ message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker') }, ['message', 'worker']),
   FarmerSignupResponse: object(
-    { message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer'), user: ref('SessionUser') },
-    ['message', 'farmer', 'user'],
-    'Cadastro concluído: a conta foi criada e já está aberta (`user`).'
+    { message: { type: 'string', example: 'Farmer created successfully!' }, farmer: ref('Farmer'), user: ref('SessionUser'), token: sessionToken },
+    ['message', 'farmer', 'user', 'token'],
+    'Cadastro concluído: a conta foi criada e já está aberta (`user`, `token`).'
   ),
   WorkerSignupResponse: object(
-    { message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker'), user: ref('SessionUser') },
-    ['message', 'worker', 'user'],
-    'Cadastro concluído: a conta foi criada e já está aberta (`user`).'
+    { message: { type: 'string', example: 'Worker created successfully!' }, worker: ref('Worker'), user: ref('SessionUser'), token: sessionToken },
+    ['message', 'worker', 'user', 'token'],
+    'Cadastro concluído: a conta foi criada e já está aberta (`user`, `token`).'
   ),
   FarmResponse: object({ message: { type: 'string', example: 'Farm registered successfully!' }, farm: ref('Farm') }, ['message', 'farm']),
   ServiceResponse: object({ message: { type: 'string', example: 'Service requested successfully!' }, service: ref('Service') }, ['message', 'service']),
@@ -437,6 +451,53 @@ export const schemas = {
   PaymentResponse: object(
     { message: { type: 'string', example: 'Payment released and service completed successfully!' }, service: ref('Service'), payment: ref('Payment') },
     ['message', 'service', 'payment']
+  ),
+
+  // --- Usuários de sistema e administração ---
+  SystemRole: {
+    type: 'string',
+    enum: ['admin', 'tutor'],
+    example: 'admin',
+    description: 'Cargo. `admin`: gerencia as contas do app e a equipe. `tutor`: vai gerenciar as trilhas de estudo.'
+  },
+  SystemUser: object(
+    {
+      id,
+      email: { type: 'string', format: 'email', example: 'admin@exemplo.com' },
+      name: { type: 'string', example: 'Ana Administradora' },
+      role: ref('SystemRole'),
+      insertion_date: isoDate
+    },
+    ['id', 'email', 'name', 'role', 'insertion_date'],
+    'Usuário da equipe do Ruraliza (não é uma conta do app).'
+  ),
+  SystemUserInput: input(
+    {
+      email: { type: 'string', format: 'email', example: 'tutor@exemplo.com', description: 'Guardado em minúsculas. Único entre os usuários de sistema.' },
+      name: { type: 'string', maxLength: 120, example: 'Tiago Tutor' },
+      role: ref('SystemRole'),
+      password: newPassword
+    },
+    ['email', 'name', 'role', 'password'],
+    'Novo usuário de sistema.'
+  ),
+  SystemLoginResponse: object(
+    { message: { type: 'string', example: 'Logged in successfully!' }, user: ref('SystemUser'), token: sessionToken },
+    ['message', 'user', 'token']
+  ),
+  SystemUserResponse: object(
+    { message: { type: 'string', example: 'System user created successfully!' }, system_user: ref('SystemUser') },
+    ['message', 'system_user']
+  ),
+  AdminUser: object(
+    {
+      account_id: id,
+      email: { type: 'string', format: 'email', example: 'ambos@exemplo.com' },
+      farmer: { ...farmerSchema, nullable: true, description: 'Perfil de produtor (null = a conta não tem).' },
+      worker: { ...workerSchema, nullable: true, description: 'Perfil de trabalhador (null = a conta não tem).' }
+    },
+    ['account_id', 'email', 'farmer', 'worker'],
+    'Conta do app com os perfis. CPF mascarado na lista e completo no detalhe.'
   )
 } satisfies Record<SchemaName, Schema>;
 

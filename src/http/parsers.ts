@@ -17,12 +17,14 @@ import type {
   PushUnsubscribeInput,
   ServiceInput,
   ServiceUpdate,
+  SystemUserInput,
   UserRole,
   WorkerActionInput,
   WorkerUpdate
 } from '../contracts';
 import { isCalendarDate } from '../domain/dates';
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '../domain/passwords';
+import { SYSTEM_ROLES } from '../domain/system-users';
 import { type Result, invalid, ok } from '../domain/result';
 import type { NewWorker } from '../usecases/WorkerUseCases';
 import { normalizeEmail } from '../utils/profile';
@@ -160,6 +162,31 @@ export function parseLoginInput(body: Body): Result<LoginInput> {
   if (typeof password !== 'string') return invalid('A senha deve ser um texto.');
   // Sem validar formato de e-mail nem tamanho da senha: qualquer erro vira "e-mail ou senha incorretos".
   return ok({ email: normalizeEmail(body['email']), password });
+}
+
+// --- Usuários de sistema ---
+
+const MAX_NAME = 120;
+
+export function parseSystemUserInput(body: Body): Result<SystemUserInput> {
+  const missing = missingFields(body, ['email', 'name', 'role', 'password']);
+  if (missing.length > 0) return invalid(missingMessage(missing));
+
+  const email = normalizeEmail(body['email']);
+  if (!isValidEmail(email)) return invalid('E-mail inválido. Use o formato nome@dominio.com.');
+
+  const name = text(body['name']).trim();
+  if (!name) return invalid('Informe o nome.');
+  const longName = tooLong('O nome', name, MAX_NAME);
+  if (longName) return invalid(longName);
+
+  const role = SYSTEM_ROLES.find((r) => r === body['role']);
+  if (!role) return invalid("O cargo (role) deve ser 'admin' ou 'tutor'.");
+
+  const password = parseNewPassword(body['password'], 'A senha');
+  if (!password.ok) return password;
+
+  return ok({ email, name, role, password: password.value });
 }
 
 export function parsePasswordResetRequest(body: Body): Result<PasswordResetRequestInput> {

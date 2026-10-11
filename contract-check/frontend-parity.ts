@@ -11,6 +11,7 @@ import type * as FrontPush from '../../ruraliza-frontend/src/models/push.model';
 import type * as FrontService from '../../ruraliza-frontend/src/models/service.model';
 import type * as FrontApplication from '../../ruraliza-frontend/src/models/service-application.model';
 import type * as FrontStatus from '../../ruraliza-frontend/src/models/status';
+import type * as FrontSystem from '../../ruraliza-frontend/src/models/system.model';
 import type * as FrontWorker from '../../ruraliza-frontend/src/models/worker.model';
 
 // Igualdade estrita de tipos (distingue opcional de `| undefined`, readonly etc.).
@@ -70,5 +71,12 @@ export type ContractParity = [
   Expect<Equals<Api.ApplicationWithService, FrontApplication.ApplicationWithService>>,
   Expect<Equals<Api.AnalyzeAction, FrontApplication.AnalyzeAction>>,
 
-  Expect<Equals<Api.Payment, FrontPayment.Payment>>
+  Expect<Equals<Api.Payment, FrontPayment.Payment>>,
+
+  Expect<Equals<Api.SystemRole, FrontSystem.SystemRole>>,
+  Expect<Equals<Api.SystemUser, FrontSystem.SystemUser>>,
+  Expect<Equals<Api.SystemLoginResponse, FrontSystem.SystemLoginResponse>>,
+  Expect<Equals<Api.SystemUserInput, FrontSystem.SystemUserInput>>,
+  Expect<Equals<Api.SystemUserResponse, FrontSystem.SystemUserResponse>>,
+  Expect<Equals<Api.AdminUser, FrontSystem.AdminUser>>
 ];

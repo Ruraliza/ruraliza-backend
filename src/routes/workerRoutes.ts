@@ -5,6 +5,7 @@ import type { PhotoController } from '../controllers/PhotoController';
 import type { ResumeController } from '../controllers/ResumeController';
 import type { WorkerController } from '../controllers/WorkerController';
 import { IMAGE_UPLOAD, PDF_UPLOAD, TAGS, operation, pathParam, queryParam } from '../docs/operations';
+import { type AccessPolicies, PUBLIC_ROUTE } from '../http/access';
 import { type RouteDef, route } from '../http/route';
 
 // Montadas em /api/workers. Atenção à ordem: rotas '/services/...' vêm antes de '/:id'.
@@ -23,7 +24,10 @@ export interface WorkerRouteControllers {
 
 const date = { type: 'string' as const, format: 'date', example: '2026-10-01' };
 
-export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: WorkerRouteControllers): readonly RouteDef[] {
+export function workerRoutes(
+  { workers, jobs, photos, resumes, auth, events }: WorkerRouteControllers,
+  access: AccessPolicies
+): readonly RouteDef[] {
   return [
     // --- VAGAS ---
 
@@ -44,7 +48,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       ],
       success: { status: 200, description: 'Vagas abertas.', schema: { listOf: 'OpenService' } },
       errors: { 400: 'Número ou data em formato inválido; mínimo maior que o máximo; `from` depois de `to`; `sort` desconhecido.' }
-    })),
+    }), access.worker()),
 
     route('get', '/services/:id', jobs.getServiceDetail, operation({
       tag: TAGS.jobs,
@@ -56,7 +60,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       ],
       success: { status: 200, description: 'Serviço com cidade/UF da fazenda (e o ponto no mapa, para o trabalhador aceito).', schema: 'OpenService' },
       errors: { 400: '`worker_id` inválido.', 404: 'Serviço não encontrado.' }
-    })),
+    }), access.worker()),
 
     route('post', '/services/:id/apply', jobs.applyForService, operation({
       tag: TAGS.jobs,
@@ -69,7 +73,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
         404: 'Serviço ou trabalhador não encontrados.',
         409: 'A vaga não está aberta; o prazo da vaga (`expires_at`) terminou; o trabalhador já se candidatou; o serviço foi publicado pelo perfil de produtor da mesma conta.'
       }
-    })),
+    }), access.workerInBody()),
 
     route('patch', '/services/:id/withdraw', jobs.withdrawFromService, operation({
       tag: TAGS.jobs,
@@ -87,7 +91,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
         404: 'Serviço não encontrado; o trabalhador não tem candidatura neste serviço.',
         409: 'A candidatura já foi recusada ou o serviço já foi encerrado.'
       }
-    })),
+    }), access.workerInBody()),
 
     // --- TRABALHADORES ---
 
@@ -95,7 +99,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       tag: TAGS.workers,
       summary: 'Listar trabalhadores',
       success: { status: 200, description: 'Trabalhadores com CPF mascarado.', schema: { listOf: 'Worker' } }
-    })),
+    }), access.system('users:manage')),
 
     route('post', '/', workers.createWorker, operation({
       tag: TAGS.workers,
@@ -106,7 +110,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
         400: 'Campo obrigatório faltando; e-mail inválido; CPF inválido; senha fora do tamanho (8 a 128).',
         409: 'Já existe uma conta com este e-mail ou CPF (para ter os dois perfis, use POST /api/accounts/:id/profiles).'
       }
-    })),
+    }), PUBLIC_ROUTE),
 
     route('get', '/:id', workers.getWorker, operation({
       tag: TAGS.workers,
@@ -114,7 +118,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       params: [workerId],
       success: { status: 200, description: 'Perfil completo (CPF sem máscara).', schema: 'Worker' },
       errors: { 404: 'Trabalhador não encontrado.' }
-    })),
+    }), access.ownWorker()),
 
     route('patch', '/:id', workers.updateWorker, operation({
       tag: TAGS.workers,
@@ -128,7 +132,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
         404: 'Trabalhador não encontrado.',
         409: 'E-mail já usado por outra conta.'
       }
-    })),
+    }), access.ownWorker()),
 
     route('delete', '/:id', workers.deleteWorker, operation({
       tag: TAGS.workers,
@@ -137,7 +141,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       params: [workerId],
       success: { status: 200, description: 'Trabalhador removido.', schema: 'MessageResponse' },
       errors: { 404: 'Trabalhador não encontrado.', 409: 'O trabalhador tem serviço `In Progress`.' }
-    })),
+    }), access.ownWorker()),
 
     route('patch', '/:id/password', auth.changeWorkerPassword, operation({
       tag: TAGS.workers,
@@ -151,7 +155,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
         401: 'A senha atual está incorreta.',
         404: 'Trabalhador não encontrado.'
       }
-    })),
+    }), access.ownWorker()),
 
     route('post', '/:id/photo', photos.uploadWorkerPhoto, operation({
       tag: TAGS.workers,
@@ -167,7 +171,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
         404: 'Trabalhador não encontrado.',
         413: 'Arquivo maior que 10 MB.'
       }
-    })),
+    }), access.ownWorker()),
 
     route('delete', '/:id/photo', photos.deleteWorkerPhoto, operation({
       tag: TAGS.workers,
@@ -175,7 +179,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       params: [workerId],
       success: { status: 200, description: 'Foto removida (`photo_url` = null).', schema: 'WorkerResponse' },
       errors: { 404: 'Trabalhador não encontrado.' }
-    })),
+    }), access.ownWorker()),
 
     route('post', '/:id/resume', resumes.uploadWorkerResume, operation({
       tag: TAGS.workers,
@@ -189,7 +193,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
         404: 'Trabalhador não encontrado.',
         413: 'Arquivo maior que 5 MB.'
       }
-    })),
+    }), access.ownWorker()),
 
     route('delete', '/:id/resume', resumes.deleteWorkerResume, operation({
       tag: TAGS.workers,
@@ -197,7 +201,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       params: [workerId],
       success: { status: 200, description: 'Currículo removido (`resume_url` = null).', schema: 'WorkerResponse' },
       errors: { 404: 'Trabalhador não encontrado.' }
-    })),
+    }), access.ownWorker()),
 
     route('get', '/:id/applications', workers.listWorkerApplications, operation({
       tag: TAGS.workers,
@@ -205,7 +209,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       params: [workerId],
       success: { status: 200, description: 'Candidaturas com o serviço embutido.', schema: { listOf: 'ApplicationWithService' } },
       errors: { 404: 'Trabalhador não encontrado.' }
-    })),
+    }), access.ownWorker()),
 
     route('get', '/:id/events', events.workerApplicationEvents, operation({
       tag: TAGS.workers,
@@ -218,7 +222,7 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       params: [workerId],
       success: { status: 200, description: 'Stream de eventos aberto.', eventStream: true },
       errors: { 404: 'Trabalhador não encontrado.' }
-    })),
+    }), access.ownWorker('id', { tokenInQuery: true })),
 
     route('get', '/:id/services', workers.listWorkerServices, operation({
       tag: TAGS.workers,
@@ -227,6 +231,6 @@ export function workerRoutes({ workers, jobs, photos, resumes, auth, events }: W
       params: [workerId],
       success: { status: 200, description: 'Serviços com cidade/UF da fazenda.', schema: { listOf: 'OpenService' } },
       errors: { 404: 'Trabalhador não encontrado.' }
-    }))
+    }), access.ownWorker())
   ];
 }

@@ -1,6 +1,7 @@
 import { googleMapsSettings, isAllowedOrigin, vapidSettings } from '../config';
 import type { HealthResponse, MapsConfig, PushConfig } from '../contracts';
 import { TAGS, operation } from '../docs/operations';
+import { PUBLIC_ROUTE } from '../http/access';
 import { type RouteDef, route } from '../http/route';
 import type { Handler } from '../http/types';
 
@@ -33,7 +34,7 @@ export const systemRoutes: readonly RouteDef[] = [
     tag: TAGS.system,
     summary: 'Health check',
     success: { status: 200, description: 'O servidor está rodando.', schema: 'HealthResponse' }
-  })),
+  }), PUBLIC_ROUTE),
 
   route('get', '/config/maps', mapsConfig, operation({
     tag: TAGS.system,
@@ -44,7 +45,7 @@ export const systemRoutes: readonly RouteDef[] = [
       403: 'Pedido sem o cabeçalho Origin do frontend (https://ruraliza.github.io ou CORS_ORIGINS).',
       503: 'GOOGLE_MAPS_API_KEY não definida no .env.'
     }
-  })),
+  }), PUBLIC_ROUTE),
 
   route('get', '/config/push', pushConfig, operation({
     tag: TAGS.system,
@@ -52,5 +53,5 @@ export const systemRoutes: readonly RouteDef[] = [
     description: 'Chave pública VAPID para o `PushManager.subscribe()` do navegador.',
     success: { status: 200, description: 'Chave pública VAPID.', schema: 'PushConfig' },
     errors: { 503: 'VAPID_PUBLIC_KEY ou VAPID_PRIVATE_KEY não definida no .env.' }
-  }))
+  }), PUBLIC_ROUTE)
 ];

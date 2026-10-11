@@ -1,5 +1,6 @@
 import type { PhotoController } from '../controllers/PhotoController';
 import { TAGS, operation } from '../docs/operations';
+import { PUBLIC_ROUTE } from '../http/access';
 import { type RouteDef, route } from '../http/route';
 
 // Montadas em /api/images.
@@ -15,6 +16,6 @@ export function imageRoutes(photos: PhotoController): readonly RouteDef[] {
       params: [{ name: 'id', in: 'path', required: true, description: 'Id da imagem (ex.: `3f2c….webp`).', schema: { type: 'string' } }],
       success: { status: 200, description: 'Bytes da imagem.', binary: 'image/webp' },
       errors: { 404: 'Imagem não encontrada.' }
-    }))
+    }), PUBLIC_ROUTE)
   ];
 }

@@ -42,6 +42,14 @@ describe('seed', () => {
     assert.deepEqual(await login('ambos@exemplo.com'), { account_id: 3, role: 'farmer', id: 2, profiles: { farmer: 2, worker: 2 } });
   });
 
+  it('tem um administrador, que entra só pelo login de sistema', async () => {
+    const c = await seeded();
+    const admin = await c.useCases.systemUsers.login({ email: 'admin@exemplo.com', password: SEED_PASSWORD });
+    assert.equal(admin.ok && admin.value.role, 'admin');
+    const asApp = await c.useCases.auth.login({ email: 'admin@exemplo.com', password: SEED_PASSWORD });
+    assert.equal(asApp.ok, false);
+  });
+
   it('as fazendas têm o ponto marcado no mapa', async () => {
     const c = await seeded();
     const farms = await c.repos.farms.find();

@@ -35,6 +35,8 @@ Criados pelo seed (`src/data/seed.ts`) a cada vez que o servidor sobe. Cada cont
 
 Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha"), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
 
+**Equipe (usuários de sistema):** `admin@exemplo.com`, senha `ruraliza123`, cargo `admin`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Fora do seed, o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env`.
+
 ### Configuração (`.env`)
 
 As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com instruções:
@@ -87,11 +89,11 @@ src/
   contracts/                # Contrato da API (só tipos): entidades, entradas e respostas
   domain/                   # Result, interfaces dos repositórios, das imagens (ImageStore/ImageProcessor) e dos documentos (DocumentStore), Clock, datas
   infra/memory/             # Repositórios, ImageStore e DocumentStore em memória (implementam as interfaces de domain/)
-  infra/crypto/             # Hash das senhas (scrypt) e tokens de redefinição, com node:crypto
+  infra/crypto/             # Hash das senhas (scrypt), tokens de redefinição e tokens de sessão (HMAC), com node:crypto
   infra/images/             # SharpImageProcessor: redimensiona para até 1000 px (perfil: quadrado) e converte para WebP
-  usecases/                 # Regras de negócio: Auth, Farmer, Farm, Worker, Service, Hiring, Photo, Resume
+  usecases/                 # Regras de negócio: Auth, Farmer, Farm, Worker, Service, Hiring, Photo, Resume, SystemUser, Admin
   controllers/              # HTTP fino: valida o corpo, chama o caso de uso, traduz o Result em status
-  http/                     # Tipos dos handlers, route(), parsers dos corpos e tradução de erros
+  http/                     # Tipos dos handlers, route(), acesso (token e dono do recurso), parsers e tradução de erros
   routes/                   # Endpoints + documentação de cada um (index.ts monta controllers e grupos)
   docs/                     # OpenAPI: schemas, helpers de operação e montagem do documento
   constants/                # Status e categorias
@@ -134,6 +136,7 @@ src/
    - `expires_at` → `date` (dia do calendário, sem hora). A vaga vale até o fim desse dia **no horário de Brasília** (`src/domain/dates.ts`).
    - `insertion_date` → `timestamptz`.
    - `accounts (id, email text UNIQUE, password_hash text, reset_token_digest text, reset_expires_at timestamptz, farmer_id int UNIQUE references farmers ON DELETE SET NULL, worker_id int UNIQUE references workers ON DELETE SET NULL, last_role text)`. Ao remover um perfil, ele sai da conta; a conta some junto com o último perfil.
+   - `system_users (id, email text UNIQUE, name text, role text CHECK (role IN ('admin','tutor')), password_hash text, insertion_date timestamptz)`: a equipe, sem ligação com `accounts`.
    - Restrições `UNIQUE` e transações estão marcadas com `TODO(db)` no código (`grep -rn "TODO(db)" src`).
 4. **Busca de vagas.** `ServiceUseCases.searchOpen` filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no método).
 5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar). Os currículos fazem o mesmo com `DocumentStore` (`src/domain/documents.ts`), passado em `createContainer({ documents })`.
@@ -145,7 +148,7 @@ Os testes continuam valendo: `npm run test:unit` usa o container com memória, e
 
 ## 🛣️ Rotas
 
-Erros sempre no formato `{ "error": "mensagem" }` com o status correto (400 validação, 401 e-mail ou senha incorretos, 404 não encontrado, 409 conflito). POST/PATCH de sucesso devolvem `{ message, <entidade> }`; GET devolve o recurso ou a lista.
+Erros sempre no formato `{ "error": "mensagem" }` com o status correto (400 validação, 401 sem sessão válida ou e-mail/senha incorretos, 403 sem permissão, 404 não encontrado, 409 conflito). POST/PATCH de sucesso devolvem `{ message, <entidade> }`; GET devolve o recurso ou a lista.
 
 Status na API (em inglês): serviço `Pending | In Progress | Completed | Rejected | Cancelled`; candidatura `Pending | Accepted | Rejected`; pagamento `Completed`.
 
@@ -153,14 +156,20 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 
 ### Acesso (`/api/auth`)
 
-Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres enviada no cadastro em `password`. A conta começa com o perfil escolhido no cadastro (`POST /api/farmers` ou `POST /api/workers`, que já devolvem a sessão em `user`) e pode ganhar o outro perfil depois (`/api/accounts`). A mesma senha vale para os dois. A sessão (`user`) é `{ account_id, role, id, profiles: { farmer, worker } }`: `role`/`id` são o painel aberto. Ainda **não há token de sessão**: o login só confere a senha e devolve quem entrou; as demais rotas continuam sem proteção.
+Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres enviada no cadastro em `password`. A conta começa com o perfil escolhido no cadastro (`POST /api/farmers` ou `POST /api/workers`, que já devolvem a sessão em `user`) e pode ganhar o outro perfil depois (`/api/accounts`). A mesma senha vale para os dois. A sessão (`user`) é `{ account_id, role, id, profiles: { farmer, worker } }`: `role`/`id` são o painel aberto.
+
+**Token de sessão.** Login, redefinição de senha e cadastro devolvem `token` (assinado com HMAC-SHA256 e `AUTH_TOKEN_SECRET`, válido por 12 horas). Toda rota que não é pública exige `Authorization: Bearer <token>` e confere o dono: uma conta só mexe nos próprios perfis, fazendas, serviços e candidaturas (`farmer_id`/`worker_id` no corpo ou na query precisam ser os dela). Sem token ou com token inválido/vencido: **401**; token de outra pessoa ou de outro tipo de usuário: **403**. O token diz só quem entrou; conta e perfis são relidos a cada requisição, então uma conta removida perde o acesso na hora. As regras ficam em `src/http/access.ts` e cada rota declara a sua em `route()` (a documentação mostra o cadeado e quem pode).
+
+Rotas públicas: login e redefinição de senha, cadastro (`POST /api/farmers` e `POST /api/workers`), categorias, configuração, health, imagens e currículos (`/api/images/:id` e `/api/documents/:id`, lidos por `<img>` e links, com ids aleatórios). Nas duas rotas SSE o token também vale em `?access_token=`, porque o `EventSource` do navegador não envia cabeçalhos.
 
 | Método | Rota | Descrição |
 |---|---|---|
-| POST | `/api/auth/login` | `{ email, password }` → `{ message, user }`, abrindo o último painel usado; 401 se e-mail ou senha não conferem (mesma mensagem nos dois casos) |
+| POST | `/api/auth/login` | `{ email, password }` → `{ message, user, token }`, abrindo o último painel usado; 401 se e-mail ou senha não conferem (mesma mensagem nos dois casos) |
 | POST | `/api/auth/password-reset` | Esqueci a senha, passo 1: `{ email }`. **Simulação**: o código iria por e-mail; por enquanto o token volta na resposta (`reset_token`). Vale 30 min e uma vez só; um pedido novo invalida o anterior. 404 se não houver conta com o e-mail |
 | POST | `/api/auth/password-reset/confirm` | Passo 2: `{ token, password }` grava a nova senha; 400 se o token for inválido, já usado ou expirado |
 | PATCH | `/api/farmers/:id/password` e `/api/workers/:id/password` | Troca com a conta aberta, sem código por e-mail: `{ current_password, new_password }`; 401 se a atual estiver errada, 400 se a nova for igual à atual. Cancela uma redefinição pendente |
+| POST | `/api/auth/system/login` | Login da equipe (usuários de sistema): `{ email, password }` → `{ message, user, token }`. Separado das contas do app |
+| GET | `/api/auth/system/me` | O usuário de sistema do token, com o cargo atual |
 
 ### Conta (`/api/accounts`)
 
@@ -177,7 +186,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 ### Produtor (`/api/farmers`)
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/farmers` | Lista produtores |
+| GET | `/api/farmers` | Lista produtores (só administração) |
 | POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`); 409 se e-mail/CPF já existe entre produtores |
 | GET | `/api/farmers/:id` | Perfil completo (`farms` = lista de IDs das fazendas) |
 | PATCH | `/api/farmers/:id` | Edita `email`, `name`, `phone`; 400 se tentar alterar `id`/`cpf`/`password` |
@@ -204,7 +213,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 ### Trabalhador (`/api/workers`)
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/workers` | Lista trabalhadores |
+| GET | `/api/workers` | Lista trabalhadores (só administração) |
 | POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`) |
 | GET | `/api/workers/:id` | Perfil completo |
 | PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `bio`, `experience`, `certificates`, `courses`; 400 se tentar alterar `id`/`cpf`/`password` |
@@ -221,6 +230,21 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | GET | `/api/workers/services/:id?worker_id=` | Detalhe da vaga. Com `worker_id` do trabalhador aceito no serviço, inclui `farm.latitude`/`farm.longitude` |
 | POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta, se o prazo terminou ou se já houve candidatura |
 | PATCH | `/api/workers/services/:id/withdraw` | `{ worker_id }`; desiste e volta uma etapa: candidatura `Pending` é removida; se já aceito, o serviço volta a `Pending` e as candidaturas recusadas pelo aceite voltam a `Pending`; 409 se recusada ou serviço encerrado |
+
+### Administração (`/api/admin`)
+
+Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe; `tutor` vai gerenciar as trilhas de estudo (ainda sem rotas). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/domain/system-users.ts`.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/admin/users` | Contas do app com os perfis de produtor e trabalhador (CPF mascarado), as mais novas primeiro |
+| GET | `/api/admin/users/:id` | Uma conta (`account_id`) com os perfis completos |
+| DELETE | `/api/admin/users/:id` | Remove a conta e os dois perfis (com fazendas, serviços, candidaturas, fotos, currículo e inscrições de push); 409 sem remover nada se algum perfil tiver serviço `In Progress` |
+| PATCH | `/api/admin/farmers/:id` e `/api/admin/workers/:id` | Edita o perfil, com as mesmas regras do próprio usuário |
+| DELETE | `/api/admin/farmers/:id` e `/api/admin/workers/:id` | Remove só esse perfil; a conta continua se tiver o outro |
+| DELETE | `/api/admin/farmers/:id/photo` e `/api/admin/workers/:id/photo` | Remove a foto de perfil (ex.: imagem imprópria); a imagem é apagada e a pessoa pode enviar outra |
+| GET | `/api/admin/system-users` | A equipe (administradores e tutores) |
+| POST | `/api/admin/system-users` | Cadastra usuário de sistema: `{ email, name, role: "admin" \| "tutor", password }`; 409 se o e-mail já existe na equipe |
 
 ### Outros
 | Método | Rota | Descrição |
@@ -253,5 +277,6 @@ O envio (`PushUseCases`, `src/infra/push/WebPushSender.ts`) roda em segundo plan
 - [ ] Banco de dados (ver [Armazenamento](#-armazenamento-temporário-e-migração-para-postgresql) e os `TODO(db)` no código: IDs, unicidade, transações no aceite/pagamento).
 - [ ] Guardar as fotos num bucket (S3/R2) em vez da memória.
 - [ ] Enviar o código de redefinição de senha por e-mail (e parar de devolvê-lo em `POST /api/auth/password-reset`; ver `TODO(email)`).
-- [ ] Token de sessão no login e proteção das rotas (hoje o login só confere a senha).
+- [ ] Encerrar as sessões abertas ao trocar a senha (hoje o token vale até vencer).
+- [ ] Rotas do tutor para cadastrar e editar trilhas de estudo (permissão `tracks:manage`).
 - [ ] Trilhas de qualificação, registro de horas e relatórios em PDF.
