@@ -1,7 +1,7 @@
 import type { SystemUserRepository } from '#modules/system-users';
 import type { CertificateRepository } from '../domain/certificate';
 import { type EnrollmentRecord, currentCompleted, progressOf } from '../domain/enrollment';
-import { type TrackRecord, allLessons, isTutorOf, workloadMinutes } from '../domain/track';
+import { type TrackActor, type TrackRecord, allLessons, canEdit, isTutorOf, workloadMinutes } from '../domain/track';
 import type { EnrolledTrack, ManagedTrack, ManagedTrackSummary, TrackDetail, TrackModuleOutline, TrackSummary, TrackTutor } from '../track.contract';
 
 // Monta as respostas a partir do agregado. Os nomes dos tutores são relidos da equipe a cada
@@ -35,12 +35,12 @@ export function toTrackSummary(track: TrackRecord, names: TutorNames): TrackSumm
   };
 }
 
-export function toManagedSummary(track: TrackRecord, names: TutorNames, actorId: number): ManagedTrackSummary {
-  return { ...toTrackSummary(track, names), is_tutor: isTutorOf(track, actorId), updated_at: track.updated_at };
+export function toManagedSummary(track: TrackRecord, names: TutorNames, actor: TrackActor): ManagedTrackSummary {
+  return { ...toTrackSummary(track, names), is_tutor: isTutorOf(track, actor.id), can_edit: canEdit(track, actor), updated_at: track.updated_at };
 }
 
-export function toManagedTrack(track: TrackRecord, names: TutorNames, actorId: number): ManagedTrack {
-  return { ...toManagedSummary(track, names, actorId), modules: track.modules, created_by: track.created_by, insertion_date: track.insertion_date };
+export function toManagedTrack(track: TrackRecord, names: TutorNames, actor: TrackActor): ManagedTrack {
+  return { ...toManagedSummary(track, names, actor), modules: track.modules, created_by: track.created_by, insertion_date: track.insertion_date };
 }
 
 // Sumário sem o conteúdo das aulas (a página antes de começar).

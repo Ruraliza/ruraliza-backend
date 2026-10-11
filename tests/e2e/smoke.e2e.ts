@@ -946,7 +946,6 @@ async function tracksFlow(admin: string): Promise<void> {
     const { system_user } = await step<SystemUserResponse>(`cadastrar tutor ${name}`, 'POST', '/admin/system-users', { email, name, role: 'tutor', password: PW }, 201);
     tutorIds.push(system_user.id);
   }
-  await step('administrador não gerencia trilhas', 'GET', '/admin/tracks', undefined, 403);
   const { token: rita } = await step<SystemLoginResponse>('tutora entra', 'POST', '/auth/system/login', { email: 'rita@exemplo.com', password: PW }, 200);
   const { token: caio } = await step<SystemLoginResponse>('outro tutor entra', 'POST', '/auth/system/login', { email: 'caio@exemplo.com', password: PW }, 200);
 
@@ -990,6 +989,20 @@ async function tracksFlow(admin: string): Promise<void> {
   await step('campo que não se edita', 'PATCH', `/admin/tracks/${draft.id}`, { status: 'discontinued' }, 400);
   await step<ManagedTrackSummary[]>('lista dos tutores', 'GET', '/admin/tracks', undefined, 200, (b) => assert.equal(b.length, 1));
 
+  console.log('\nTrilhas de estudo (administrador)');
+  actAs(admin);
+  await step<ManagedTrackSummary[]>('administrador vê todas as trilhas', 'GET', '/admin/tracks', undefined, 200,
+    (b) => assert.deepEqual(b.map((x) => [x.is_tutor, x.can_edit]), [[false, true]]));
+  await step<ManagedTrackResponse>('administrador edita a trilha da tutora', 'PATCH', `/admin/tracks/${draft.id}`, { description: 'Do pé à saca, com segurança.' }, 200,
+    (b) => assert.equal(b.track.description, 'Do pé à saca, com segurança.'));
+  await step('administrador cria sem escolher tutores', 'POST', '/admin/tracks', { title: 'Trator', description: 'Seguro.', categories: ['Operação de máquinas'] }, 400);
+  await step<ManagedTrackResponse>('administrador cria escolhendo o tutor', 'POST', '/admin/tracks',
+    { title: 'Trator', description: 'Seguro.', categories: ['Operação de máquinas'], tutor_ids: [tutorIds[1]] }, 201,
+    (b) => assert.deepEqual([b.track.tutors.map((x) => x.name), b.track.is_tutor], [['Caio Tutor'], false]));
+  actAs(caio);
+  await step('tutor continua sem gerenciar contas', 'GET', '/admin/users', undefined, 403);
+  actAs(rita);
+
   console.log('\nTrilhas de estudo (trabalhador)');
   actAs(null);
   const { worker: aluna, token: lia } = await step<WorkerSignupResponse>('cadastrar aluna', 'POST', '/workers',
@@ -1022,8 +1035,9 @@ async function tracksFlow(admin: string): Promise<void> {
   actAs(teo);
   await step('aula de outro trabalhador', 'PUT', lessonPath(lessonIds[0]), undefined, 403);
 
-  actAs(rita);
-  await step<ManagedTrackResponse>('descontinuar', 'PATCH', `/admin/tracks/${draft.id}/status`, { status: 'discontinued' }, 200);
+  actAs(admin);
+  await step<ManagedTrackResponse>('administrador desabilita (descontinua) a trilha', 'PATCH', `/admin/tracks/${draft.id}/status`, { status: 'discontinued' }, 200,
+    (b) => assert.equal(b.track.status, 'discontinued'));
   actAs(teo);
   await step<WorkerTrackSummary[]>('descontinuada some para quem não começou', 'GET', `/workers/tracks?worker_id=${outro.id}`, undefined, 200,
     (b) => assert.deepEqual(b, []));

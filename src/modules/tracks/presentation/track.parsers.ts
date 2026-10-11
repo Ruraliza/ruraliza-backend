@@ -43,7 +43,19 @@ export function parseTrackInput(body: Body): Result<TrackInput> {
   if (!description.ok) return description;
   const categories = parseCategories(body['categories']);
   if (!categories.ok) return categories;
-  return ok({ title: title.value, description: description.value, categories: categories.value });
+  const input: TrackInput = { title: title.value, description: description.value, categories: categories.value };
+  if (body['tutor_ids'] !== undefined) {
+    const tutorIds = parseTutorIds(body['tutor_ids']);
+    if (!tutorIds.ok) return tutorIds;
+    input.tutor_ids = tutorIds.value;
+  }
+  return ok(input);
+}
+
+function parseTutorIds(value: unknown): Result<number[]> {
+  if (!Array.isArray(value) || !value.every(isPositiveInteger)) return invalid('tutor_ids deve ser uma lista de ids de usuários de sistema.');
+  if (value.length > LIMIT.tutors) return invalid(`Uma trilha pode ter no máximo ${LIMIT.tutors} tutores.`);
+  return ok(value);
 }
 
 const UPDATABLE = ['title', 'description', 'categories', 'tutor_ids'];
@@ -68,11 +80,10 @@ export function parseTrackUpdate(body: Body): Result<TrackUpdate> {
     if (!categories.ok) return categories;
     update.categories = categories.value;
   }
-  const tutorIds = body['tutor_ids'];
-  if (tutorIds !== undefined) {
-    if (!Array.isArray(tutorIds) || !tutorIds.every(isPositiveInteger)) return invalid('tutor_ids deve ser uma lista de ids de usuários de sistema.');
-    if (tutorIds.length > LIMIT.tutors) return invalid(`Uma trilha pode ter no máximo ${LIMIT.tutors} tutores.`);
-    update.tutor_ids = tutorIds;
+  if (body['tutor_ids'] !== undefined) {
+    const tutorIds = parseTutorIds(body['tutor_ids']);
+    if (!tutorIds.ok) return tutorIds;
+    update.tutor_ids = tutorIds.value;
   }
   return ok(update);
 }

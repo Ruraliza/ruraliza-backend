@@ -1,7 +1,7 @@
-import { systemUserId } from '#modules/system-users';
+import { canDo, systemActor } from '#modules/system-users';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
-import type { Handler, IdParams } from '#shared/infra/http/types';
+import type { Handler, IdParams, Principal } from '#shared/infra/http/types';
 import type {
   Certificate,
   EnrolledTrack,
@@ -14,6 +14,7 @@ import type {
   TrackTutor,
   WorkerTrackSummary
 } from '../track.contract';
+import type { TrackActor } from '../domain/track';
 import type { TrackUseCases } from '../tracks.module';
 import {
   parseEnrollInput,
@@ -56,10 +57,16 @@ export interface TrackController {
   getCertificate: Handler<Certificate, CertificateParams>;
 }
 
+// Quem age nas rotas dos tutores: o administrador (`tracks:oversee`) edita qualquer trilha.
+function actorOf(principal: Principal | undefined): TrackActor {
+  const { id, role } = systemActor(principal);
+  return { id, oversees: canDo(role, 'tracks:oversee') };
+}
+
 export function createTrackController(tracks: TrackUseCases): TrackController {
   // GET /api/admin/tracks - Todas as trilhas (qualquer status)
   const listManagedTracks: Handler<ManagedTrackSummary[]> = async (_req, res) => {
-    res.status(200).json(await tracks.listManagedTracks.execute({ actorId: systemUserId(res.locals.principal) }));
+    res.status(200).json(await tracks.listManagedTracks.execute({ actor: actorOf(res.locals.principal) }));
   };
 
   // GET /api/admin/tracks/tutors - Quem pode ser tutor
@@ -71,14 +78,14 @@ export function createTrackController(tracks: TrackUseCases): TrackController {
   const createTrack: Handler<ManagedTrackResponse> = async (req, res) => {
     const input = parseTrackInput(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
-    const result = await tracks.createTrack.execute({ actorId: systemUserId(res.locals.principal), input: input.value });
+    const result = await tracks.createTrack.execute({ actor: actorOf(res.locals.principal), input: input.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(201).json({ message: 'Track created successfully!', track: result.value });
   };
 
   // GET /api/admin/tracks/:id - A trilha completa
   const getManagedTrack: Handler<ManagedTrack, IdParams> = async (req, res) => {
-    const result = await tracks.getManagedTrack.execute({ actorId: systemUserId(res.locals.principal), trackId: toId(req.params.id) });
+    const result = await tracks.getManagedTrack.execute({ actor: actorOf(res.locals.principal), trackId: toId(req.params.id) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json(result.value);
   };
@@ -87,7 +94,7 @@ export function createTrackController(tracks: TrackUseCases): TrackController {
   const updateTrack: Handler<ManagedTrackResponse, IdParams> = async (req, res) => {
     const changes = parseTrackUpdate(toBody(req.body));
     if (!changes.ok) { sendFailure(res, changes); return; }
-    const result = await tracks.updateTrack.execute({ actorId: systemUserId(res.locals.principal), trackId: toId(req.params.id), changes: changes.value });
+    const result = await tracks.updateTrack.execute({ actor: actorOf(res.locals.principal), trackId: toId(req.params.id), changes: changes.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Track updated successfully!', track: result.value });
   };
@@ -96,7 +103,7 @@ export function createTrackController(tracks: TrackUseCases): TrackController {
   const saveTrackContent: Handler<ManagedTrackResponse, IdParams> = async (req, res) => {
     const content = parseTrackContent(toBody(req.body));
     if (!content.ok) { sendFailure(res, content); return; }
-    const result = await tracks.saveTrackContent.execute({ actorId: systemUserId(res.locals.principal), trackId: toId(req.params.id), content: content.value });
+    const result = await tracks.saveTrackContent.execute({ actor: actorOf(res.locals.principal), trackId: toId(req.params.id), content: content.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Track content saved successfully!', track: result.value });
   };
@@ -105,7 +112,7 @@ export function createTrackController(tracks: TrackUseCases): TrackController {
   const changeTrackStatus: Handler<ManagedTrackResponse, IdParams> = async (req, res) => {
     const status = parseTrackStatus(toBody(req.body));
     if (!status.ok) { sendFailure(res, status); return; }
-    const result = await tracks.changeTrackStatus.execute({ actorId: systemUserId(res.locals.principal), trackId: toId(req.params.id), status: status.value });
+    const result = await tracks.changeTrackStatus.execute({ actor: actorOf(res.locals.principal), trackId: toId(req.params.id), status: status.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Track status updated successfully!', track: result.value });
   };

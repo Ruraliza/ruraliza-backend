@@ -82,9 +82,10 @@ export interface EnrolledTrack extends TrackSummary {
   certificate_code: string | null;
 }
 
-// GET /admin/tracks: lista dos tutores (todas as trilhas, em qualquer status).
+// GET /admin/tracks: lista dos tutores e do administrador (todas as trilhas, em qualquer status).
 export interface ManagedTrackSummary extends TrackSummary {
-  is_tutor: boolean; // quem pediu é tutor desta trilha (pode editar)
+  is_tutor: boolean; // quem pediu é tutor desta trilha
+  can_edit: boolean; // quem pediu pode editar: tutor da trilha ou administrador
   updated_at: string;
 }
 
@@ -95,11 +96,13 @@ export interface ManagedTrack extends ManagedTrackSummary {
   insertion_date: string;
 }
 
-// POST /admin/tracks (quem cria vira tutor da trilha)
+// POST /admin/tracks. O tutor que cria vira tutor da trilha (mais os `tutor_ids` que indicar);
+// o administrador precisa indicar ao menos um tutor.
 export interface TrackInput {
   title: string;
   description: string;
   categories: string[];
+  tutor_ids?: number[];
 }
 
 // PATCH /admin/tracks/:id

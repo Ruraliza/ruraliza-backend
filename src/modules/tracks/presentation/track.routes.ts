@@ -12,10 +12,10 @@ const lessonId = pathParam('lessonId', 'ID da aula.');
 const viewer = queryParam('worker_id', 'O trabalhador que está vendo (traz o progresso dele).', { type: 'integer', minimum: 1 });
 const trackOperation = operation<TrackSchemaName>;
 
-const NOT_TUTOR = 'Você não é tutor desta trilha (403 do caso de uso).';
+const NOT_TUTOR = 'Você não é tutor desta trilha nem administrador (403 do caso de uso).';
 
 export interface TrackRoutes {
-  // Em /api/admin: edição pelos tutores ('/tracks/tutors' antes de '/tracks/:id').
+  // Em /api/admin: edição pelos tutores e supervisão pelo administrador ('/tracks/tutors' antes de '/tracks/:id').
   manage: readonly RouteDef[];
   // Em /api/workers, antes de '/:id': lista, detalhe e matrícula.
   learning: readonly RouteDef[];
@@ -26,14 +26,15 @@ export interface TrackRoutes {
 }
 
 export function trackRoutes(tracks: TrackController, access: AccessPolicies): TrackRoutes {
-  const tutor = access.system('tracks:manage');
+  // Tutores (as próprias trilhas) e administrador (todas): quem edita o quê fica nos casos de uso.
+  const tutor = access.system(['tracks:manage', 'tracks:oversee']);
 
   return {
     manage: [
       route('get', '/tracks', tracks.listManagedTracks, trackOperation({
         tag: TAGS.tracks,
-        summary: 'Listar trilhas (tutor)',
-        description: 'Todas as trilhas, em qualquer status, as editadas mais recentemente primeiro. `is_tutor` diz quais quem pediu pode editar.',
+        summary: 'Listar trilhas (tutor e administrador)',
+        description: 'Todas as trilhas, em qualquer status, as editadas mais recentemente primeiro. `can_edit` diz quais quem pediu pode editar (o administrador edita todas).',
         success: { status: 200, description: 'Trilhas.', schema: { listOf: 'ManagedTrackSummary' } }
       }), tutor),
 
@@ -47,15 +48,15 @@ export function trackRoutes(tracks: TrackController, access: AccessPolicies): Tr
       route('post', '/tracks', tracks.createTrack, trackOperation({
         tag: TAGS.tracks,
         summary: 'Criar trilha',
-        description: 'Nasce em `draft`, sem conteúdo, com quem criou como tutor.',
+        description: 'Nasce em `draft`, sem conteúdo. O tutor que cria vira tutor da trilha; o administrador indica os tutores em `tutor_ids`.',
         body: 'TrackInput',
         success: { status: 201, description: 'Trilha criada.', schema: 'ManagedTrackResponse' },
-        errors: { 400: 'Campo obrigatório faltando; nome ou descrição longos demais; categoria fora da lista.' }
+        errors: { 400: 'Campo obrigatório faltando; nome ou descrição longos demais; categoria fora da lista; `tutor_ids` com quem não é tutor, ou vazio quando quem cria é administrador.' }
       }), tutor),
 
       route('get', '/tracks/:id', tracks.getManagedTrack, trackOperation({
         tag: TAGS.tracks,
-        summary: 'Detalhe da trilha (tutor)',
+        summary: 'Detalhe da trilha (tutor e administrador)',
         params: [trackId],
         success: { status: 200, description: 'A trilha com todos os módulos e aulas.', schema: 'ManagedTrack' },
         errors: { 404: 'Trilha não encontrada.' }
@@ -64,7 +65,7 @@ export function trackRoutes(tracks: TrackController, access: AccessPolicies): Tr
       route('patch', '/tracks/:id', tracks.updateTrack, trackOperation({
         tag: TAGS.tracks,
         summary: 'Editar trilha',
-        description: 'Nome, descrição, categorias e tutores. Só os tutores da trilha editam (e podem se retirar dela).',
+        description: 'Nome, descrição, categorias e tutores. Só os tutores da trilha (que podem se retirar dela) e o administrador editam.',
         params: [trackId],
         body: 'TrackUpdate',
         success: { status: 200, description: 'Trilha atualizada.', schema: 'ManagedTrackResponse' },
@@ -96,7 +97,7 @@ export function trackRoutes(tracks: TrackController, access: AccessPolicies): Tr
         tag: TAGS.tracks,
         summary: 'Publicar, descontinuar ou reativar',
         description:
-          '`draft → published → discontinued → published`. Não há remoção nem volta para rascunho. Descontinuada some da lista ' +
+          '`draft → published → discontinued → published`. Não há remoção nem volta para rascunho (desabilitar = descontinuar). Descontinuada some da lista ' +
           'dos trabalhadores e não aceita alunos novos, mas quem já começou continua até o certificado.',
         params: [trackId],
         body: 'TrackStatusInput',

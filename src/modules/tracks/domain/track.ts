@@ -29,7 +29,7 @@ export const TRACK_STATUS = {
 } as const satisfies Record<string, TrackStatus>;
 
 export const TRACK_NOT_FOUND = 'Trilha não encontrada.';
-export const NOT_A_TUTOR = 'Só os tutores desta trilha podem editá-la.';
+export const NOT_A_TUTOR = 'Só os tutores desta trilha (ou um administrador) podem editá-la.';
 
 // Limites do conteúdo (o editor e a API usam os mesmos).
 export const TRACK_LIMITS = {
@@ -64,6 +64,17 @@ export function publishProblem(modules: readonly TrackModule[]): string | null {
 
 export function isTutorOf(track: TrackRecord, systemUserId: number): boolean {
   return track.tutor_ids.includes(systemUserId);
+}
+
+// Quem edita: o usuário de sistema e se ele supervisiona todas as trilhas (`tracks:oversee`, o administrador).
+export interface TrackActor {
+  id: number;
+  oversees: boolean;
+}
+
+// Os tutores da trilha editam; o administrador edita qualquer uma.
+export function canEdit(track: TrackRecord, actor: TrackActor): boolean {
+  return actor.oversees || isTutorOf(track, actor.id);
 }
 
 export function allLessons(track: { modules: readonly TrackModule[] }): Lesson[] {

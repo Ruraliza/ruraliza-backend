@@ -1,6 +1,7 @@
 // O seed precisa servir de demonstração para todos os recursos das vagas.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type { TrackActor } from '#modules/tracks';
 import { CATEGORIES } from '#modules/services';
 import type { SessionUser } from '../../src/contracts';
 import { createContainer } from '../../src/container';
@@ -14,6 +15,8 @@ async function seeded(): Promise<ReturnType<typeof createContainer>> {
   await seed(c.repos, c.clock, c.passwords);
   return c;
 }
+
+const asTutor = (id: number): TrackActor => ({ id, oversees: false });
 
 describe('seed', () => {
   it('tem um serviço por categoria, todos completos e abertos', async () => {
@@ -99,7 +102,7 @@ describe('seed', () => {
     const tutor = await c.useCases.systemUsers.systemLogin.execute({ email: 'tutor@exemplo.com', password: SEED_PASSWORD });
     assert.equal(tutor.ok && tutor.value.role, 'tutor');
 
-    const managed = await c.useCases.tracks.listManagedTracks.execute({ actorId: tutor.ok ? tutor.value.id : 0 });
+    const managed = await c.useCases.tracks.listManagedTracks.execute({ actor: asTutor(tutor.ok ? tutor.value.id : 0) });
     assert.deepEqual(managed.map((t) => [t.status, t.is_tutor]).sort(), [['draft', true], ['published', true], ['published', true]]);
 
     const forWorker = await c.useCases.tracks.listTracks.execute({ worker_id: 1 });

@@ -1,6 +1,6 @@
 import type { SystemUserRepository } from '#modules/system-users';
 import { type Result, notFound, ok } from '#shared/domain/result';
-import { TRACK_NOT_FOUND, type TrackRepository } from '../domain/track';
+import { TRACK_NOT_FOUND, type TrackActor, type TrackRepository } from '../domain/track';
 import type { ManagedTrack } from '../track.contract';
 import { toManagedTrack, tutorNames } from './track-views';
 
@@ -8,9 +8,9 @@ import { toManagedTrack, tutorNames } from './track-views';
 export class GetManagedTrackUseCase {
   constructor(private readonly deps: { tracks: TrackRepository; systemUsers: SystemUserRepository }) {}
 
-  async execute({ actorId, trackId }: { actorId: number; trackId: number }): Promise<Result<ManagedTrack>> {
+  async execute({ actor, trackId }: { actor: TrackActor; trackId: number }): Promise<Result<ManagedTrack>> {
     const track = await this.deps.tracks.findById(trackId);
     if (!track) return notFound(TRACK_NOT_FOUND);
-    return ok(toManagedTrack(track, await tutorNames(this.deps.systemUsers), actorId));
+    return ok(toManagedTrack(track, await tutorNames(this.deps.systemUsers), actor));
   }
 }

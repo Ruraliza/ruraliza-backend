@@ -263,7 +263,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 
 ### Administração (`/api/admin`)
 
-Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe; `tutor` cria e edita as trilhas de estudo (permissão `tracks:manage`). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
+Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe e supervisiona todas as trilhas de estudo (`tracks:oversee`: vê, cria escolhendo os tutores, edita e descontinua qualquer uma); `tutor` cria trilhas e edita as de que é tutor (`tracks:manage`). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -277,12 +277,12 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 | POST | `/api/admin/system-users` | Cadastra usuário de sistema: `{ email, name, role: "admin" \| "tutor", password }`; 409 se o e-mail já existe na equipe |
 | GET | `/api/admin/system-users/:id` | Um usuário de sistema |
 | PATCH | `/api/admin/system-users/:id` | Edita `name`, `email` e `role` de um membro da equipe; 409 se o e-mail já existe ou se o administrador tentar mudar o próprio cargo (a equipe nunca fica sem administrador) |
-| GET | `/api/admin/tracks` | (tutor) Todas as trilhas, em qualquer status; `is_tutor` diz quais quem pediu pode editar |
-| GET | `/api/admin/tracks/tutors` | (tutor) Usuários de sistema com cargo tutor |
-| POST | `/api/admin/tracks` | (tutor) Cria em rascunho: `{ title, description, categories }`; quem cria vira tutor |
-| GET / PATCH | `/api/admin/tracks/:id` | (tutor) Detalhe / edita `title`, `description`, `categories` e `tutor_ids`. Só os tutores da trilha editam (403 para os outros) |
-| PUT | `/api/admin/tracks/:id/content` | (tutor) Substitui módulos e aulas (`{ modules: [{ id?, title, lessons: [{ id?, title, video_url?, content?, duration_minutes }] }] }`). Com `id` mantém o item; ids nunca são reaproveitados |
-| PATCH | `/api/admin/tracks/:id/status` | (tutor) `{ status: "published" \| "discontinued" }`. Não há remoção nem volta para rascunho; 409 se a transição não vale ou se faltam aulas |
+| GET | `/api/admin/tracks` | (tutor e administrador) Todas as trilhas, em qualquer status; `can_edit` diz quais quem pediu pode editar (o administrador, todas) |
+| GET | `/api/admin/tracks/tutors` | (tutor e administrador) Usuários de sistema com cargo tutor |
+| POST | `/api/admin/tracks` | Cria em rascunho: `{ title, description, categories, tutor_ids? }`. O tutor que cria vira tutor; o administrador indica ao menos um tutor em `tutor_ids` |
+| GET / PATCH | `/api/admin/tracks/:id` | Detalhe / edita `title`, `description`, `categories` e `tutor_ids`. Só os tutores da trilha e o administrador editam (403 para os outros tutores) |
+| PUT | `/api/admin/tracks/:id/content` | Substitui módulos e aulas (`{ modules: [{ id?, title, lessons: [{ id?, title, video_url?, content?, duration_minutes }] }] }`). Com `id` mantém o item; ids nunca são reaproveitados |
+| PATCH | `/api/admin/tracks/:id/status` | `{ status: "published" \| "discontinued" }`. Não há remoção nem volta para rascunho; 409 se a transição não vale ou se faltam aulas |
 
 ### Outros
 | Método | Rota | Descrição |

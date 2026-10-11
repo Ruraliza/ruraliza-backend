@@ -2,7 +2,7 @@
 export type * from './track.contract';
 export type { CertificateCodes, CertificateRepository } from './domain/certificate';
 export type { EnrollmentRepository } from './domain/enrollment';
-export { TRACK_STATUS, type TrackRecord, type TrackRepository } from './domain/track';
+export { TRACK_STATUS, type TrackActor, type TrackRecord, type TrackRepository } from './domain/track';
 export { createInMemoryCertificateRepository, createInMemoryEnrollmentRepository, createInMemoryTrackRepository } from './infra/in-memory-track.repositories';
 export { randomCertificateCodes } from './infra/random-certificate-codes';
 export type { TrackRoutes } from './presentation/track.routes';

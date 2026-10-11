@@ -46,7 +46,8 @@ const summaryProps: Properties = {
 const summaryRequired = Object.keys(summaryProps);
 const managedSummaryProps: Properties = {
   ...summaryProps,
-  is_tutor: { type: 'boolean', description: 'Quem pediu é tutor desta trilha (pode editar).' },
+  is_tutor: { type: 'boolean', description: 'Quem pediu é tutor desta trilha.' },
+  can_edit: { type: 'boolean', description: 'Quem pediu pode editar: tutor da trilha ou administrador.' },
   updated_at: isoDate
 };
 const enrolledProps: Properties = {
@@ -117,7 +118,11 @@ export const trackSchemas = {
     [...Object.keys(managedSummaryProps), 'modules', 'created_by', 'insertion_date']
   ),
 
-  TrackInput: input({ title, description, categories }, ['title', 'description', 'categories'], 'Quem cria vira tutor da trilha. Ela nasce em rascunho, sem conteúdo.'),
+  TrackInput: input(
+    { title, description, categories, tutor_ids: { type: 'array', maxItems: LIMIT.tutors, items: id, description: 'Usuários de sistema com cargo tutor. Obrigatório (ao menos um) quando quem cria é administrador.' } },
+    ['title', 'description', 'categories'],
+    'Nasce em rascunho, sem conteúdo. O tutor que cria vira tutor da trilha; o administrador indica os tutores em `tutor_ids`.'
+  ),
   TrackUpdate: input(
     {
       title,

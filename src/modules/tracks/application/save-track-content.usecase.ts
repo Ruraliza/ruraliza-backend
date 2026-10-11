@@ -1,7 +1,7 @@
 import type { SystemUserRepository } from '#modules/system-users';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, conflict, invalid, ok } from '#shared/domain/result';
-import { TRACK_STATUS, type TrackRecord, type TrackRepository, allLessons, publishProblem } from '../domain/track';
+import { TRACK_STATUS, type TrackActor, type TrackRecord, type TrackRepository, allLessons, publishProblem } from '../domain/track';
 import type { Lesson, ManagedTrack, TrackContentInput, TrackModule } from '../track.contract';
 import { findEditableTrack } from './find-track';
 import { toManagedTrack, tutorNames } from './track-views';
@@ -48,8 +48,8 @@ function buildModules(track: TrackRecord, content: TrackContentInput): Result<{ 
 export class SaveTrackContentUseCase {
   constructor(private readonly deps: SaveTrackContentDeps) {}
 
-  async execute({ actorId, trackId, content }: { actorId: number; trackId: number; content: TrackContentInput }): Promise<Result<ManagedTrack>> {
-    const found = await findEditableTrack(this.deps.tracks, trackId, actorId);
+  async execute({ actor, trackId, content }: { actor: TrackActor; trackId: number; content: TrackContentInput }): Promise<Result<ManagedTrack>> {
+    const found = await findEditableTrack(this.deps.tracks, trackId, actor);
     if (!found.ok) return found;
     const track = found.value;
 
@@ -63,6 +63,6 @@ export class SaveTrackContentUseCase {
     track.last_item_id = built.value.lastId;
     track.updated_at = this.deps.clock.now();
     await this.deps.tracks.update(track);
-    return ok(toManagedTrack(track, await tutorNames(this.deps.systemUsers), actorId));
+    return ok(toManagedTrack(track, await tutorNames(this.deps.systemUsers), actor));
   }
 }

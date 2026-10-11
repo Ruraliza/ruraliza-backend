@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { unwrap } from '#shared/testing/unwrap';
 import type { LessonInput, TrackContentInput } from '../track.contract';
-import { type TracksTestbed, givenTrack, givenTutor, tracksTestbed } from '../testing/track-fixtures';
+import { type TracksTestbed, asTutor, givenTrack, givenTutor, tracksTestbed } from '../testing/track-fixtures';
 import { SaveTrackContentUseCase } from './save-track-content.usecase';
 
 const lesson = (title: string, id?: number): LessonInput => ({ ...(id === undefined ? {} : { id }), title, content: 'texto', duration_minutes: 10 });
@@ -27,7 +27,7 @@ describe('SaveTrackContentUseCase', () => {
       ]
     };
 
-    const saved = unwrap(await save.execute({ actorId: tutorId, trackId: track.id, content }));
+    const saved = unwrap(await save.execute({ actor: asTutor(tutorId), trackId: track.id, content }));
 
     assert.deepEqual(saved.modules.map((m) => [m.id, m.lessons.map((l) => l.id)]), [[4, [5, 2]], [6, [7, 8]]]);
     assert.equal(saved.workload_minutes, 40);
@@ -36,9 +36,9 @@ describe('SaveTrackContentUseCase', () => {
 
   it('ids removidos não voltam: o próximo item novo continua depois do maior já dado', async () => {
     const track = await givenTrack(t, tutorId, { status: 'draft' });
-    unwrap(await save.execute({ actorId: tutorId, trackId: track.id, content: { modules: [] } }));
+    unwrap(await save.execute({ actor: asTutor(tutorId), trackId: track.id, content: { modules: [] } }));
 
-    const saved = unwrap(await save.execute({ actorId: tutorId, trackId: track.id, content: { modules: [{ title: 'Novo', lessons: [lesson('A')] }] } }));
+    const saved = unwrap(await save.execute({ actor: asTutor(tutorId), trackId: track.id, content: { modules: [{ title: 'Novo', lessons: [lesson('A')] }] } }));
 
     assert.deepEqual(saved.modules.map((m) => [m.id, m.lessons.map((l) => l.id)]), [[6, [7]]]);
   });
@@ -51,24 +51,24 @@ describe('SaveTrackContentUseCase', () => {
       { modules: [{ id: 1, title: 'M', lessons: [lesson('A', 4)] }] }
     ];
     for (const content of cases) {
-      const result = await save.execute({ actorId: tutorId, trackId: track.id, content });
+      const result = await save.execute({ actor: asTutor(tutorId), trackId: track.id, content });
       assert.equal(result.ok ? 'ok' : result.kind, 'invalid', JSON.stringify(content));
     }
   });
 
   it('trilha no ar não pode ficar sem aulas nem com módulo vazio (rascunho pode)', async () => {
     const live = await givenTrack(t, tutorId);
-    const empty = await save.execute({ actorId: tutorId, trackId: live.id, content: { modules: [{ id: 1, title: 'M', lessons: [] }] } });
+    const empty = await save.execute({ actor: asTutor(tutorId), trackId: live.id, content: { modules: [{ id: 1, title: 'M', lessons: [] }] } });
     assert.equal(empty.ok ? 'ok' : empty.kind, 'conflict');
 
     const draft = await givenTrack(t, tutorId, { status: 'draft' });
-    unwrap(await save.execute({ actorId: tutorId, trackId: draft.id, content: { modules: [{ title: 'Ainda vazio', lessons: [] }] } }));
+    unwrap(await save.execute({ actor: asTutor(tutorId), trackId: draft.id, content: { modules: [{ title: 'Ainda vazio', lessons: [] }] } }));
   });
 
   it('só os tutores da trilha salvam', async () => {
     const track = await givenTrack(t, tutorId);
     const bia = await givenTutor(t, 'Bia Tutora');
-    const result = await save.execute({ actorId: bia.id, trackId: track.id, content: { modules: [] } });
+    const result = await save.execute({ actor: asTutor(bia.id), trackId: track.id, content: { modules: [] } });
     assert.equal(result.ok ? 'ok' : result.kind, 'forbidden');
   });
 });

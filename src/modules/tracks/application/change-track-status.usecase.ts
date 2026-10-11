@@ -1,7 +1,7 @@
 import type { SystemUserRepository } from '#modules/system-users';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, conflict, ok } from '#shared/domain/result';
-import { TRACK_STATUS, type TrackRepository, canTransition, publishProblem } from '../domain/track';
+import { TRACK_STATUS, type TrackActor, type TrackRepository, canTransition, publishProblem } from '../domain/track';
 import type { ManagedTrack, TrackStatusInput } from '../track.contract';
 import { findEditableTrack } from './find-track';
 import { toManagedTrack, tutorNames } from './track-views';
@@ -19,8 +19,8 @@ const STATUS_LABEL = { draft: 'rascunho', published: 'publicada', discontinued: 
 export class ChangeTrackStatusUseCase {
   constructor(private readonly deps: ChangeTrackStatusDeps) {}
 
-  async execute({ actorId, trackId, status }: { actorId: number; trackId: number; status: TrackStatusInput['status'] }): Promise<Result<ManagedTrack>> {
-    const found = await findEditableTrack(this.deps.tracks, trackId, actorId);
+  async execute({ actor, trackId, status }: { actor: TrackActor; trackId: number; status: TrackStatusInput['status'] }): Promise<Result<ManagedTrack>> {
+    const found = await findEditableTrack(this.deps.tracks, trackId, actor);
     if (!found.ok) return found;
     const track = found.value;
 
@@ -37,6 +37,6 @@ export class ChangeTrackStatusUseCase {
     if (status === TRACK_STATUS.PUBLISHED && track.published_at === null) track.published_at = now;
     track.updated_at = now;
     await this.deps.tracks.update(track);
-    return ok(toManagedTrack(track, await tutorNames(this.deps.systemUsers), actorId));
+    return ok(toManagedTrack(track, await tutorNames(this.deps.systemUsers), actor));
   }
 }

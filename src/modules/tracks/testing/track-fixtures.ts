@@ -2,7 +2,7 @@ import { type SystemUserRecord, createInMemorySystemUserRepository } from '#modu
 import { type Worker, createInMemoryWorkerRepository } from '#modules/workers';
 import { adjustableClock } from '#shared/testing/recorders';
 import type { CertificateCodes } from '../domain/certificate';
-import type { TrackRecord } from '../domain/track';
+import type { TrackActor, TrackRecord } from '../domain/track';
 import { createInMemoryCertificateRepository, createInMemoryEnrollmentRepository, createInMemoryTrackRepository } from '../infra/in-memory-track.repositories';
 import type { TracksModuleDeps } from '../tracks.module';
 
@@ -70,3 +70,7 @@ export function givenTrack(t: TracksTestbed, tutorId: number, changes: Partial<T
     ...changes
   });
 }
+
+// Quem age nas rotas dos tutores: um tutor (só as trilhas dele) ou o administrador (todas).
+export const asTutor = (id: number): TrackActor => ({ id, oversees: false });
+export const asAdmin = (id: number): TrackActor => ({ id, oversees: true });

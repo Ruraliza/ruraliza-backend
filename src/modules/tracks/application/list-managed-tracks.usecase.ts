@@ -1,5 +1,5 @@
 import type { SystemUserRepository } from '#modules/system-users';
-import type { TrackRepository } from '../domain/track';
+import type { TrackActor, TrackRepository } from '../domain/track';
 import type { ManagedTrackSummary } from '../track.contract';
 import { toManagedSummary, tutorNames } from './track-views';
 
@@ -7,10 +7,10 @@ import { toManagedSummary, tutorNames } from './track-views';
 export class ListManagedTracksUseCase {
   constructor(private readonly deps: { tracks: TrackRepository; systemUsers: SystemUserRepository }) {}
 
-  async execute({ actorId }: { actorId: number }): Promise<ManagedTrackSummary[]> {
+  async execute({ actor }: { actor: TrackActor }): Promise<ManagedTrackSummary[]> {
     const names = await tutorNames(this.deps.systemUsers);
     return (await this.deps.tracks.find())
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || b.id - a.id)
-      .map((track) => toManagedSummary(track, names, actorId));
+      .map((track) => toManagedSummary(track, names, actor));
   }
 }

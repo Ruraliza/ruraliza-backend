@@ -2,6 +2,7 @@
 // e ganha o certificado, e a trilha descontinuada continua para quem já começou.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type { TrackActor } from '#modules/tracks';
 import type { Container } from '../../src/container';
 import { NOW, PASSWORD, setup, unwrap, worker } from './support';
 
@@ -11,9 +12,9 @@ async function tutor(c: Container, email: string, name: string): Promise<number>
 
 async function publishedTrack(c: Container, tutorId: number): Promise<{ trackId: number; lessonIds: number[] }> {
   const { tracks } = c.useCases;
-  const draft = unwrap(await tracks.createTrack.execute({ actorId: tutorId, input: { title: 'Colheita de café', description: 'Do pé à saca.', categories: ['Colheita'] } }));
+  const draft = unwrap(await tracks.createTrack.execute({ actor: asTutor(tutorId), input: { title: 'Colheita de café', description: 'Do pé à saca.', categories: ['Colheita'] } }));
   const filled = unwrap(await tracks.saveTrackContent.execute({
-    actorId: tutorId,
+    actor: asTutor(tutorId),
     trackId: draft.id,
     content: {
       modules: [
@@ -22,9 +23,11 @@ async function publishedTrack(c: Container, tutorId: number): Promise<{ trackId:
       ]
     }
   }));
-  unwrap(await tracks.changeTrackStatus.execute({ actorId: tutorId, trackId: draft.id, status: 'published' }));
+  unwrap(await tracks.changeTrackStatus.execute({ actor: asTutor(tutorId), trackId: draft.id, status: 'published' }));
   return { trackId: draft.id, lessonIds: filled.modules.flatMap((m) => m.lessons.map((l) => l.id)) };
 }
+
+const asTutor = (id: number): TrackActor => ({ id, oversees: false });
 
 describe('trilhas de estudo', () => {
   it('tutor publica, trabalhador conclui e recebe o certificado com nome, carga horária e data', async () => {
@@ -60,7 +63,7 @@ describe('trilhas de estudo', () => {
     const { tracks } = c.useCases;
     unwrap(await tracks.enroll.execute({ trackId, workerId: maria }));
 
-    unwrap(await tracks.changeTrackStatus.execute({ actorId: tiago, trackId, status: 'discontinued' }));
+    unwrap(await tracks.changeTrackStatus.execute({ actor: asTutor(tiago), trackId, status: 'discontinued' }));
 
     assert.deepEqual(await tracks.listTracks.execute({ worker_id: joao }), []);
     const closed = await tracks.enroll.execute({ trackId, workerId: joao });
@@ -78,11 +81,29 @@ describe('trilhas de estudo', () => {
     const { trackId } = await publishedTrack(c, tiago);
     const { tracks } = c.useCases;
 
-    assert.equal(unwrap(await tracks.getManagedTrack.execute({ actorId: bia, trackId })).is_tutor, false);
-    const denied = await tracks.updateTrack.execute({ actorId: bia, trackId, changes: { title: 'X' } });
+    assert.equal(unwrap(await tracks.getManagedTrack.execute({ actor: asTutor(bia), trackId })).is_tutor, false);
+    const denied = await tracks.updateTrack.execute({ actor: asTutor(bia), trackId, changes: { title: 'X' } });
     assert.equal(denied.ok ? 'ok' : denied.kind, 'forbidden');
 
-    unwrap(await tracks.updateTrack.execute({ actorId: tiago, trackId, changes: { tutor_ids: [tiago, bia] } }));
-    assert.equal(unwrap(await tracks.updateTrack.execute({ actorId: bia, trackId, changes: { title: 'Café' } })).title, 'Café');
+    unwrap(await tracks.updateTrack.execute({ actor: asTutor(tiago), trackId, changes: { tutor_ids: [tiago, bia] } }));
+    assert.equal(unwrap(await tracks.updateTrack.execute({ actor: asTutor(bia), trackId, changes: { title: 'Café' } })).title, 'Café');
+  });
+
+  it('o administrador vê, edita, desabilita e cria trilhas (escolhendo os tutores)', async () => {
+    const c = setup();
+    const tiago = await tutor(c, 'tiago@exemplo.com', 'Tiago Tutor');
+    const admin = unwrap(await c.useCases.systemUsers.createSystemUser.execute({ email: 'ana@exemplo.com', name: 'Ana Admin', role: 'admin', password: PASSWORD })).id;
+    const asAdmin: TrackActor = { id: admin, oversees: true };
+    const { trackId } = await publishedTrack(c, tiago);
+    const { tracks } = c.useCases;
+
+    const [listed] = await tracks.listManagedTracks.execute({ actor: asAdmin });
+    assert.deepEqual([listed?.is_tutor, listed?.can_edit], [false, true]);
+    unwrap(await tracks.updateTrack.execute({ actor: asAdmin, trackId, changes: { title: 'Café (revisada)' } }));
+    unwrap(await tracks.changeTrackStatus.execute({ actor: asAdmin, trackId, status: 'discontinued' }));
+    assert.deepEqual(await tracks.listTracks.execute({}), []);
+
+    const created = unwrap(await tracks.createTrack.execute({ actor: asAdmin, input: { title: 'Trator', description: 'Seguro.', categories: ['Operação de máquinas'], tutor_ids: [tiago] } }));
+    assert.equal(unwrap(await tracks.getManagedTrack.execute({ actor: asTutor(tiago), trackId: created.id })).can_edit, true);
   });
 });
