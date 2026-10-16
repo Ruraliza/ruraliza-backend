@@ -7,12 +7,15 @@
 // histórico das avaliações e da conversa (src/seed-history.ts).
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
+import type { ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { Repositories } from './repositories';
 import { SERVICE_STATUS } from '#modules/services';
 import { createAccount } from '#modules/accounts';
+import { createDefaultHelpArticles } from '#modules/help';
 import { seedHistory } from './seed-history';
 import { seedTracks } from './seed-tracks';
+import { seedVerifications } from './seed-verification';
 
 export const SEED_PASSWORD = 'ruraliza123';
 
@@ -29,7 +32,8 @@ interface DemoService {
   expiresInDays: number | null; // null = sem prazo; negativo = já vencida
 }
 
-export async function seed(repos: Repositories, clock: Clock, passwords: PasswordHasher): Promise<void> {
+// `idDocuments`: armazenamento das fotos de documento da verificação (para o pedido de exemplo na fila da equipe).
+export async function seed(repos: Repositories, clock: Clock, passwords: PasswordHasher, idDocuments?: ImageStore): Promise<void> {
   const now = clock.now();
 
   // Equipe: entra por POST /api/auth/system/login.
@@ -159,4 +163,26 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
     farmerId: farmer.id, farmSaoJose: farmSaoJose.id, farmBoaVista: farmBoaVista.id, mariaId: worker.id, carlosWorkerId: bothWorker.id
   });
   await seedTracks(repos, now, tutor.id, worker.id);
+  // Central de ajuda: as perguntas frequentes que a equipe edita em /sistema/ajuda.
+  await createDefaultHelpArticles(repos.helpArticles, now);
+  // Vagas para você: a Maria quer colheita e manejo de gado perto de Três Rios, com avisos (o resumo semanal
+  // conta a partir de agora).
+  await repos.jobPreferences.create({
+    worker_id: worker.id, categories: ['Colheita', 'Manejo de gado'], near: { latitude: -22.12, longitude: -43.21, radius_km: 50 },
+    alerts: true, last_digest_at: now
+  });
+  // Patrocínios de EXEMPLO (anunciantes fictícios), um para produtores do RJ e um para trabalhadores.
+  const sponsor = { text: null, image_url: null, categories: [], starts_on: null, ends_on: null, active: true, impressions: 0, clicks: 0, updated_at: now };
+  await repos.sponsors.create({
+    ...sponsor, sponsor: 'Casa Agrícola Boa Safra (exemplo)', title: 'Arame, mourão e grampo com entrega na fazenda',
+    text: 'Anúncio de exemplo da demonstração do Ruraliza.', cta_label: 'Ver ofertas', url: 'https://exemplo.com.br/boa-safra',
+    audience: 'farmer', states: ['RJ']
+  });
+  await repos.sponsors.create({
+    ...sponsor, sponsor: 'EPI do Campo (exemplo)', title: 'Luva, botina e chapéu com desconto para quem trabalha pelo app',
+    text: 'Anúncio de exemplo da demonstração do Ruraliza.', cta_label: 'Conhecer', url: 'https://exemplo.com.br/epi-do-campo',
+    audience: 'worker', states: [], categories: ['Colheita', 'Manejo de gado', 'Pulverização']
+  });
+  // Verificação de identidade: o João com o selo; o Pedro na fila da equipe (src/seed-verification.ts).
+  await seedVerifications(repos, now, { farmerId: farmer.id, farmerName: farmer.name, pedroEmail: 'pedro@exemplo.com' }, idDocuments);
 }

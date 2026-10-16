@@ -117,10 +117,14 @@ function errorHandler(error: unknown, req: Request, res: Response<ApiError>, _ne
 async function main(): Promise<void> {
   const devMode = process.argv.includes('--dev');
   const container = createContainer();
-  await seed(container.repos, container.clock, container.passwords);
+  await seed(container.repos, container.clock, container.passwords, container.idDocuments);
   const initialAdmin = initialAdminSettings();
   const adminStatus = initialAdmin && (await container.useCases.systemUsers.ensureInitialAdmin.execute(initialAdmin));
   const { app } = createApi(container, { devMode });
+  // Resumo semanal das vagas recomendadas (issue #23): confere a cada hora quem já pode receber.
+  setInterval(() => {
+    container.useCases.matching.alerts.sendWeeklyDigest().catch((error: unknown) => console.error('Falha no resumo semanal de vagas:', error));
+  }, 60 * 60 * 1000).unref();
 
   const PORT = serverPort();
   app.listen(PORT, () => {

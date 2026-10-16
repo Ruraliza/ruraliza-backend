@@ -1,7 +1,8 @@
 import { type Result, invalid, ok } from '#shared/domain/result';
 import { type Body, missingMessage } from '#shared/infra/http/body';
 import { isValidCpf, missingFields, text } from '#shared/utils/validation';
-import type { ActiveRoleInput, ProfileCreateInput, UserRole } from '../accounts.contract';
+import type { AccountPreferencesInput, ActiveRoleInput, ProfileCreateInput, UserRole } from '../accounts.contract';
+import { TEXT_SIZES, THEMES } from '../domain/preferences';
 import { WORKER_TEXTS, optionalText, workerTextProblem } from './profile.parsers';
 
 // Formato dos corpos das rotas da conta (400).
@@ -41,4 +42,34 @@ export function parseActiveRole(body: Body): Result<ActiveRoleInput> {
 
   const role = parseRole(body['role']);
   return role.ok ? ok({ role: role.value }) : role;
+}
+
+// Preferências: cada campo é opcional, mas ao menos um precisa vir. Campos desconhecidos são ignorados.
+export function parsePreferencesUpdate(body: Body): Result<AccountPreferencesInput> {
+  const changes: AccountPreferencesInput = {};
+  const theme = body['theme'];
+  if (theme !== undefined) {
+    const value = THEMES.find((t) => t === theme);
+    if (!value) return invalid("O tema (theme) deve ser 'light', 'dark' ou 'system'.");
+    changes.theme = value;
+  }
+  const textSize = body['text_size'];
+  if (textSize !== undefined) {
+    const value = TEXT_SIZES.find((t) => t === textSize);
+    if (!value) return invalid("O tamanho do texto (text_size) deve ser 'normal' ou 'large'.");
+    changes.text_size = value;
+  }
+  const highContrast = body['high_contrast'];
+  if (highContrast !== undefined) {
+    if (typeof highContrast !== 'boolean') return invalid('O alto contraste (high_contrast) deve ser true ou false.');
+    changes.high_contrast = highContrast;
+  }
+  const whatsapp = body['whatsapp_alerts'];
+  if (whatsapp !== undefined) {
+    if (typeof whatsapp !== 'boolean') return invalid('Os avisos no WhatsApp (whatsapp_alerts) devem ser true ou false.');
+    changes.whatsapp_alerts = whatsapp;
+  }
+  return Object.keys(changes).length > 0
+    ? ok(changes)
+    : invalid('Envie ao menos uma preferência: theme, text_size, high_contrast ou whatsapp_alerts.');
 }

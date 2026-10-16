@@ -23,6 +23,7 @@ export interface WorkerInput {
   phone: string;
   cpf: string;
   password: string; // 8 a 128 caracteres; nunca volta nas respostas
+  accept_terms: boolean; // precisa ser true: aceite dos Termos de Uso e da Política de Privacidade
   bio?: string | null;
   certificates?: string | null;
   courses?: string | null;
@@ -30,7 +31,7 @@ export interface WorkerInput {
 }
 
 // PATCH /workers/:id (id e cpf não podem ser alterados; a senha muda em PATCH /workers/:id/password)
-export type WorkerUpdate = Partial<Omit<WorkerInput, 'cpf' | 'password'>>;
+export type WorkerUpdate = Partial<Omit<WorkerInput, 'cpf' | 'password' | 'accept_terms'>>;
 
 export interface WorkerResponse extends MessageResponse {
   worker: Worker;

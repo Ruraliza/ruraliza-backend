@@ -4,6 +4,7 @@ import { adjustableClock } from '#shared/testing/recorders';
 import type { CertificateCodes } from '../domain/certificate';
 import type { TrackActor, TrackRecord } from '../domain/track';
 import { createInMemoryCertificateRepository, createInMemoryEnrollmentRepository, createInMemoryTrackRepository } from '../infra/in-memory-track.repositories';
+import { sha256CertificateHasher } from '../infra/sha256-certificate-hasher';
 import type { TracksModuleDeps } from '../tracks.module';
 
 // Dependências das trilhas em memória, com relógio ajustável e códigos de certificado previsíveis
@@ -30,6 +31,7 @@ export function tracksTestbed(): TracksTestbed {
     systemUsers: createInMemorySystemUserRepository(),
     clock,
     codes: sequentialCodes(),
+    hasher: sha256CertificateHasher,
     setNow: clock.set
   };
 }

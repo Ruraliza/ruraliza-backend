@@ -17,7 +17,7 @@ import { ListTutorsUseCase } from './application/list-tutors.usecase';
 import { SaveTrackContentUseCase } from './application/save-track-content.usecase';
 import { UncompleteLessonUseCase } from './application/uncomplete-lesson.usecase';
 import { UpdateTrackUseCase } from './application/update-track.usecase';
-import type { CertificateCodes, CertificateRepository } from './domain/certificate';
+import type { CertificateCodes, CertificateHasher, CertificateRepository } from './domain/certificate';
 import type { EnrollmentRepository } from './domain/enrollment';
 import type { TrackRepository } from './domain/track';
 import { createTrackController } from './presentation/track.controller';
@@ -31,6 +31,7 @@ export interface TracksModuleDeps {
   systemUsers: SystemUserRepository;
   clock: Clock;
   codes: CertificateCodes;
+  hasher: CertificateHasher;
 }
 
 export interface TrackUseCases {

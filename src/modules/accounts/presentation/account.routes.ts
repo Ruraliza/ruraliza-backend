@@ -45,6 +45,25 @@ export function accountRoutes(accounts: AccountController, pushRoutes: readonly 
       errors: { 400: '`role` faltando ou inválido.', 404: 'Conta não encontrada, ou ela ainda não tem esse perfil.' }
     }), access.ownAccount()),
 
+    route('get', '/:id/preferences', accounts.getPreferences, accountOperation({
+      tag: TAGS.auth,
+      summary: 'Preferências de exibição',
+      description: 'Tema (claro, escuro ou do aparelho), tamanho do texto e alto contraste. Valem nos dois painéis e em qualquer aparelho.',
+      params: [accountId],
+      success: { status: 200, description: 'Preferências da conta (os padrões, se nunca mudou).', schema: 'AccountPreferences' },
+      errors: { 404: 'Conta não encontrada.' }
+    }), access.ownAccount()),
+
+    route('patch', '/:id/preferences', accounts.updatePreferences, accountOperation({
+      tag: TAGS.auth,
+      summary: 'Mudar as preferências de exibição',
+      description: 'Muda só os campos enviados; o resto continua como estava.',
+      params: [accountId],
+      body: 'AccountPreferencesInput',
+      success: { status: 200, description: 'Preferências salvas.', schema: 'PreferencesResponse' },
+      errors: { 400: 'Nenhuma preferência enviada; valor inválido.', 404: 'Conta não encontrada.' }
+    }), access.ownAccount()),
+
     // Inscrições de push (src/modules/notifications).
     ...pushRoutes
   ];

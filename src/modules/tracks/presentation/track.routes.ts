@@ -191,7 +191,9 @@ export function trackRoutes(tracks: TrackController, access: AccessPolicies): Tr
       route('get', '/:code', tracks.getCertificate, trackOperation({
         tag: TAGS.certificates,
         summary: 'Validar certificado',
-        description: 'Confere um certificado pelo código impresso nele (sem diferenciar maiúsculas).',
+        description:
+          'Confere um certificado pelo código impresso nele (sem diferenciar maiúsculas), o mesmo do QR code. `data_hash` é o resumo ' +
+          'SHA-256 dos dados guardado na emissão: recalcule a partir dos outros campos para conferir que nada mudou.',
         params: [{ name: 'code', in: 'path', required: true, description: 'Código do certificado.', schema: { type: 'string' }, example: 'RZ-7K3Q-9FMA-2X' }],
         success: { status: 200, description: 'Certificado válido.', schema: 'Certificate' },
         errors: { 404: 'Nenhum certificado com este código.' }

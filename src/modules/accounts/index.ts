@@ -11,6 +11,8 @@ export {
   unlinkProfile
 } from './application/account-profiles';
 export type { Account, AccountRepository } from './domain/account';
+export { DEFAULT_PREFERENCES, preferencesOf } from './domain/preferences';
+export { TERMS_REQUIRED, TERMS_VERSION } from './domain/terms';
 export {
   CPF_TAKEN,
   EMAIL_TAKEN,

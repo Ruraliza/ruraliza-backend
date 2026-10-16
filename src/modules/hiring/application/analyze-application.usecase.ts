@@ -68,7 +68,9 @@ export class AnalyzeApplicationUseCase {
     push.notify('worker', application.worker_id, {
       title: 'Você foi aceito!',
       body: `O produtor aceitou sua candidatura em ${service.name}.`,
-      url: WORKER_APPLICATIONS_URL
+      url: WORKER_APPLICATIONS_URL,
+      // Também no WhatsApp de quem pediu (issue #30): é o aviso que não pode passar despercebido.
+      whatsapp: `Ruraliza: o produtor aceitou sua candidatura em "${service.name}". Combine o horário e o local pela conversa do app.`
     });
     for (const workerId of autoRejected) push.notify('worker', workerId, rejectedMessage(service));
 

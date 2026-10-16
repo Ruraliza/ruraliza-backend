@@ -77,9 +77,18 @@ const certificateSchema: Schema = object(
     track_title: title,
     worker_name: { type: 'string', example: 'Maria Trabalhadora' },
     workload_minutes: { type: 'integer', minimum: 0, example: 90 },
-    completed_at: isoDate
+    completed_at: isoDate,
+    // O exemplo é o resumo dos exemplos acima.
+    data_hash: {
+      type: 'string',
+      pattern: '^[0-9a-f]{64}$',
+      example: '77104f6c999f52615fae80e9dd85c149fd48f857266567a1370648c4b98aa291',
+      description:
+        'Resumo SHA-256 (hex) calculado na emissão: JSON de `[code, worker_name, track_title, workload_minutes, completed_at]`, ' +
+        'sem espaços, em UTF-8. Qualquer mudança nesses dados muda o resumo. Vai impresso no certificado.'
+    }
   },
-  ['code', 'track_id', 'track_title', 'worker_name', 'workload_minutes', 'completed_at'],
+  ['code', 'track_id', 'track_title', 'worker_name', 'workload_minutes', 'completed_at', 'data_hash'],
   'Certificado de conclusão emitido pela Ruraliza (dados do momento da emissão).'
 );
 

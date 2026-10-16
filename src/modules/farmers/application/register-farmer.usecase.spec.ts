@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
+import { TERMS_VERSION } from '#modules/accounts';
 import { unwrap } from '#shared/testing/unwrap';
 import { type FarmersTestbed, NOW, SIGNUP, farmersTestbed } from '../testing/farmer-fixtures';
 import { CreateFarmerProfileUseCase } from './create-farmer-profile.usecase';
@@ -22,6 +23,8 @@ describe('RegisterFarmerUseCase', () => {
     const [account] = await t.accounts.find({ farmer_id: farmer.id });
     assert.ok(account);
     assert.equal(account.password_hash, 'hash(senha-forte)');
+    // LGPD: a conta guarda quando a pessoa aceitou os termos e qual versão.
+    assert.deepEqual([account.terms_version, account.terms_accepted_at], [TERMS_VERSION, NOW]);
     assert.deepEqual(user, { account_id: account.id, role: 'farmer', id: farmer.id, profiles: { farmer: farmer.id, worker: null } });
   });
 

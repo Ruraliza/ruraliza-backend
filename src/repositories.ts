@@ -2,13 +2,17 @@ import { createInMemoryAccountRepository } from '#modules/accounts';
 import { type ChatMessageRepository, type ChatRepository, createInMemoryChatMessageRepository, createInMemoryChatRepository } from '#modules/chat';
 import type { AccountRepository } from '#modules/accounts';
 import { createInMemoryFarmerRepository } from '#modules/farmers';
+import { type HelpArticleRepository, createInMemoryHelpArticleRepository } from '#modules/help';
 import type { FarmerRepository } from '#modules/farmers';
 import { createInMemoryFarmRepository } from '#modules/farms';
 import type { FarmRepository } from '#modules/farms';
 import { createInMemoryApplicationRepository, createInMemoryPaymentRepository } from '#modules/hiring';
 import type { ApplicationRepository, PaymentRepository } from '#modules/hiring';
-import { createInMemoryPushSubscriptionRepository } from '#modules/notifications';
-import type { PushSubscriptionRepository } from '#modules/notifications';
+import { createInMemoryNotificationRepository, createInMemoryPushSubscriptionRepository } from '#modules/notifications';
+import type { NotificationRepository, PushSubscriptionRepository } from '#modules/notifications';
+import { type JobAlertRepository, type JobPreferencesRepository, createInMemoryJobAlertRepository, createInMemoryJobPreferencesRepository } from '#modules/matching';
+import { type ReportRepository, createInMemoryReportRepository } from '#modules/reports';
+import { type SponsorRepository, createInMemorySponsorRepository } from '#modules/sponsors';
 import { type FarmReviewRepository, type WorkerReviewRepository, createInMemoryFarmReviewRepository, createInMemoryWorkerReviewRepository } from '#modules/reviews';
 import { createInMemoryServiceRepository } from '#modules/services';
 import type { ServiceRepository } from '#modules/services';
@@ -21,6 +25,7 @@ import {
   createInMemoryEnrollmentRepository,
   createInMemoryTrackRepository
 } from '#modules/tracks';
+import { type VerificationRepository, createInMemoryVerificationRepository } from '#modules/verification';
 import { type WorkerRepository, createInMemoryWorkerRepository } from '#modules/workers';
 
 // Todos os repositórios da API (cada módulo declara a sua porta em src/modules/<módulo>/domain).
@@ -36,6 +41,7 @@ export interface Repositories {
   payments: PaymentRepository;
   accounts: AccountRepository;
   pushSubscriptions: PushSubscriptionRepository;
+  notifications: NotificationRepository;
   systemUsers: SystemUserRepository;
   workerReviews: WorkerReviewRepository;
   farmReviews: FarmReviewRepository;
@@ -44,6 +50,12 @@ export interface Repositories {
   tracks: TrackRepository;
   enrollments: EnrollmentRepository;
   certificates: CertificateRepository;
+  helpArticles: HelpArticleRepository;
+  reports: ReportRepository;
+  verifications: VerificationRepository;
+  jobPreferences: JobPreferencesRepository;
+  jobAlerts: JobAlertRepository;
+  sponsors: SponsorRepository;
 }
 
 // Repositórios em memória (um conjunto novo por chamada, isolado dos outros).
@@ -57,6 +69,7 @@ export function createInMemoryRepositories(): Repositories {
     payments: createInMemoryPaymentRepository(),
     accounts: createInMemoryAccountRepository(),
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
+    notifications: createInMemoryNotificationRepository(),
     systemUsers: createInMemorySystemUserRepository(),
     workerReviews: createInMemoryWorkerReviewRepository(),
     farmReviews: createInMemoryFarmReviewRepository(),
@@ -64,6 +77,12 @@ export function createInMemoryRepositories(): Repositories {
     chatMessages: createInMemoryChatMessageRepository(),
     tracks: createInMemoryTrackRepository(),
     enrollments: createInMemoryEnrollmentRepository(),
-    certificates: createInMemoryCertificateRepository()
+    certificates: createInMemoryCertificateRepository(),
+    helpArticles: createInMemoryHelpArticleRepository(),
+    reports: createInMemoryReportRepository(),
+    verifications: createInMemoryVerificationRepository(),
+    jobPreferences: createInMemoryJobPreferencesRepository(),
+    jobAlerts: createInMemoryJobAlertRepository(),
+    sponsors: createInMemorySponsorRepository()
   };
 }

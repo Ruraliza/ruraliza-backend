@@ -13,6 +13,8 @@ import { PublishServiceUseCase } from './application/publish-service.usecase';
 import { SearchOpenServicesUseCase } from './application/search-open-services.usecase';
 import { UpdateServiceUseCase } from './application/update-service.usecase';
 import type { FarmReputationReader } from './domain/farm-reputation';
+import type { FarmerVerificationReader } from './domain/farmer-verification';
+import type { JobEvents } from './domain/job-events';
 import type { ServiceRepository } from './domain/service.repository';
 import { createJobController } from './presentation/job.controller';
 import { createServiceController } from './presentation/service.controller';
@@ -27,6 +29,8 @@ export interface ServicesModuleDeps {
   changes: ChangeFeed;
   push: PushNotifier;
   reputation: FarmReputationReader;
+  verification: FarmerVerificationReader;
+  jobEvents: JobEvents;
 }
 
 export interface ServiceUseCases {

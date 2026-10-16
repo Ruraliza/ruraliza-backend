@@ -38,7 +38,8 @@ export const farmSchemas = {
       photos: { type: 'array', items: { type: 'string' }, example: ['/api/images/3f2c….webp'], description: 'URLs das fotos da fazenda (a primeira é a capa).' },
       latitude: { ...latitude, description: 'Só para o trabalhador aceito no serviço.' },
       longitude: { ...longitude, description: 'Só para o trabalhador aceito no serviço.' },
-      reputation: { allOf: [reviewRef('FarmReputation')], description: 'Avaliações publicadas da fazenda (na busca e no detalhe da vaga).' }
+      reputation: { allOf: [reviewRef('FarmReputation')], description: 'Avaliações publicadas da fazenda (na busca e no detalhe da vaga).' },
+      farmer_verified: { type: 'boolean', enum: [true], example: true, description: 'O produtor tem a identidade conferida pela equipe (só vem quando é verdade; na busca e no detalhe da vaga).' }
     },
     ['city', 'state', 'photos'],
     'Local da fazenda exposto ao trabalhador (sem o endereço completo; o ponto no mapa só vai para o trabalhador aceito).'

@@ -2,6 +2,7 @@
 export type * from './hiring.contract';
 export type { ApplicationRepository } from './domain/application.repository';
 export { type HiringEvents, NO_HIRING_EVENTS, type WorkerReputationReader } from './domain/hiring-events';
+export { NO_VERIFIED_WORKERS, type WorkerVerificationReader } from './domain/worker-verification';
 export { APPLICATION_STATUS, PAYMENT_STATUS } from './domain/hiring-status';
 export type { PaymentRepository } from './domain/payment.repository';
 export { createInMemoryApplicationRepository } from './infra/in-memory-application.repository';

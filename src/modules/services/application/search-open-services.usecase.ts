@@ -3,6 +3,7 @@ import { APPLICATION_STATUS, type ApplicationRepository } from '#modules/hiring'
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
 import type { FarmReputationReader } from '../domain/farm-reputation';
+import type { FarmerVerificationReader } from '../domain/farmer-verification';
 import { searchable } from '#shared/utils/search';
 import { SERVICE_STATUS } from '../domain/service-status';
 import type { ServiceRepository } from '../domain/service.repository';
@@ -15,6 +16,7 @@ export interface SearchOpenServicesDeps {
   applications: ApplicationRepository;
   clock: Clock;
   reputation: FarmReputationReader;
+  verification: FarmerVerificationReader;
 }
 
 const byRecent = (a: OpenService, b: OpenService): number =>
@@ -31,7 +33,8 @@ const SORTERS: Record<NonNullable<JobFilters['sort']>, (a: OpenService, b: OpenS
 };
 
 // RF02 - Vagas abertas: Pending e dentro da validade, com filtros combinados (E).
-// Com `worker_id`, some a vaga em que esse trabalhador já foi recusado. Cada vaga traz a reputação da fazenda.
+// Com `worker_id`, some a vaga em que esse trabalhador já foi recusado. Cada vaga traz a reputação da fazenda
+// e se o produtor é verificado.
 // TODO(db): no PostgreSQL os filtros viram WHERE (status, category, duration BETWEEN, insertion_date,
 // expires_at >= hoje) e a busca de texto vira unaccent + ILIKE ou full-text search em português.
 export class SearchOpenServicesUseCase {
@@ -41,10 +44,11 @@ export class SearchOpenServicesUseCase {
     const now = this.deps.clock.now();
     const open = (await this.deps.services.find({ status: SERVICE_STATUS.PENDING })).filter((s) => !isExpired(s, now));
     const reputations = await this.deps.reputation.forFarms(open.map((s) => s.farm_id));
+    const verified = await this.deps.verification.verifiedFarmers(open.map((s) => s.farmer_id));
     const withFarm = await Promise.all(open.map(async (s): Promise<OpenService> => {
       const job = await toOpenService(this.deps.farms, s);
       const reputation = reputations.get(s.farm_id);
-      return reputation ? { ...job, farm: { ...job.farm, reputation } } : job;
+      return { ...job, farm: { ...job.farm, ...(reputation ? { reputation } : {}), ...(verified.has(s.farmer_id) ? { farmer_verified: true as const } : {}) } };
     }));
 
     const rejectedServiceIds = filters.worker_id === undefined

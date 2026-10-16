@@ -46,6 +46,16 @@ describe('GetOpenServiceUseCase', () => {
     assert.equal('latitude' in job.farm, false);
   });
 
+  it('diz quando o produtor tem o selo de verificado', async () => {
+    const farmer = await givenFarmer(t);
+    const service = await givenService(t, await givenFarm(t, farmer));
+    const verified = new GetOpenServiceUseCase({ ...t, verification: { verifiedFarmers: (ids) => Promise.resolve(new Set(ids.filter((id) => id === farmer.id))) } });
+
+    const job = unwrap(await verified.execute({ serviceId: service.id }));
+
+    assert.equal(job.farm.farmer_verified, true);
+  });
+
   it('serviço inexistente dá not_found', async () => {
     const result = await getOpen.execute({ serviceId: 99 });
 

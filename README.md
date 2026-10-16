@@ -24,7 +24,7 @@ npm run check:contracts  # confere que o contrato bate com os models do frontend
 
 Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
 
-Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a [conversa](#conversas) (`src/seed-history.ts`): os serviços 8 a 10 já concluídos e avaliados pelos dois lados (as duas fazendas e a Maria têm nota; o Pedro tem uma nota mediana), o 11 concluído há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida), o 12 concluído ontem sem avaliações e com a conversa ainda aberta, e o 13 em andamento com a Maria, com conversa (a última mensagem do produtor ainda não lida por ela). A vaga 1 tem dois candidatos: o Pedro (com nota) e o Carlos (sem avaliações).
+Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a [conversa](#conversas) (`src/seed-history.ts`): os serviços 8 a 10 já concluídos e avaliados pelos dois lados (as duas fazendas e a Maria têm nota; o Pedro tem uma nota mediana), o 11 concluído há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida), o 12 concluído ontem sem avaliações e com a conversa ainda aberta, e o 13 em andamento com a Maria, com conversa (a última mensagem do produtor ainda não lida por ela). A vaga 1 tem dois candidatos: o Pedro (com nota) e o Carlos (sem avaliações). A **central de notificações** do João e da Maria já vem com os avisos que essa história geraria (candidaturas, avaliação, mensagens, pagamento), alguns lidos e outros não.
 
 ### Usuários de teste
 
@@ -53,6 +53,8 @@ As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com 
 | `GOOGLE_MAPS_MAP_ID` | Map ID para o alfinete arrastável (padrão `DEMO_MAP_ID`, só para desenvolvimento) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Chaves das notificações push (gere com `npx web-push generate-vapid-keys`). Sem elas, `GET /api/config/push` responde 503 e nada é enviado |
 | `VAPID_SUBJECT` | Contato do responsável pelo envio (`mailto:` ou `https:`), exigido pelos serviços de push |
+| `WHATSAPP_API_URL` / `WHATSAPP_API_KEY` / `WHATSAPP_INSTANCE` | Avisos por WhatsApp pela [Evolution API](https://doc.evolution-api.com) v2. As três juntas ligam o envio; sem elas, nada sai |
+| `APP_URL` | Endereço do frontend nos links que saem do app (padrão `https://ruraliza.github.io/ruraliza-frontend`) |
 
 Em produção (Render), cadastre as mesmas variáveis no painel do serviço.
 
@@ -147,6 +149,7 @@ Regras de fronteira:
 | Currículos dos trabalhadores (PDF) | `Map` em memória de id para bytes do PDF | `InMemoryDocumentStore` (`src/shared/infra/documents/in-memory-document-store.ts`) |
 | Avaliações (produtor → trabalhador e trabalhador → fazenda) | Um array por lado, com o prazo e se já foi publicada | `InMemoryRepository` (`src/modules/reviews/infra/`) |
 | Conversas e mensagens | Um array de conversas e um de mensagens | `InMemoryRepository` (`src/modules/chat/infra/`) |
+| Preferências de exibição (tema, letras maiores, alto contraste) | Campo `preferences` da conta, opcional (ausente = padrões) | `InMemoryRepository` de `Account` |
 
 - Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
 - As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
@@ -186,7 +189,7 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 
 ### Acesso (`/api/auth`)
 
-Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres enviada no cadastro em `password`. A conta começa com o perfil escolhido no cadastro (`POST /api/farmers` ou `POST /api/workers`, que já devolvem a sessão em `user`) e pode ganhar o outro perfil depois (`/api/accounts`). A mesma senha vale para os dois. A sessão (`user`) é `{ account_id, role, id, profiles: { farmer, worker } }`: `role`/`id` são o painel aberto.
+Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres enviada no cadastro em `password`. O cadastro exige `accept_terms: true` ("Li e concordo com os Termos de Uso e a Política de Privacidade", textos em `/termos` e `/privacidade` no frontend): a conta guarda `terms_version` e `terms_accepted_at`, para provar o consentimento (LGPD). Ao mudar os textos, troque `TERMS_VERSION` (`src/modules/accounts/domain/terms.ts`) e a do frontend. A conta começa com o perfil escolhido no cadastro (`POST /api/farmers` ou `POST /api/workers`, que já devolvem a sessão em `user`) e pode ganhar o outro perfil depois (`/api/accounts`). A mesma senha vale para os dois. A sessão (`user`) é `{ account_id, role, id, profiles: { farmer, worker } }`: `role`/`id` são o painel aberto.
 
 **Token de sessão.** Login, redefinição de senha e cadastro devolvem `token` (assinado com HMAC-SHA256 e `AUTH_TOKEN_SECRET`, válido por 12 horas). Toda rota que não é pública exige `Authorization: Bearer <token>` e confere o dono: uma conta só mexe nos próprios perfis, fazendas, serviços e candidaturas (`farmer_id`/`worker_id` no corpo ou na query precisam ser os dela). Sem token ou com token inválido/vencido: **401**; token de outra pessoa ou de outro tipo de usuário: **403**. O token diz só quem entrou; conta e perfis são relidos a cada requisição, então uma conta removida perde o acesso na hora. As regras ficam em `src/modules/auth/presentation/access.ts` e cada rota declara a sua em `route()` (a documentação mostra o cadeado e quem pode).
 
@@ -209,6 +212,8 @@ Rotas públicas: login e redefinição de senha, cadastro (`POST /api/farmers` e
 | GET | `/api/accounts/:id` | Sessão da conta (`user`), no mesmo formato do login |
 | POST | `/api/accounts/:id/profiles` | Cria o outro perfil na conta: `{ role, name, phone, cpf }` (+ `bio`, `certificates`, `courses`, `experience` para trabalhador). E-mail e senha são os da conta. Já abre o painel novo. 409 se a conta já tem esse perfil ou se o CPF é de outra conta |
 | PATCH | `/api/accounts/:id/active-role` | `{ role }`: troca o painel aberto (e o que abre no próximo login); 404 se a conta não tem esse perfil |
+| GET | `/api/accounts/:id/preferences` | Preferências de exibição da conta: `{ theme: 'light' \| 'dark' \| 'system', text_size: 'normal' \| 'large', high_contrast }`. Padrão: tema claro, texto normal, sem alto contraste. Valem nos dois painéis e em qualquer aparelho |
+| PATCH | `/api/accounts/:id/preferences` | Muda só os campos enviados (ao menos um); 400 se nenhum vier ou se algum valor for inválido |
 | POST | `/api/accounts/:id/push-subscriptions` | `{ endpoint, keys: { p256dh, auth } }` (o `PushSubscription.toJSON()` do navegador): ativa as notificações push neste navegador, para os dois perfis da conta. Reenviar a mesma inscrição não duplica |
 | DELETE | `/api/accounts/:id/push-subscriptions` | `{ endpoint }`: desativa as notificações neste navegador |
 
@@ -218,7 +223,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/farmers` | Lista produtores (só administração) |
-| POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`); 409 se e-mail/CPF já existe entre produtores |
+| POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`, `accept_terms: true`); 400 sem o aceite dos termos; 409 se e-mail/CPF já existe entre produtores |
 | GET | `/api/farmers/:id` | Perfil completo (`farms` = lista de IDs das fazendas) |
 | PATCH | `/api/farmers/:id` | Edita `email`, `name`, `phone`; 400 se tentar alterar `id`/`cpf`/`password` |
 | PATCH | `/api/farmers/:id/password` | Troca a senha (ver [Acesso](#acesso-apiauth)) |
@@ -245,7 +250,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/workers` | Lista trabalhadores (só administração) |
-| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`) |
+| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`, `accept_terms: true`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`); 400 sem o aceite dos termos |
 | GET | `/api/workers/:id` | Perfil completo |
 | PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `bio`, `experience`, `certificates`, `courses`; 400 se tentar alterar `id`/`cpf`/`password` |
 | PATCH | `/api/workers/:id/password` | Troca a senha (ver [Acesso](#acesso-apiauth)) |
@@ -270,7 +275,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 
 ### Administração (`/api/admin`)
 
-Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe e supervisiona todas as trilhas de estudo (`tracks:oversee`: vê, cria escolhendo os tutores, edita e descontinua qualquer uma); `tutor` cria trilhas e edita as de que é tutor (`tracks:manage`). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
+Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe, supervisiona todas as trilhas de estudo (`tracks:oversee`: vê, cria escolhendo os tutores, edita e descontinua qualquer uma), edita a central de ajuda (`content:manage`) e modera denúncias e verificações (`moderation:manage`); `tutor` cria trilhas e edita as de que é tutor (`tracks:manage`). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -290,6 +295,77 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 | GET / PATCH | `/api/admin/tracks/:id` | Detalhe / edita `title`, `description`, `categories` e `tutor_ids`. Só os tutores da trilha e o administrador editam (403 para os outros tutores) |
 | PUT | `/api/admin/tracks/:id/content` | Substitui módulos e aulas (`{ modules: [{ id?, title, lessons: [{ id?, title, video_url?, content?, duration_minutes }] }] }`). Com `id` mantém o item; ids nunca são reaproveitados |
 | PATCH | `/api/admin/tracks/:id/status` | `{ status: "published" \| "discontinued" }`. Não há remoção nem volta para rascunho; 409 se a transição não vale ou se faltam aulas |
+
+### Filtro de palavrões
+
+Títulos e descrições de vagas (publicar e editar) e os textos do perfil do trabalhador (apresentação, experiência, certificados e cursos) são recusados com **400** quando têm palavrão ou ofensa: "Há palavras não permitidas no nome do serviço. Reescreva sem palavrões nem ofensas." A lista (`src/shared/domain/moderation.ts`) pega acento, maiúscula, letra repetida e número no lugar da letra (`p0rr4`), só com a palavra inteira (`curral` passa), e deixa de fora de propósito palavras com sentido comum no campo (`bosta` de vaca, `Cu` de cobre, `pica-pau`, `macaco` hidráulico, milho `crioulo`...). O frontend usa a mesma lista para avisar antes de enviar, e o `npm run check:contracts` confere que as duas são iguais.
+
+### Denúncias
+
+Quem usa o app avisa a equipe sobre vaga falsa, condições ruins de trabalho, mau comportamento ou conteúdo ofensivo. O trabalhador denuncia uma vaga (qualquer uma, mesmo sem candidatura: a vaga falsa aparece antes do contato) ou um produtor a cuja vaga se candidatou; o produtor denuncia um trabalhador que se candidatou a um serviço dele. Ninguém denuncia a si mesmo (nem o outro perfil da conta), e a mesma pessoa não denuncia o mesmo alvo de novo enquanto a equipe analisa (409). O relato (`details`, até 500 caracteres, obrigatório no motivo `outro`) **não** passa pelo filtro de palavrões, para quem denuncia uma ofensa poder contar o que ouviu; só a equipe lê, e quem foi denunciado não fica sabendo quem denunciou.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/api/workers/:id/reports` | `{ target_type: 'service' \| 'farmer', target_id, reason, details? }`; 403 se denunciar um produtor sem ter se candidatado a uma vaga dele |
+| POST | `/api/farmers/:id/reports` | `{ target_type: 'worker', target_id, reason, details? }`; 403 se o trabalhador não se candidatou a um serviço do produtor |
+| GET | `/api/admin/reports?status=` | (`moderation:manage`) A fila, a mais recente primeiro, com os nomes e as contas de quem denunciou e do alvo (no caso de uma vaga, a conta da produtora), para abrir em `/api/admin/users/:id` |
+| PATCH | `/api/admin/reports/:id` | `{ status: 'resolved' \| 'dismissed', note? }`: procedente ou descartada, com uma anotação interna. Quem denunciou recebe uma notificação com o resultado (sem a anotação); 409 se já foi decidida |
+
+Motivos (`reason`): `fraude` (vaga falsa ou golpe), `condicoes` (condições de trabalho ruins ou perigosas), `comportamento` (assédio, ameaça, não cumpriu o combinado), `ofensivo` e `outro`. A decisão só registra o resultado: remover a conta ou editar o perfil é feito na administração de usuários.
+
+### Verificação de identidade
+
+A pessoa envia a foto da frente do RG ou da CNH; a equipe confere o nome e o CPF com os do perfil e aprova ou recusa (com o motivo, que a pessoa vê). Aprovado, o perfil ganha o **selo de verificado**: aparece para o produtor no cartão do candidato (`verified` em `GET /api/farmers/services/:id/applications`) e para o trabalhador nas vagas (`farm.farmer_verified` na busca e no detalhe). O selo vale para o nome conferido: se a pessoa muda o nome no perfil, ele some até ela verificar de novo. Quem tem os dois perfis com o mesmo CPF ganha o selo nos dois.
+
+A foto do documento é dado pessoal sensível, então: é reduzida para no máximo 1600px (legível) e perde os metadados; fica num armazenamento **privado** (`idDocuments` no container), que não passa por `/api/images`; só a equipe vê, com o token de sistema; e é **apagada logo depois da decisão** (e quando o perfil é removido). Em memória, como o resto (TODO(db): o pedido vai para uma tabela; a foto, para um bucket privado com expiração).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/farmers/:id/verification` e `/api/workers/:id/verification` | Situação: `status` (`none`, `pending`, `approved`, `rejected`), `rejection_reason` e `verified` (o selo aparece) |
+| POST | `/api/farmers/:id/verification?document_type=rg\|cnh` e o mesmo em `/api/workers` | A foto no corpo (Content-Type image/*, até 10 MB); reenviar troca a foto e volta para a fila; 409 com o selo valendo |
+| GET | `/api/admin/verifications?status=` | (`moderation:manage`) A fila, o envio mais antigo primeiro, com o nome e o CPF completos do perfil |
+| GET | `/api/admin/verifications/:id/document` | A foto (WebP, `Cache-Control: private, no-store`), só enquanto está em análise |
+| PATCH | `/api/admin/verifications/:id` | `{ status: 'approved' \| 'rejected', reason? }` (motivo obrigatório ao recusar). Apaga a foto e avisa a pessoa |
+
+### Vagas para você (recomendações e avisos)
+
+O trabalhador diz o que quer fazer (categorias), onde está ("perto de mim": a região, guardada com cerca de 1 km de precisão, e o raio) e se quer avisos. As vagas abertas são sugeridas pelo que combina: a categoria escolhida, as trilhas que ele faz (a concluída pesa mais) e, sem nada disso, as categorias das vagas em que já se candidatou; com "perto de mim", só entram as que ficam dentro do raio (em linha reta, calculada na API: o ponto da fazenda nunca sai). Fazenda bem avaliada e produtor verificado ajudam no desempate. Cada vaga vem com os motivos (`reasons`) e a distância aproximada (`distance_km`). Ficam de fora as vagas em que ele já se candidatou e as do próprio perfil de produtor.
+
+Com os avisos ligados, quem combina com uma vaga nova (pela categoria escolhida ou pela trilha, e dentro do raio) recebe na hora "Vaga nova perto de você" (no sino e no push), no máximo 3 por dia e nunca a mesma vaga duas vezes; uma vez por semana sai o resumo "Encontramos N vagas para você" (o servidor confere a cada hora quem já pode receber).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET / PUT | `/api/workers/:id/job-preferences` | `{ categories, near: { latitude, longitude, radius_km } \| null, alerts }`; o PUT troca tudo (raio de 5 a 300 km) |
+| GET | `/api/workers/:id/recommended-jobs?limit=` | As vagas que combinam (1 a 30; padrão 10), da que mais combina para a que menos |
+
+### Painel da fazenda
+
+`GET /api/farmers/:id/stats` traz os números do produtor, em todas as fazendas dele: horas e serviços concluídos (com o pagamento liberado, que é quando o trabalho fica validado no app), quanto foi pago, quantas pessoas já trabalharam com ele e quantas voltaram, a nota média das fazendas (pesada pela quantidade de avaliações de cada uma), as vagas abertas e as candidaturas esperando resposta, os últimos 6 meses (meses sem serviço vêm zerados), as categorias e a lista de quem já passou por lá (até 20, o mais recente primeiro).
+
+### Patrocínios
+
+Espaço para lojas agropecuárias, revendas de máquinas e marcas de sementes: um cartão marcado como **Patrocinado** no Início de produtores e trabalhadores (identificar o anúncio como anúncio é exigência do Código de Defesa do Consumidor). A equipe (permissão `content:manage`) cadastra o anunciante, a chamada, o link (sempre https), a logo, o público (`farmer`, `worker` ou `all`), as UFs, as categorias de interesse (para trabalhadores) e o período, e acompanha as aparições e os cliques. A rotação mostra, entre os que servem, o que menos apareceu. **Nenhum dado de quem usa o app vai para o anunciante:** o cartão é pedido sem login, com a UF e as categorias na própria URL, e o link abre direto a página do anunciante.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/sponsors/slot?audience=&state=&categories=` | (público) O cartão da vez (`card: null` quando não há); conta a aparição |
+| POST | `/api/sponsors/:id/click` | (público) Conta o clique (o app chama ao abrir o link) |
+| GET / POST | `/api/admin/sponsors` | Lista (com aparições e cliques) / cria |
+| PATCH / DELETE | `/api/admin/sponsors/:id` | Edita / apaga (com a imagem) |
+| POST / DELETE | `/api/admin/sponsors/:id/image` | Envia / tira a logo (WebP, até 1000px) |
+
+### Central de ajuda
+
+Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (26, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/help` | Perguntas publicadas, por tema (`comecar`, `produtores`, `trabalhadores`, `pagamentos`, `seguranca`, `trilhas`, `conta`) e na ordem da tela |
+| GET | `/api/admin/help` | Todas, inclusive os rascunhos (`published: false`) |
+| POST | `/api/admin/help` | `{ question, answer, topic, published? }`: entra no fim do tema |
+| PATCH | `/api/admin/help/:id` | Muda só o que veio; mudou de tema, vai para o fim do tema novo |
+| PATCH | `/api/admin/help/:id/move` | `{ direction: 'up' \| 'down' }`: troca de lugar com a vizinha no tema |
+| DELETE | `/api/admin/help/:id` | Apaga a pergunta |
 
 ### Avaliações
 
@@ -339,7 +415,7 @@ Conversa interna de cada contratação, para **proteger o WhatsApp** dos dois at
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/categories` | Lista fixa de categorias |
-| GET | `/api/certificates/:code` | Validação pública de um certificado de conclusão (sem token) |
+| GET | `/api/certificates/:code` | Validação pública de um certificado de conclusão (sem token), com o resumo SHA-256 dos dados (`data_hash`) |
 | GET | `/api/config/push` | Chave pública VAPID das notificações push; 503 se as chaves não estiverem no `.env` |
 | GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 403 se o `Origin` não for do frontend, 503 se a chave não estiver configurada |
 | GET | `/api/images/:id` | Serve uma foto (WebP, cache imutável de 1 ano) |
@@ -349,13 +425,32 @@ Conversa interna de cada contratação, para **proteger o WhatsApp** dos dois at
 
 ### Trilhas de estudo
 
-Cursos para os trabalhadores, divididos em módulos e aulas (vídeo do YouTube/Vimeo e/ou texto em Markdown simples, com a duração em minutos; a carga horária é a soma). Os tutores montam; a trilha nasce em rascunho e segue `draft → published ⇄ discontinued`. Descontinuada some da lista e não aceita alunos novos, mas quem já começou termina. Ao concluir a última aula, o trabalhador recebe um certificado em nome da Ruraliza (nome, trilha, carga horária e data de conclusão, guardados como estavam na emissão) com um código validado em `/api/certificates/:code`.
+Cursos para os trabalhadores, divididos em módulos e aulas (vídeo do YouTube/Vimeo e/ou texto em Markdown simples, com a duração em minutos; a carga horária é a soma). Os tutores montam; a trilha nasce em rascunho e segue `draft → published ⇄ discontinued`. Descontinuada some da lista e não aceita alunos novos, mas quem já começou termina. Ao concluir a última aula, o trabalhador recebe um certificado em nome da Ruraliza (nome, trilha, carga horária e data de conclusão, guardados como estavam na emissão) com um código validado em `/api/certificates/:code`. Na emissão também é calculado e guardado o **resumo SHA-256** desses dados (`data_hash`): o SHA-256, em hex, do JSON `[code, worker_name, track_title, workload_minutes, completed_at]` sem espaços, em UTF-8. O PDF do app traz o resumo e um QR code que abre a página de validação, onde o resumo aparece de novo; qualquer mudança nesses dados muda o resumo, e qualquer pessoa pode recalculá-lo (ex.: `printf '%s' '["RZ-…","Nome","Trilha",90,"2026-…Z"]' | sha256sum`). Não é assinatura digital: quem garante o certificado continua sendo a validação pelo código (ver [docs/estudo-govbr-certificados.md](docs/estudo-govbr-certificados.md)).
 
 ### Atualização em tempo real (SSE)
 
 As telas de candidatos do serviço (produtor) e de candidaturas (trabalhador) se atualizam sozinhas por **Server-Sent Events**: o frontend abre `GET .../events` com `EventSource`, a resposta (`text/event-stream`) fica aberta e chega `event: applications` a cada mudança. O aviso não traz dados; a tela busca a lista de novo pela rota de sempre. A cada 25 s vai um `: ping` para a conexão não ser cortada por inatividade, e o `EventSource` reconecta sozinho se ela cair.
 
-Os casos de uso publicam os avisos (`ChangeFeed`, `src/shared/domain/changes.ts`) depois de cada mudança: candidatura, desistência, aceite/recusa (inclusive as recusadas pelo aceite e as que voltam a `Pending`), edição, cancelamento e pagamento do serviço, avaliação, e remoção de produtor ou trabalhador. As conversas têm dois canais próprios: o da conversa aberta (`event: chat`) e o da lista de cada perfil (`event: chats`). A implementação em memória (`InMemoryChangeFeed`) só vale para **um processo**; com várias instâncias da API, troque por algo compartilhado (LISTEN/NOTIFY do PostgreSQL ou Redis pub/sub) em `createContainer({ changes })`.
+Os casos de uso publicam os avisos (`ChangeFeed`, `src/shared/domain/changes.ts`) depois de cada mudança: candidatura, desistência, aceite/recusa (inclusive as recusadas pelo aceite e as que voltam a `Pending`), edição, cancelamento e pagamento do serviço, avaliação, e remoção de produtor ou trabalhador. As conversas têm dois canais próprios: o da conversa aberta (`event: chat`) e o da lista de cada perfil (`event: chats`). **Uma conexão por aba:** o que vale para a tela inteira (a lista de conversas do menu, o sino e, no trabalhador, as candidaturas) chega por um stream só do perfil, `GET /api/farmers/:id/live` e `GET /api/workers/:id/live` (`event: chats`, `event: notifications` e, no trabalhador, `event: applications`). Em HTTP/1.1 o navegador abre no máximo 6 conexões por servidor: com um stream por assunto, duas abas do app esgotavam o limite e as outras requisições ficavam esperando. Os streams por assunto continuam valendo. O app também fecha os streams quando a página vai para o cache de voltar/avançar (`pagehide`) e reabre na volta. A implementação em memória (`InMemoryChangeFeed`) só vale para **um processo**; com várias instâncias da API, troque por algo compartilhado (LISTEN/NOTIFY do PostgreSQL ou Redis pub/sub) em `createContainer({ changes })`.
+
+### Central de notificações
+
+Tudo o que vira push também fica guardado na **central de notificações** do perfil (`/api/farmers/:id/notifications` e `/api/workers/:id/notifications`), mesmo para quem não ativou o push no aparelho: é o histórico do sino da barra de cima do app.
+
+- Cada perfil guarda até **100 avisos** (os mais antigos saem); a lista devolve os 50 mais recentes e o total de **não lidos**.
+- Avisos iguais ainda não lidos (mesmo título e mesma tela, ex.: 3 mensagens na mesma conversa) viram **um só**, com o texto do mais recente e a contagem em `count`.
+- `POST .../notifications/read` marca como lidos (sem `ids`, todos). O sino acompanha por SSE (`.../notifications/events`, `event: notifications`).
+- Ao remover um perfil, o histórico dele sai junto. Em memória, como o resto (`NotificationRepository`).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/farmers/:id/notifications` e `/api/workers/:id/notifications` | `{ unread, items: [{ id, title, body, url, count, read, insertion_date }] }`, os mais recentes primeiro |
+| POST | `/api/farmers/:id/notifications/read` e `/api/workers/:id/notifications/read` | `{ ids? }`: marca como lidos (ids de outro perfil são ignorados) → `{ message, unread }` |
+| GET | `/api/farmers/:id/notifications/events` e `/api/workers/:id/notifications/events` | SSE `event: notifications`: chegou aviso novo ou algum foi lido |
+
+### Avisos por WhatsApp
+
+Quem liga **Avisos no WhatsApp** (`whatsapp_alerts` nas preferências da conta, desligado por padrão) recebe no celular os avisos que não podem passar despercebidos; hoje, **candidatura aceita**, com o link da tela no app (`APP_URL`). Só sai para celular com DDD (o número vira `55` + DDD + número; telefone fixo é ignorado) e só com a integração configurada (`WHATSAPP_*` no `.env`, Evolution API v2). O `PushDispatcher` cuida das três frentes (central, push e WhatsApp) em segundo plano: uma falha em qualquer uma só vai para o log.
 
 ### Notificações push
 
@@ -374,6 +469,7 @@ O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`)
 - [ ] Encerrar as sessões abertas ao trocar a senha (hoje o token vale até vencer).
 - [x] Trilhas de estudo: rotas do tutor (`tracks:manage`), estudo pelo trabalhador e certificados.
 - [ ] Registro de horas e relatórios em PDF.
+- [ ] Assinatura digital dos certificados: a API gov.br é só para órgãos públicos; o caminho para o Ruraliza é um e-CNPJ ICP-Brasil (ver [docs/estudo-govbr-certificados.md](docs/estudo-govbr-certificados.md)).
 - [ ] Avaliações: lembrete por push perto do fim do prazo de 14 dias (precisa de uma tarefa agendada) e moderação de comentários pela equipe (denúncia e remoção).
 - [ ] Conversas: denunciar mensagem/bloquear, limite de mensagens por minuto, paginação das mensagens antigas e envio de foto (ex.: "cheguei na porteira").
 - [ ] Reputação também a partir de sinais objetivos (ex.: desistências depois do aceite), com cuidado para não punir quem desistiu por motivo justo.

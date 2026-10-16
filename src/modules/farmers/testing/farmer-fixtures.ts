@@ -10,14 +10,15 @@ import { NO_PROFILE_CLEANUP } from '#shared/domain/profile-cleanup';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
 import { fixedClock } from '#shared/testing/fixed-clock';
 import { recordingChangeFeed } from '#shared/testing/recorders';
-import type { Farmer, FarmerInput } from '../farmer.contract';
+import type { NewFarmer } from '../application/register-farmer.usecase';
+import type { Farmer } from '../farmer.contract';
 import type { FarmersModuleDeps } from '../farmers.module';
 import { createInMemoryFarmerRepository } from '../infra/in-memory-farmer.repository';
 
 // Dependências dos produtores em memória, com hash de senha falso e avisos (SSE) gravados.
 
 export const NOW = '2026-01-01T00:00:00.000Z';
-export const SIGNUP: FarmerInput = { email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: 'senha-forte' };
+export const SIGNUP: NewFarmer = { email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: 'senha-forte' };
 
 export interface FarmersTestbed extends FarmersModuleDeps {
   images: InMemoryImageStore;

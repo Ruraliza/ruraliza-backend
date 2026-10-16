@@ -4,13 +4,19 @@ import { type AuthSchemaName, authSchemas } from '#modules/auth';
 import { type ChatSchemaName, chatSchemas } from '#modules/chat';
 import { type FarmerSchemaName, farmerSchemas } from '#modules/farmers';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
+import { type FarmStatsSchemaName, farmStatsSchemas } from '#modules/farm-stats';
+import { type HelpSchemaName, helpSchemas } from '#modules/help';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
-import { type PushSchemaName, pushSchemas } from '#modules/notifications';
+import { type MatchingSchemaName, matchingSchemas } from '#modules/matching';
+import { type NotificationSchemaName, type PushSchemaName, notificationSchemas, pushSchemas } from '#modules/notifications';
 import { type PlatformSchemaName, platformSchemas } from '#modules/platform';
+import { type ReportSchemaName, reportSchemas } from '#modules/reports';
 import { type ReviewSchemaName, reviewSchemas } from '#modules/reviews';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
+import { type SponsorSchemaName, sponsorSchemas } from '#modules/sponsors';
 import { type SystemUserSchemaName, systemUserSchemas } from '#modules/system-users';
 import { type TrackSchemaName, trackSchemas } from '#modules/tracks';
+import { type VerificationSchemaName, verificationSchemas } from '#modules/verification';
 import { type WorkerSchemaName, workerSchemas } from '#modules/workers';
 import { type CoreSchemaName, coreSchemas } from '#shared/infra/docs/core.schemas';
 import type { Schema } from '#shared/infra/docs/schema-kit';
@@ -31,9 +37,16 @@ export type SchemaName =
   | ReviewSchemaName
   | ChatSchemaName
   | PushSchemaName
+  | NotificationSchemaName
   | SystemUserSchemaName
   | AdminSchemaName
-  | TrackSchemaName;
+  | TrackSchemaName
+  | HelpSchemaName
+  | ReportSchemaName
+  | VerificationSchemaName
+  | MatchingSchemaName
+  | FarmStatsSchemaName
+  | SponsorSchemaName;
 
 export const schemas = {
   ...coreSchemas,
@@ -46,9 +59,16 @@ export const schemas = {
   ...reviewSchemas,
   ...chatSchemas,
   ...pushSchemas,
+  ...notificationSchemas,
   ...accountSchemas,
   ...authSchemas,
   ...systemUserSchemas,
   ...adminSchemas,
-  ...trackSchemas
+  ...trackSchemas,
+  ...helpSchemas,
+  ...reportSchemas,
+  ...verificationSchemas,
+  ...matchingSchemas,
+  ...farmStatsSchemas,
+  ...sponsorSchemas
 } satisfies Record<SchemaName, Schema>;

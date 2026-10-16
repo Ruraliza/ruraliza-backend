@@ -9,18 +9,19 @@ const MAX_INPUT_PIXELS = 50_000_000;
 // Normaliza qualquer foto recebida (JPEG, PNG, WebP, AVIF, HEIC suportado pelo libvips…):
 // corrige a rotação do celular (EXIF), reduz para no máximo 1000px no maior lado
 // (sem ampliar fotos menores), remove os metadados (inclusive GPS) e converte para WebP.
-// Com `square`, recorta o quadrado central (lado = menor lado da foto, até 1000px).
+// Com `square`, recorta o quadrado central (lado = menor lado da foto, até 1000px); `maxSide` troca o limite.
 export class SharpImageProcessor implements ImageProcessor {
   async normalize(input: Uint8Array, options: NormalizeOptions = {}): Promise<Result<ProcessedImage>> {
     try {
       const image = sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).rotate();
+      const maxSide = options.maxSide ?? IMAGE_MAX_SIDE;
       if (options.square) {
         // Tamanho já girado pelo EXIF (autoOrient), para não trocar largura e altura.
         const { autoOrient } = await image.metadata();
-        const side = Math.min(autoOrient.width, autoOrient.height, IMAGE_MAX_SIDE);
+        const side = Math.min(autoOrient.width, autoOrient.height, maxSide);
         image.resize({ width: side, height: side, fit: 'cover', position: 'centre' });
       } else {
-        image.resize({ width: IMAGE_MAX_SIDE, height: IMAGE_MAX_SIDE, fit: 'inside', withoutEnlargement: true });
+        image.resize({ width: maxSide, height: maxSide, fit: 'inside', withoutEnlargement: true });
       }
       const { data, info } = await image
         .webp({ quality: WEBP_QUALITY })

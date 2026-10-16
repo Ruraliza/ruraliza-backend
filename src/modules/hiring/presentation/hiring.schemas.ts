@@ -29,8 +29,11 @@ export const hiringSchemas = {
   AnalyzeAction: { type: 'string', enum: ['Accept', 'Reject'] },
   ServiceApplication: object(applicationProps, applicationRequired),
   ApplicationWithWorker: object(
-    { ...applicationProps, worker: ref('Worker'), reputation: ref('WorkerReputation') },
-    [...applicationRequired, 'worker', 'reputation'],
+    {
+      ...applicationProps, worker: ref('Worker'), reputation: ref('WorkerReputation'),
+      verified: { type: 'boolean', example: true, description: 'Identidade conferida pela equipe (selo de verificado).' }
+    },
+    [...applicationRequired, 'worker', 'reputation', 'verified'],
     'CPF, telefone e e-mail do trabalhador vêm mascarados: o contato só é trocado pela conversa, quando os dois liberam o WhatsApp.'
   ),
   ApplicationWithService: object({ ...applicationProps, service: ref('OpenService') }, [...applicationRequired, 'service']),

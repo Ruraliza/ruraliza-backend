@@ -38,3 +38,25 @@ export interface ProfileCreateInput {
 export interface ActiveRoleInput {
   role: UserRole;
 }
+
+// Preferências da conta: valem nos dois painéis e em qualquer aparelho em que a pessoa entrar.
+// `theme`: 'system' segue o celular/computador. `text_size`: 'large' aumenta todos os textos em 25%.
+// `high_contrast`: cores mais fortes e bordas mais escuras (uso sob o sol forte do campo).
+// `whatsapp_alerts`: avisos importantes também no WhatsApp do perfil (ex.: candidatura aceita). Desligado por padrão.
+export type ThemePreference = 'light' | 'dark' | 'system';
+export type TextSize = 'normal' | 'large';
+
+export interface AccountPreferences {
+  theme: ThemePreference;
+  text_size: TextSize;
+  high_contrast: boolean;
+  whatsapp_alerts: boolean;
+}
+
+// PATCH /accounts/:id/preferences: só o que mudou (ao menos um campo).
+export type AccountPreferencesInput = Partial<AccountPreferences>;
+
+export interface PreferencesResponse {
+  message: string;
+  preferences: AccountPreferences;
+}

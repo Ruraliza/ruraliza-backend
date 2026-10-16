@@ -2,11 +2,13 @@
 export type * from './service.contract';
 export { CATEGORIES } from './domain/categories';
 export type { FarmReputationReader } from './domain/farm-reputation';
+export { type FarmerVerificationReader, NO_VERIFIED_FARMERS } from './domain/farmer-verification';
+export { type JobEvents, NO_JOB_EVENTS } from './domain/job-events';
 export type { ServiceRepository } from './domain/service.repository';
 export { SERVICE_STATUS, isServiceStatus, serviceStatusList } from './domain/service-status';
 export { isExpired, toOpenService } from './domain/service.rules';
 export { createInMemoryServiceRepository } from './infra/in-memory-service.repository';
 export { categoryRoutes } from './presentation/category.routes';
 export type { ServiceRoutes } from './presentation/service.routes';
-export { type ServiceSchemaName, serviceSchemas } from './presentation/service.schemas';
+export { type ServiceSchemaName, openServiceProps, openServiceRequired, serviceSchemas } from './presentation/service.schemas';
 export { type ServiceUseCases, type ServicesModuleDeps, createServiceRoutes, createServiceUseCases } from './services.module';

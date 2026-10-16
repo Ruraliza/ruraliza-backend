@@ -5,10 +5,12 @@
 // além dos principais casos 400/401/403/404/409 e da administração pelos usuários de sistema.
 // Uso: npm run test:e2e
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { createApi } from '../../app';
 import { createContainer } from '../../src/container';
 import type {
+  AccountPreferences,
   ApplicationResponse,
   ApplicationWithService,
   ApplicationWithWorker,
@@ -29,12 +31,18 @@ import type {
   FarmerResponse,
   FarmerServiceItem,
   FarmerSignupResponse,
+  HelpArticle,
+  HelpArticleResponse,
   LoginResponse,
+  NotificationsPage,
+  NotificationsReadResponse,
   MapsConfig,
   PushConfig,
+  WhatsAppConfig,
   OpenService,
   PasswordResetRequestResponse,
   PaymentResponse,
+  PreferencesResponse,
   ServiceResponse,
   ServiceWithFarm,
   SessionResponse,
@@ -43,6 +51,20 @@ import type {
   SystemUser,
   SystemUserResponse,
   AdminUser,
+  AdminReport,
+  AdminReportResponse,
+  ReportResponse,
+  AdminVerification,
+  AdminVerificationResponse,
+  Verification,
+  VerificationResponse,
+  JobPreferences,
+  JobPreferencesResponse,
+  RecommendedJob,
+  FarmerStats,
+  Sponsor,
+  SponsorResponse,
+  SponsorSlotResponse,
   WorkerResponse,
   WorkerSignupResponse,
   Certificate,
@@ -237,7 +259,7 @@ async function run(): Promise<void> {
   await step<string[]>('categorias', 'GET', '/categories', undefined, 200, (b) => assert.equal(b.length, 7));
 
   const { farmer, user: farmerSession, token: ana } = await step<FarmerSignupResponse>('cadastrar produtor', 'POST', '/farmers',
-    { name: 'Ana Produtora', email: 'Ana@Exemplo.com', phone: '24999990000', cpf: '52998224725', password: PW }, 201,
+    { name: 'Ana Produtora', email: 'Ana@Exemplo.com', phone: '24999990000', cpf: '52998224725', password: PW, accept_terms: true }, 201,
     (b) => assert.equal(b.farmer.email, 'ana@exemplo.com'));
   actAs(ana);
 
@@ -250,10 +272,10 @@ async function run(): Promise<void> {
     (b) => assert.equal(b.service.status, 'Pending'));
 
   const { worker, user: workerSession, token: bruno } = await step<WorkerSignupResponse>('cadastrar trabalhador', 'POST', '/workers',
-    { name: 'Bruno Tratorista', email: 'bruno@exemplo.com', phone: '24988880000', cpf: '98765432100', password: PW }, 201,
+    { name: 'Bruno Tratorista', email: 'bruno@exemplo.com', phone: '24988880000', cpf: '98765432100', password: PW, accept_terms: true }, 201,
     (b) => assert.deepEqual([b.user.role, b.user.id, b.user.profiles], ['worker', b.worker.id, { farmer: null, worker: b.worker.id }]));
   const { worker: worker2, token: carla } = await step<WorkerSignupResponse>('cadastrar 2º trabalhador', 'POST', '/workers',
-    { name: 'Carla Diarista', email: 'carla@exemplo.com', phone: '24977770000', cpf: '12345678909', password: PW }, 201);
+    { name: 'Carla Diarista', email: 'carla@exemplo.com', phone: '24977770000', cpf: '12345678909', password: PW, accept_terms: true }, 201);
 
   actAs(bruno);
   await step<OpenService[]>('vagas com cidade/UF', 'GET', '/workers/services?category=Colheita', undefined, 200,
@@ -285,6 +307,17 @@ async function run(): Promise<void> {
   await step<ApplicationWithService[]>('outra candidatura foi recusada', 'GET', `/workers/${worker2.id}/applications`, undefined, 200,
     (b) => assert.equal(b[0]?.status, 'Rejected'));
   actAs(bruno);
+  await container.notifier.idle(); // os avisos são guardados em segundo plano
+  const { items: inbox } = await step<NotificationsPage>('central de notificações do aceito', 'GET', `/workers/${worker.id}/notifications`, undefined, 200, (b) => {
+    assert.equal(b.items[0]?.title, 'Você foi aceito!');
+    assert.ok(b.unread >= 1);
+  });
+  await step<NotificationsReadResponse>('marcar um aviso como lido', 'POST', `/workers/${worker.id}/notifications/read`, { ids: [inbox[0]?.id] }, 200,
+    (b) => assert.equal(typeof b.unread, 'number'));
+  await step<NotificationsReadResponse>('marcar todos como lidos', 'POST', `/workers/${worker.id}/notifications/read`, {}, 200,
+    (b) => assert.equal(b.unread, 0));
+  await step('ids inválidos', 'POST', `/workers/${worker.id}/notifications/read`, { ids: ['x'] }, 400);
+  await step('avisos de outro trabalhador', 'GET', `/workers/${worker2.id}/notifications`, undefined, 403);
   await step<OpenService[]>('serviços do trabalhador com o ponto no mapa', 'GET', `/workers/${worker.id}/services`, undefined, 200, (b) => {
     assert.equal(b[0]?.id, service.id);
     assert.deepEqual([b[0].farm.latitude, b[0].farm.longitude], [-22.1165, -43.2092]);
@@ -305,13 +338,23 @@ async function run(): Promise<void> {
   });
   await step<FarmerServiceItem[]>('filtrar concluídos', 'GET', `/farmers/${farmer.id}/services?status=Completed`, undefined, 200,
     (b) => assert.equal(b.length, 1));
+  await step<FarmerStats>('painel da fazenda: horas, pagamento e quem passou por aqui', 'GET', `/farmers/${farmer.id}/stats`, undefined, 200, (b) => {
+    assert.deepEqual([b.services_completed, b.hours_completed, b.total_paid, b.people_count], [1, 16, 900, 1]);
+    assert.equal(b.people[0]?.name, 'Bruno Tratorista');
+    assert.equal(b.months.at(-1)?.hours, 16);
+  });
+  actAs(carla);
+  await step('painel de outro perfil', 'GET', `/farmers/${farmer.id}/stats`, undefined, 403);
+  actAs(ana);
 
   console.log('\nCasos de erro');
-  await step('CPF inválido', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com', phone: '1', cpf: '12345678900', password: PW }, 400);
-  await step('e-mail inválido', 'POST', '/workers', { name: 'X', email: 'x@', phone: '1', cpf: '11144477735', password: PW }, 400);
+  await step('CPF inválido', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com', phone: '1', cpf: '12345678900', password: PW, accept_terms: true }, 400);
+  await step('e-mail inválido', 'POST', '/workers', { name: 'X', email: 'x@', phone: '1', cpf: '11144477735', password: PW, accept_terms: true }, 400);
   await step('campo faltando', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com' }, 400);
-  await step('e-mail duplicado', 'POST', '/farmers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '11144477735', password: PW }, 409);
-  await step('CPF duplicado', 'POST', '/farmers', { name: 'X', email: 'novo@exemplo.com', phone: '1', cpf: '52998224725', password: PW }, 409);
+  await step('cadastro sem aceitar os termos', 'POST', '/farmers', { name: 'X', email: 'semtermos@exemplo.com', phone: '1', cpf: '39053344705', password: PW }, 400);
+  await step('termos recusados', 'POST', '/workers', { name: 'X', email: 'semtermos@exemplo.com', phone: '1', cpf: '39053344705', password: PW, accept_terms: false }, 400);
+  await step('e-mail duplicado', 'POST', '/farmers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '11144477735', password: PW, accept_terms: true }, 409);
+  await step('CPF duplicado', 'POST', '/farmers', { name: 'X', email: 'novo@exemplo.com', phone: '1', cpf: '52998224725', password: PW, accept_terms: true }, 409);
   await step('fazenda em nome de outro produtor', 'POST', '/farmers/999/farms', { address: 'a', city: 'b', state: 'MG', latitude: -22.1165, longitude: -43.2092 }, 403);
 
   await step('fazenda sem o ponto no mapa', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG' }, 400);
@@ -319,7 +362,7 @@ async function run(): Promise<void> {
   await step('longitude como texto', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: 0, longitude: '-43' }, 400);
 
   const { farmer: other, token: outro } = await step<FarmerSignupResponse>('cadastrar outro produtor', 'POST', '/farmers',
-    { name: 'Outro', email: 'outro@exemplo.com', phone: '1', cpf: '11144477735', password: PW }, 201);
+    { name: 'Outro', email: 'outro@exemplo.com', phone: '1', cpf: '11144477735', password: PW, accept_terms: true }, 201);
   actAs(outro);
   await step('fazenda de outro produtor', 'POST', '/farmers/services',
     { farmer_id: other.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 400);
@@ -347,6 +390,9 @@ async function run(): Promise<void> {
   await step('publicar em nome de outro produtor', 'POST', '/farmers/services',
     { farmer_id: 999, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 403);
   await step('serviço sem campos', 'POST', '/farmers/services', { farmer_id: farmer.id }, 400);
+  await step('palavrão no nome do serviço', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita da p0rra', category: 'Outros', duration: 1, price: 1 }, 400);
+  await step('palavrão na descrição (edição)', 'PATCH', `/farmers/services/${service.id}`, { description: 'Vai tomar no cu' }, 400);
 
   const { service: open } = await step<ServiceResponse>('publicar 2º serviço', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Plantio', category: 'Plantio', duration: 8, price: 300 }, 201);
@@ -376,7 +422,8 @@ async function run(): Promise<void> {
 
   console.log('\nSenha e acesso');
   await step('cadastro sem senha', 'POST', '/workers', { name: 'X', email: 'semsenha@exemplo.com', phone: '1', cpf: '39053344705' }, 400);
-  await step('cadastro com senha curta', 'POST', '/workers', { name: 'X', email: 'curta@exemplo.com', phone: '1', cpf: '39053344705', password: '1234567' }, 400);
+  await step('palavrão na apresentação do trabalhador', 'POST', '/workers', { name: 'X', email: 'feio@exemplo.com', phone: '1', cpf: '39053344705', password: PW, accept_terms: true, bio: 'Sou um merda de bom' }, 400);
+  await step('cadastro com senha curta', 'POST', '/workers', { name: 'X', email: 'curta@exemplo.com', phone: '1', cpf: '39053344705', password: '1234567', accept_terms: true }, 400);
   await step<Farmer>('a senha não aparece no perfil', 'GET', `/farmers/${farmer.id}`, undefined, 200, (b) => assert.equal('password' in b, false));
   await step<LoginResponse>('entrar', 'POST', '/auth/login', { email: 'ANA@exemplo.com', password: PW }, 200,
     (b) => assert.deepEqual(b.user, farmerSession));
@@ -406,8 +453,8 @@ async function run(): Promise<void> {
   await step('entra com a senha redefinida', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: 'senha-redefinida' }, 200);
 
   console.log('\nConta com os dois perfis');
-  await step('e-mail de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '45612378955', password: PW }, 409);
-  await step('CPF de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'x2@exemplo.com', phone: '1', cpf: '52998224725', password: PW }, 409);
+  await step('e-mail de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '45612378955', password: PW, accept_terms: true }, 409);
+  await step('CPF de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'x2@exemplo.com', phone: '1', cpf: '52998224725', password: PW, accept_terms: true }, 409);
   actAs(ana);
   const accountUrl = `/accounts/${farmerSession.account_id}`;
   await step<SessionUser>('sessão da conta', 'GET', accountUrl, undefined, 200, (b) => assert.deepEqual(b, farmerSession));
@@ -420,6 +467,13 @@ async function run(): Promise<void> {
   await step('push em conta de outra pessoa', 'POST', `/accounts/${workerSession.account_id}/push-subscriptions`, pushSub, 403);
   await step('desativar push', 'DELETE', `${accountUrl}/push-subscriptions`, { endpoint: pushSub.endpoint }, 200);
   await step('desativar push sem endpoint', 'DELETE', `${accountUrl}/push-subscriptions`, {}, 400);
+  await step<AccountPreferences>('preferências padrão', 'GET', `${accountUrl}/preferences`, undefined, 200,
+    (b) => assert.deepEqual(b, { theme: 'light', text_size: 'normal', high_contrast: false, whatsapp_alerts: false }));
+  await step<PreferencesResponse>('tema escuro e letras maiores', 'PATCH', `${accountUrl}/preferences`, { theme: 'dark', text_size: 'large' }, 200,
+    (b) => assert.deepEqual(b.preferences, { theme: 'dark', text_size: 'large', high_contrast: false, whatsapp_alerts: false }));
+  await step('preferência sem campos', 'PATCH', `${accountUrl}/preferences`, {}, 400);
+  await step('tema inválido', 'PATCH', `${accountUrl}/preferences`, { theme: 'azul' }, 400);
+  await step('preferências de outra pessoa', 'GET', `/accounts/${workerSession.account_id}/preferences`, undefined, 403);
   await step('painel que a conta não tem', 'PATCH', `${accountUrl}/active-role`, { role: 'worker' }, 404);
   await step('perfil novo com e-mail', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725', email: 'x@exemplo.com' }, 400);
   await step('perfil novo com CPF de outra conta', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '98765432100' }, 409);
@@ -435,7 +489,7 @@ async function run(): Promise<void> {
 
   console.log('\nEdição e remoção');
   const { farmer: fd, token: dora } = await step<FarmerSignupResponse>('produtor a remover', 'POST', '/farmers',
-    { name: 'Dora', email: 'dora@exemplo.com', phone: '1', cpf: '39053344705', password: PW }, 201);
+    { name: 'Dora', email: 'dora@exemplo.com', phone: '1', cpf: '39053344705', password: PW, accept_terms: true }, 201);
   actAs(dora);
   const { farm: fdFarm } = await step<FarmResponse>('fazenda a remover', 'POST', `/farmers/${fd.id}/farms`,
     { address: 'Sítio', city: 'Vassouras', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }, 201);
@@ -447,7 +501,7 @@ async function run(): Promise<void> {
   const { service: fdService } = await step<ServiceResponse>('serviço a remover', 'POST', '/farmers/services',
     { farmer_id: fd.id, farm_id: fdFarm.id, name: 'Roçada', category: 'Outros', duration: 4, price: 200 }, 201);
   const { worker: wd, token: eli } = await step<WorkerSignupResponse>('trabalhador a remover', 'POST', '/workers',
-    { name: 'Eli', email: 'eli@exemplo.com', phone: '1', cpf: '93541134780', password: PW }, 201);
+    { name: 'Eli', email: 'eli@exemplo.com', phone: '1', cpf: '93541134780', password: PW, accept_terms: true }, 201);
   actAs(eli);
   const { application: wdApp } = await step<ApplicationResponse>('candidatura a remover', 'POST', `/workers/services/${fdService.id}/apply`, { worker_id: wd.id }, 201);
   actAs(dora);
@@ -506,7 +560,7 @@ async function run(): Promise<void> {
   const { service: ws } = await step<ServiceResponse>('serviço para desistência', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Capina', category: 'Manutenção', duration: 5, price: 150 }, 201);
   const { worker: worker3, token: davi } = await step<WorkerSignupResponse>('cadastrar 3º trabalhador', 'POST', '/workers',
-    { name: 'Davi', email: 'davi@exemplo.com', phone: '1', cpf: '71428793860', password: PW }, 201);
+    { name: 'Davi', email: 'davi@exemplo.com', phone: '1', cpf: '71428793860', password: PW, accept_terms: true }, 201);
   const farmerEvents = await openEvents('produtor acompanha as candidaturas (SSE)', `/farmers/services/${ws.id}/events`);
   actAs(bruno);
   await step('candidatar para desistir', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker.id }, 201);
@@ -516,6 +570,7 @@ async function run(): Promise<void> {
   await farmerEvents.expectEvent('produtor avisado da desistência', 'applications');
   farmerEvents.close();
   await step('acompanhar candidaturas de outro trabalhador', 'GET', `/workers/${worker2.id}/events`, undefined, 403);
+  await step('acompanhar o perfil de outro trabalhador', 'GET', `/workers/${worker2.id}/live`, undefined, 403);
   actAs(ana);
   await step('acompanhar serviço inexistente', 'GET', '/farmers/services/999/events', undefined, 404);
   await step<ApplicationWithWorker[]>('candidatura removida', 'GET', `/farmers/services/${ws.id}/applications`, undefined, 200, (b) => assert.equal(b.length, 0));
@@ -527,10 +582,13 @@ async function run(): Promise<void> {
   const { application: wa3 } = await step<ApplicationResponse>('3º candidato', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker3.id }, 201);
   actAs(carla);
   const worker2Events = await openEvents('2º candidato acompanha as candidaturas (SSE)', `/workers/${worker2.id}/events`);
+  const worker2Live = await openEvents('2º candidato acompanha o perfil, um stream só (SSE)', `/workers/${worker2.id}/live`);
   actAs(ana);
   await step('produtor recusa o 3º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa3.id, action: 'Reject' }, 200);
   await step('produtor aceita o 1º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa1.id, action: 'Accept' }, 200);
   await worker2Events.expectEvent('2º candidato avisado da recusa pelo aceite', 'applications');
+  await worker2Live.expectEvent('o stream do perfil também traz as candidaturas', 'applications');
+  worker2Live.close();
   actAs(bruno);
   await step<ServiceResponse>('desistir do serviço aceito', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 200, (b) => {
     assert.equal(b.service.status, 'Pending');
@@ -678,6 +736,20 @@ async function run(): Promise<void> {
   // Não existe exclusão de serviço: o caminho é cancelar (PATCH /cancel), que mantém o histórico.
   await step('rota de exclusão de serviço não existe', 'DELETE', `/farmers/services/${described.id}`, undefined, 404);
 
+  console.log('\nVagas para você');
+  actAs(bruno);
+  const prefsUrl = `/workers/${worker.id}/job-preferences`;
+  await step<JobPreferences>('preferências vazias', 'GET', prefsUrl, undefined, 200, (b) => assert.deepEqual(b, { categories: [], near: null, alerts: false }));
+  await step('categoria desconhecida', 'PUT', prefsUrl, { categories: ['Pescaria'], near: null, alerts: true }, 400);
+  await step('raio pequeno demais', 'PUT', prefsUrl, { categories: [], near: { latitude: -22.1, longitude: -43.2, radius_km: 1 }, alerts: true }, 400);
+  await step('preferências sem "perto de mim"', 'PUT', prefsUrl, { categories: [], alerts: true }, 400);
+  await step<JobPreferencesResponse>('quer manejo de gado perto de Três Rios, com avisos', 'PUT', prefsUrl,
+    { categories: ['Manejo de gado'], near: { latitude: -22.1165, longitude: -43.2092, radius_km: 30 }, alerts: true }, 200,
+    (b) => assert.deepEqual(b.preferences.near, { latitude: -22.12, longitude: -43.21, radius_km: 30 })); // região aproximada
+  actAs(carla);
+  await step('preferências de outro trabalhador', 'GET', prefsUrl, undefined, 403);
+  actAs(ana);
+
   console.log('\nFiltros de vagas');
   const post = (name: string, description: string, category: string, duration: number, price: number): Promise<ServiceResponse> =>
     step<ServiceResponse>(`publicar "${name}"`, 'POST', '/farmers/services', { farmer_id: farmer.id, farm_id: farm.id, name, description, category, duration, price }, 201);
@@ -706,6 +778,15 @@ async function run(): Promise<void> {
   await step('horas que não são número', 'GET', '/workers/services?min_hours=muitas', undefined, 400);
   await step('data inválida no filtro', 'GET', '/workers/services?from=ontem', undefined, 400);
   await step('ordem desconhecida', 'GET', '/workers/services?sort=aleatorio', undefined, 400);
+  await container.useCases.matching.alerts.idle(); // os avisos de vaga nova saem em segundo plano
+  await container.notifier.idle();
+  await step<RecommendedJob[]>('vagas para você: a que combina primeiro, com os motivos', 'GET', `/workers/${worker.id}/recommended-jobs?limit=5`, undefined, 200, (b) => {
+    assert.equal(b[0]?.id, ordenha.id);
+    assert.deepEqual([b[0].reasons[0], b[0].distance_km, b[0].farm.latitude], ['Você escolheu Manejo de gado', 0, undefined]);
+  });
+  await step('limite de recomendações inválido', 'GET', `/workers/${worker.id}/recommended-jobs?limit=99`, undefined, 400);
+  await step<NotificationsPage>('aviso na hora da vaga nova que combina', 'GET', `/workers/${worker.id}/notifications`, undefined, 200,
+    (b) => assert.ok(b.items.some((n) => n.title === 'Vaga nova perto de você' && n.url === `trabalhador/vagas/${ordenha.id}`)));
 
   const invalidJson = await call('POST', '/farmers', undefined, '{ invalido');
   assert.equal(invalidJson.status, 400);
@@ -713,12 +794,12 @@ async function run(): Promise<void> {
   passed++;
   console.log('  ok  400 POST   /farmers  — JSON inválido');
 
-  await administration({ ana, outro, carla, farmer, other, worker, worker2, farmId: farm.id });
+  await administration({ ana, outro, carla, bruno, farmer, other, worker, worker2, service, farmId: farm.id });
 
   console.log('\nConversa do serviço');
   actAs(null);
   const { farmer: rosaFarmer, token: rosa } = await step<FarmerSignupResponse>('cadastrar produtora', 'POST', '/farmers',
-    { name: 'Rosa Produtora', email: 'rosa@exemplo.com', phone: '24999991111', cpf: '14725836982', password: PW }, 201);
+    { name: 'Rosa Produtora', email: 'rosa@exemplo.com', phone: '24999991111', cpf: '14725836982', password: PW, accept_terms: true }, 201);
   actAs(rosa);
   const { farm: rosaFarm } = await step<FarmResponse>('fazenda da produtora', 'POST', `/farmers/${rosaFarmer.id}/farms`,
     { address: 'Sítio Bela Vista', city: 'Vassouras', state: 'RJ', latitude: -22.4039, longitude: -43.6628 }, 201);
@@ -726,7 +807,7 @@ async function run(): Promise<void> {
     { farmer_id: rosaFarmer.id, farm_id: rosaFarm.id, name: 'Colheita de feijão', category: 'Colheita', duration: 8, price: 350 }, 201);
   actAs(null);
   const { worker: tiagoWorker, token: tiago } = await step<WorkerSignupResponse>('cadastrar trabalhador da conversa', 'POST', '/workers',
-    { name: 'Tiago Lima', email: 'tiago@exemplo.com', phone: '24988881111', cpf: '25836914737', password: PW }, 201);
+    { name: 'Tiago Lima', email: 'tiago@exemplo.com', phone: '24988881111', cpf: '25836914737', password: PW, accept_terms: true }, 201);
   actAs(tiago);
   const { application: tiagoApp } = await step<ApplicationResponse>('candidatar-se', 'POST', `/workers/services/${hired.id}/apply`, { worker_id: tiagoWorker.id }, 201);
   actAs(rosa);
@@ -748,12 +829,16 @@ async function run(): Promise<void> {
   await step<Chat[]>('trabalhador vê a mesma conversa', 'GET', `/workers/${tiagoWorker.id}/chats`, undefined, 200,
     (b) => assert.deepEqual(b.map((c) => [c.id, c.farmer.name]), [[opened.id, 'Rosa Produtora']]));
   const tiagoChat = await openEvents('trabalhador acompanha a conversa (SSE)', `/chats/${opened.id}/events`);
+  const tiagoLive = await openEvents('trabalhador acompanha o perfil, um stream só (SSE)', `/workers/${tiagoWorker.id}/live`);
   actAs(rosa);
   await step<ChatMessageResponse>('telefone na mensagem sai oculto', 'POST', `/chats/${opened.id}/messages`,
     { body: 'Pode chegar às 7h? Meu número é (24) 99999-1111' }, 201, (b) => {
       assert.deepEqual([b.sent.sender, b.sent.body, b.masked], ['farmer', 'Pode chegar às 7h? Meu número é [número oculto]', true]);
     });
   await tiagoChat.expectEvent('trabalhador recebe a mensagem na hora', 'chat');
+  await tiagoLive.expectEvent('o stream do perfil avisa a lista de conversas', 'chats');
+  await tiagoLive.expectEvent('e o sino', 'notifications');
+  tiagoLive.close();
   await rosaChats.expectEvent('lista da produtora atualizada', 'chats');
   actAs(tiago);
   await step<ChatDetail>('abrir a conversa', 'GET', `/chats/${opened.id}`, undefined, 200, (b) => {
@@ -878,6 +963,8 @@ async function run(): Promise<void> {
   process.env['VAPID_PRIVATE_KEY'] = 'chave-privada';
   await step<PushConfig>('configuração do push', 'GET', '/config/push', undefined, 200,
     (b) => assert.equal(b.public_key, 'chave-publica'));
+  await step<WhatsAppConfig>('WhatsApp desligado sem as variáveis WHATSAPP_*', 'GET', '/config/whatsapp', undefined, 200,
+    (b) => assert.equal(b.enabled, false));
   if (savedVapid[0] === undefined) delete process.env['VAPID_PUBLIC_KEY'];
   else process.env['VAPID_PUBLIC_KEY'] = savedVapid[0];
   if (savedVapid[1] === undefined) delete process.env['VAPID_PRIVATE_KEY'];
@@ -932,14 +1019,16 @@ interface AdminScenario {
   ana: string; // conta com os dois perfis
   outro: string;
   carla: string;
+  bruno: string;
   farmer: Farmer;
   other: Farmer;
   worker: { id: number };
   worker2: { id: number };
+  service: { id: number }; // 'Colheita de café', a que Bruno fez
   farmId: number;
 }
 
-async function administration({ ana, outro, carla, farmer, other, worker, worker2, farmId }: AdminScenario): Promise<void> {
+async function administration({ ana, outro, carla, bruno, farmer, other, worker, worker2, service, farmId }: AdminScenario): Promise<void> {
   console.log('\nAdministração (usuários de sistema)');
   // Sem cadastro público: o primeiro administrador vem do servidor (ADMIN_EMAIL/ADMIN_PASSWORD ou seed).
   assert.equal(await container.useCases.systemUsers.ensureInitialAdmin.execute({ email: 'admin@exemplo.com', password: PW, name: 'Ana Admin' }), 'created');
@@ -1056,6 +1145,163 @@ async function administration({ ana, outro, carla, farmer, other, worker, worker
   await step('tutor não gerencia contas', 'GET', '/admin/users', undefined, 403);
   await step('tutor não cadastra equipe', 'POST', '/admin/system-users', { email: 'y@exemplo.com', name: 'Y', role: 'admin', password: PW }, 403);
 
+  console.log('\nCentral de ajuda');
+  actAs(null);
+  await step<HelpArticle[]>('central de ajuda pública, sem login', 'GET', '/help', undefined, 200, (b) => assert.deepEqual(b, []));
+  actAs(tutor);
+  await step('tutor não edita a central de ajuda', 'POST', '/admin/help', { question: 'X?', answer: 'x', topic: 'comecar' }, 403);
+  actAs(admin);
+  const { article } = await step<HelpArticleResponse>('criar pergunta', 'POST', '/admin/help',
+    { question: 'Quanto custa?', answer: 'Nada nesta fase.', topic: 'comecar' }, 201, (b) => assert.equal(b.article.position, 1));
+  await step<HelpArticleResponse>('criar rascunho', 'POST', '/admin/help', { question: 'Rascunho?', answer: 'Ainda não.', topic: 'comecar', published: false }, 201);
+  await step('pergunta sem resposta', 'POST', '/admin/help', { question: 'X?', answer: '  ', topic: 'comecar' }, 400);
+  await step('tema inválido', 'POST', '/admin/help', { question: 'X?', answer: 'x', topic: 'outro' }, 400);
+  await step<HelpArticleResponse>('editar pergunta', 'PATCH', `/admin/help/${article.id}`, { answer: 'Nada: o app é gratuito nesta fase.' }, 200,
+    (b) => assert.equal(b.article.answer, 'Nada: o app é gratuito nesta fase.'));
+  await step('editar sem campos', 'PATCH', `/admin/help/${article.id}`, {}, 400);
+  await step<HelpArticleResponse>('mover pergunta para baixo', 'PATCH', `/admin/help/${article.id}/move`, { direction: 'down' }, 200,
+    (b) => assert.equal(b.article.position, 2));
+  await step('direção inválida', 'PATCH', `/admin/help/${article.id}/move`, { direction: 'left' }, 400);
+  await step<HelpArticle[]>('a gestão vê o rascunho', 'GET', '/admin/help', undefined, 200, (b) => assert.equal(b.length, 2));
+  actAs(null);
+  await step<HelpArticle[]>('a central pública mostra só a publicada', 'GET', '/help', undefined, 200,
+    (b) => assert.deepEqual(b.map((a) => a.question), ['Quanto custa?']));
+  actAs(admin);
+  await step('apagar pergunta', 'DELETE', `/admin/help/${article.id}`, undefined, 200);
+  await step('apagar pergunta que não existe', 'DELETE', `/admin/help/${article.id}`, undefined, 404);
+
+  console.log('\nDenúncias');
+  actAs(bruno);
+  const { report: jobReport } = await step<ReportResponse>('trabalhador denuncia uma vaga', 'POST', `/workers/${worker.id}/reports`,
+    { target_type: 'service', target_id: service.id, reason: 'fraude', details: 'Pediu um depósito antes de começar.' }, 201,
+    (b) => assert.deepEqual([b.report.status, b.report.target_type], ['open', 'service']));
+  await step('a mesma vaga de novo, em análise', 'POST', `/workers/${worker.id}/reports`, { target_type: 'service', target_id: service.id, reason: 'fraude' }, 409);
+  await step<ReportResponse>('trabalhador denuncia o produtor com quem teve contato', 'POST', `/workers/${worker.id}/reports`,
+    { target_type: 'farmer', target_id: farmer.id, reason: 'comportamento' }, 201, (b) => assert.equal(b.report.details, null));
+  await step('motivo "outro" sem relato', 'POST', `/workers/${worker.id}/reports`, { target_type: 'farmer', target_id: farmer.id, reason: 'outro', details: '  ' }, 400);
+  await step('motivo inválido', 'POST', `/workers/${worker.id}/reports`, { target_type: 'farmer', target_id: farmer.id, reason: 'chato' }, 400);
+  await step('trabalhador não denuncia trabalhador', 'POST', `/workers/${worker.id}/reports`, { target_type: 'worker', target_id: worker2.id, reason: 'ofensivo' }, 400);
+  await step('denunciar em nome de outro trabalhador', 'POST', `/workers/${worker2.id}/reports`, { target_type: 'service', target_id: service.id, reason: 'fraude' }, 403);
+  await step('vaga inexistente', 'POST', `/workers/${worker.id}/reports`, { target_type: 'service', target_id: 999, reason: 'fraude' }, 404);
+  actAs(ana);
+  await step<ReportResponse>('produtor denuncia uma candidata', 'POST', `/farmers/${farmer.id}/reports`,
+    { target_type: 'worker', target_id: worker2.id, reason: 'outro', details: 'Faltou sem avisar.' }, 201);
+  await step('conta do app não vê a fila', 'GET', '/admin/reports', undefined, 403);
+  actAs(tutor);
+  await step('tutor não vê a fila', 'GET', '/admin/reports', undefined, 403);
+  actAs(admin);
+  await step<AdminReport[]>('fila de denúncias, a mais recente primeiro', 'GET', '/admin/reports?status=open', undefined, 200, (b) => {
+    assert.deepEqual(b.map((r) => [r.reporter.name, r.target_name]), [
+      ['Ana Souza', 'Carla Diarista'], ['Bruno Tratorista', 'Ana Souza'], ['Bruno Tratorista', 'Colheita de café']
+    ]);
+    assert.equal(b[2]?.target_account_id, b[1]?.target_account_id); // a vaga leva à conta da produtora
+  });
+  await step('status inválido na fila', 'GET', '/admin/reports?status=aberta', undefined, 400);
+  await step<AdminReportResponse>('decidir denúncia (procedente)', 'PATCH', `/admin/reports/${jobReport.id}`, { status: 'resolved', note: 'Conferido com a produtora.' }, 200,
+    (b) => assert.deepEqual([b.report.status, b.report.resolution_note], ['resolved', 'Conferido com a produtora.']));
+  await step('decidir de novo', 'PATCH', `/admin/reports/${jobReport.id}`, { status: 'dismissed' }, 409);
+  await step('decisão inválida', 'PATCH', `/admin/reports/${jobReport.id}`, { status: 'open' }, 400);
+  await step('denúncia inexistente', 'PATCH', '/admin/reports/999', { status: 'dismissed' }, 404);
+  await step<AdminReport[]>('decididas saem da fila aberta', 'GET', '/admin/reports?status=open', undefined, 200, (b) => assert.equal(b.length, 2));
+  await container.notifier.idle();
+  actAs(bruno);
+  await step<NotificationsPage>('quem denunciou recebe o resultado', 'GET', `/workers/${worker.id}/notifications`, undefined, 200,
+    (b) => assert.deepEqual([b.items[0]?.title, b.items[0]?.url], ['Sua denúncia foi analisada', 'trabalhador/ajuda']));
+
+  console.log('\nVerificação de identidade');
+  const documentPhoto = new Uint8Array(await sharp({ create: { width: 2400, height: 1500, channels: 3, background: '#d8e2dc' } }).jpeg().toBuffer());
+  await step<Verification>('sem pedido', 'GET', `/workers/${worker.id}/verification`, undefined, 200, (b) => assert.deepEqual([b.status, b.verified], ['none', false]));
+  await upload('documento sem o tipo', `/workers/${worker.id}/verification`, documentPhoto, 'image/jpeg', 400);
+  await upload('arquivo que não é imagem', `/workers/${worker.id}/verification?document_type=rg`, new TextEncoder().encode('não sou foto'), 'image/jpeg', 400);
+  await upload<VerificationResponse>('enviar a CNH', `/workers/${worker.id}/verification?document_type=cnh`, documentPhoto, 'image/jpeg', 201,
+    (b) => assert.deepEqual([b.verification.status, b.verification.document_type], ['pending', 'cnh']));
+  actAs(carla);
+  await upload('enviar pelo perfil de outro trabalhador', `/workers/${worker.id}/verification?document_type=cnh`, documentPhoto, 'image/jpeg', 403);
+  await step('ver a verificação de outro trabalhador', 'GET', `/workers/${worker.id}/verification`, undefined, 403);
+  actAs(tutor);
+  await step('tutor não vê a fila de verificações', 'GET', '/admin/verifications', undefined, 403);
+  actAs(admin);
+  const [request] = await step<AdminVerification[]>('fila de verificações', 'GET', '/admin/verifications?status=pending', undefined, 200, (b) => {
+    assert.equal(b.length, 1);
+    assert.deepEqual([b[0]?.name, b[0]?.cpf, b[0]?.has_document], ['Bruno Tratorista', '98765432100', true]);
+  });
+  assert.ok(request);
+  const documentUrl = `/admin/verifications/${request.id}/document`;
+  const doc = await fetch(`${baseUrl}${documentUrl}`, { headers: authHeader() });
+  assert.equal(doc.status, 200, 'foto do documento para a equipe');
+  assert.equal(doc.headers.get('cache-control'), 'private, no-store');
+  const docMeta = await sharp(Buffer.from(await doc.arrayBuffer())).metadata();
+  assert.deepEqual([docMeta.format, docMeta.width, docMeta.height], ['webp', 1600, 1000]); // reduzida para 1600px, legível
+  passed++;
+  console.log(`  ok  200 GET    ${documentUrl}  — foto do documento (WebP, 1600px)`);
+  actAs(null);
+  const anonymous = await fetch(`${baseUrl}${documentUrl}`);
+  assert.equal(anonymous.status, 401, 'foto do documento sem login');
+  passed++;
+  console.log(`  ok  401 GET    ${documentUrl}  — sem login, nada`);
+  actAs(admin);
+  await step('recusar sem motivo', 'PATCH', `/admin/verifications/${request.id}`, { status: 'rejected' }, 400);
+  await step<AdminVerificationResponse>('aprovar', 'PATCH', `/admin/verifications/${request.id}`, { status: 'approved' }, 200,
+    (b) => assert.deepEqual([b.verification.status, b.verification.has_document], ['approved', false]));
+  await step('decidir de novo', 'PATCH', `/admin/verifications/${request.id}`, { status: 'rejected', reason: 'x' }, 409);
+  const gone = await fetch(`${baseUrl}${documentUrl}`, { headers: authHeader() });
+  assert.equal(gone.status, 404, 'a foto some depois da decisão');
+  passed++;
+  console.log(`  ok  404 GET    ${documentUrl}  — a foto foi apagada`);
+  actAs(bruno);
+  await step<Verification>('trabalhador verificado', 'GET', `/workers/${worker.id}/verification`, undefined, 200, (b) => assert.equal(b.verified, true));
+  await upload('enviar de novo com o selo valendo', `/workers/${worker.id}/verification?document_type=rg`, documentPhoto, 'image/jpeg', 409);
+  actAs(ana);
+  await step<ApplicationWithWorker[]>('o produtor vê o selo no candidato', 'GET', `/farmers/services/${service.id}/applications`, undefined, 200,
+    (b) => assert.equal(b.find((a) => a.worker_id === worker.id)?.verified, true));
+  await upload<VerificationResponse>('produtora envia o RG', `/farmers/${farmer.id}/verification?document_type=rg`, documentPhoto, 'image/png', 201);
+  actAs(admin);
+  const [farmerRequest] = await step<AdminVerification[]>('pedido da produtora', 'GET', '/admin/verifications?status=pending', undefined, 200);
+  assert.ok(farmerRequest);
+  await step<AdminVerificationResponse>('recusar com motivo', 'PATCH', `/admin/verifications/${farmerRequest.id}`, { status: 'rejected', reason: 'O CPF não aparece na foto' }, 200);
+  await container.notifier.idle();
+  actAs(ana);
+  await step<Verification>('a produtora vê o motivo', 'GET', `/farmers/${farmer.id}/verification`, undefined, 200,
+    (b) => assert.deepEqual([b.status, b.rejection_reason], ['rejected', 'O CPF não aparece na foto']));
+  await upload<VerificationResponse>('produtora envia de novo', `/farmers/${farmer.id}/verification?document_type=cnh`, documentPhoto, 'image/jpeg', 201);
+  actAs(admin);
+  const [retry] = await step<AdminVerification[]>('pedido de novo na fila', 'GET', '/admin/verifications?status=pending', undefined, 200);
+  await step('aprovar a produtora', 'PATCH', `/admin/verifications/${retry?.id ?? 0}`, { status: 'approved' }, 200);
+  actAs(carla);
+  await step<OpenService[]>('as vagas mostram o produtor verificado', 'GET', '/workers/services', undefined, 200,
+    (b) => assert.ok(b.length > 0 && b.every((job) => job.farm.farmer_verified === true)));
+
+  console.log('\nPatrocínios');
+  const adInput = { sponsor: 'Casa Agrícola Boa Safra', title: 'Arame liso com 15% de desconto', cta_label: 'Ver a oferta', url: 'https://exemplo.com.br/arame', audience: 'farmer', states: ['RJ'] };
+  actAs(tutor);
+  await step('tutor não gerencia patrocínios', 'POST', '/admin/sponsors', adInput, 403);
+  actAs(admin);
+  await step('endereço sem https', 'POST', '/admin/sponsors', { ...adInput, url: 'http://exemplo.com.br' }, 400);
+  await step('palavrão na chamada do patrocínio', 'POST', '/admin/sponsors', { ...adInput, title: 'Oferta do caralho' }, 400);
+  await step('UF desconhecida', 'POST', '/admin/sponsors', { ...adInput, states: ['XX'] }, 400);
+  const { sponsor: ad } = await step<SponsorResponse>('criar patrocínio para produtores do RJ', 'POST', '/admin/sponsors', adInput, 201,
+    (b) => assert.deepEqual([b.sponsor.active, b.sponsor.impressions, b.sponsor.image_url], [true, 0, null]));
+  const logo = new Uint8Array(await sharp({ create: { width: 300, height: 120, channels: 3, background: '#2f6b3a' } }).png().toBuffer());
+  await upload<SponsorResponse>('logo do patrocínio', `/admin/sponsors/${ad.id}/image`, logo, 'image/png', 200, (b) => assert.ok(b.sponsor.image_url));
+  actAs(null);
+  await step<SponsorSlotResponse>('produtor de MG não vê o patrocínio do RJ', 'GET', '/sponsors/slot?audience=farmer&state=MG', undefined, 200,
+    (b) => assert.equal(b.card, null));
+  await step<SponsorSlotResponse>('trabalhador não vê o patrocínio de produtores', 'GET', '/sponsors/slot?audience=worker', undefined, 200,
+    (b) => assert.equal(b.card, null));
+  await step<SponsorSlotResponse>('produtor do RJ vê o patrocínio', 'GET', '/sponsors/slot?audience=farmer&state=rj', undefined, 200,
+    (b) => assert.deepEqual([b.card?.sponsor, b.card?.url], ['Casa Agrícola Boa Safra', 'https://exemplo.com.br/arame']));
+  await step('público inválido', 'GET', '/sponsors/slot?audience=todos', undefined, 400);
+  await step('contar clique', 'POST', `/sponsors/${ad.id}/click`, undefined, 200);
+  await step('clique em patrocínio inexistente', 'POST', '/sponsors/999/click', undefined, 404);
+  actAs(admin);
+  await step<Sponsor[]>('a equipe vê aparições e cliques', 'GET', '/admin/sponsors', undefined, 200,
+    (b) => assert.deepEqual([b[0]?.impressions, b[0]?.clicks], [1, 1]));
+  await step<SponsorResponse>('desligar o patrocínio', 'PATCH', `/admin/sponsors/${ad.id}`, { active: false }, 200, (b) => assert.equal(b.sponsor.active, false));
+  await step('editar sem campos', 'PATCH', `/admin/sponsors/${ad.id}`, {}, 400);
+  await step('apagar o patrocínio', 'DELETE', `/admin/sponsors/${ad.id}`, undefined, 200);
+  await step('apagar de novo', 'DELETE', `/admin/sponsors/${ad.id}`, undefined, 404);
+  actAs(tutor);
+
   console.log('\nPerfil dos usuários de sistema');
   await step<SystemUserResponse>('tutor edita o próprio perfil', 'PATCH', '/auth/system/me', { name: ' Tiago Souza ', email: 'Tiago@Exemplo.com' }, 200,
     (b) => assert.deepEqual([b.system_user.name, b.system_user.email, b.system_user.role], ['Tiago Souza', 'tiago@exemplo.com', 'tutor']));
@@ -1158,9 +1404,9 @@ async function tracksFlow(admin: string): Promise<void> {
   console.log('\nTrilhas de estudo (trabalhador)');
   actAs(null);
   const { worker: aluna, token: lia } = await step<WorkerSignupResponse>('cadastrar aluna', 'POST', '/workers',
-    { name: 'Lia Aluna', email: 'lia@exemplo.com', phone: '24911111111', cpf: '24681357928', password: PW }, 201);
+    { name: 'Lia Aluna', email: 'lia@exemplo.com', phone: '24911111111', cpf: '24681357928', password: PW, accept_terms: true }, 201);
   const { worker: outro, token: teo } = await step<WorkerSignupResponse>('cadastrar outro trabalhador', 'POST', '/workers',
-    { name: 'Teo', email: 'teo@exemplo.com', phone: '24922222222', cpf: '13579246828', password: PW }, 201);
+    { name: 'Teo', email: 'teo@exemplo.com', phone: '24922222222', cpf: '13579246828', password: PW, accept_terms: true }, 201);
   await step('trilhas sem token', 'GET', '/workers/tracks', undefined, 401);
   actAs(rita);
   await step('usuário de sistema não estuda', 'GET', '/workers/tracks', undefined, 403);
@@ -1204,14 +1450,17 @@ async function tracksFlow(admin: string): Promise<void> {
   }
   assert.ok(certificate, 'a última aula emite o certificado');
   assert.deepEqual([certificate.worker_name, certificate.track_title, certificate.workload_minutes], ['Lia Aluna', 'Colheita de café', 105]);
+  const { code, worker_name, track_title, workload_minutes, completed_at, data_hash } = certificate;
+  assert.equal(data_hash, createHash('sha256').update(JSON.stringify([code, worker_name, track_title, workload_minutes, completed_at]), 'utf8').digest('hex'),
+    'o resumo SHA-256 sai dos dados impressos, como diz o contrato');
   await step<Certificate[]>('certificados da aluna', 'GET', `/workers/${aluna.id}/certificates`, undefined, 200, (b) => assert.equal(b.length, 1));
   actAs(teo);
   await step('certificados de outro trabalhador', 'GET', `/workers/${aluna.id}/certificates`, undefined, 403);
 
   console.log('\nCertificados (público)');
   actAs(null);
-  await step<Certificate>('validar certificado sem token', 'GET', `/certificates/${certificate.code.toLowerCase()}`, undefined, 200,
-    (b) => assert.equal(b.worker_name, 'Lia Aluna'));
+  await step<Certificate>('validar certificado sem token (com o resumo da emissão)', 'GET', `/certificates/${certificate.code.toLowerCase()}`, undefined, 200,
+    (b) => assert.deepEqual([b.worker_name, b.data_hash], ['Lia Aluna', data_hash]));
   await step('código inexistente', 'GET', '/certificates/RZ-0000-0000-00', undefined, 404);
 }
 

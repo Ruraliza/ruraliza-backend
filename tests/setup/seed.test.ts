@@ -12,7 +12,7 @@ const NOW = '2026-03-15T15:00:00.000Z';
 
 async function seeded(): Promise<ReturnType<typeof createContainer>> {
   const c = createContainer({ clock: { now: () => NOW } });
-  await seed(c.repos, c.clock, c.passwords);
+  await seed(c.repos, c.clock, c.passwords, c.idDocuments);
   return c;
 }
 
@@ -32,6 +32,18 @@ describe('seed', () => {
     assert.deepEqual(services.slice(0, 3).map((s) => [s.id, s.name]), [
       [1, 'Colheita de café'], [2, 'Plantio de milho'], [3, 'Conserto de cerca']
     ]);
+  });
+
+  it('tem o produtor verificado e um pedido de verificação na fila, com a imagem de exemplo', async () => {
+    const c = await seeded();
+    const [joao] = await c.repos.farmers.find({ email: 'produtor@exemplo.com' });
+    assert.ok(joao);
+
+    const [pending] = await c.useCases.verification.list.execute({ status: 'pending' });
+
+    assert.deepEqual([...await c.useCases.verification.reader.verifiedFarmers([joao.id])], [joao.id]);
+    assert.deepEqual([pending?.name, pending?.has_document], ['Pedro Diarista', true]);
+    assert.equal((await c.useCases.verification.document.execute({ id: pending?.id ?? 0 })).ok, true);
   });
 
   it('as contas de teste entram com a senha do seed', async () => {

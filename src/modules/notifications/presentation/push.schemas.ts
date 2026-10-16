@@ -1,7 +1,7 @@
 import { type Schema, input, object } from '#shared/infra/docs/schema-kit';
 
 // Schemas OpenAPI das notificações push (contrato em ../push.contract.ts). Registrados em src/docs/schemas.ts.
-export type PushSchemaName = 'PushConfig' | 'PushSubscriptionInput' | 'PushUnsubscribeInput';
+export type PushSchemaName = 'PushConfig' | 'PushSubscriptionInput' | 'PushUnsubscribeInput' | 'WhatsAppConfig';
 
 export const pushSchemas = {
   PushConfig: object(
@@ -19,6 +19,11 @@ export const pushSchemas = {
     },
     ['endpoint', 'keys'],
     'O `PushSubscription.toJSON()` do navegador (`expirationTime` é ignorado).'
+  ),
+  WhatsAppConfig: object(
+    { enabled: { type: 'boolean', example: false } },
+    ['enabled'],
+    'Se os avisos por WhatsApp estão ligados no servidor (variáveis WHATSAPP_* do .env).'
   ),
   PushUnsubscribeInput: input(
     { endpoint: { type: 'string', format: 'uri', example: 'https://fcm.googleapis.com/fcm/send/abc123' } },

@@ -15,3 +15,9 @@ export interface PushUnsubscribeInput {
 export interface PushConfig {
   public_key: string;
 }
+
+// GET /config/whatsapp: se o servidor está configurado para mandar avisos por WhatsApp
+// (o app só oferece a opção quando está).
+export interface WhatsAppConfig {
+  enabled: boolean;
+}

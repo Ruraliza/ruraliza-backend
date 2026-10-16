@@ -49,7 +49,8 @@ Content-Type: application/json
   "name": "Carlos Produtor",
   "phone": "24977777777",
   "cpf": "93541134780",
-  "password": "minhasenha123"
+  "password": "minhasenha123",
+  "accept_terms": true
 }
 
 ### Perfil do produtor

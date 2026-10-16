@@ -1,6 +1,7 @@
 // Trilhas de estudo de ponta a ponta pelo container: o tutor monta e publica, o trabalhador estuda
 // e ganha o certificado, e a trilha descontinuada continua para quem já começou.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 import type { TrackActor } from '#modules/tracks';
 import type { Container } from '../../src/container';
@@ -46,10 +47,13 @@ describe('trilhas de estudo', () => {
 
     assert.ok(certificate);
     assert.deepEqual(
-      { ...certificate, code: undefined },
-      { code: undefined, track_id: trackId, track_title: 'Colheita de café', worker_name: 'maria@exemplo.com', workload_minutes: 120, completed_at: NOW }
+      { ...certificate, code: undefined, data_hash: undefined },
+      { code: undefined, track_id: trackId, track_title: 'Colheita de café', worker_name: 'maria@exemplo.com', workload_minutes: 120, completed_at: NOW, data_hash: undefined }
     );
     assert.match(certificate.code, /^RZ-/);
+    // O resumo segue a receita documentada no contrato, recalculável por quem confere.
+    const printed = JSON.stringify([certificate.code, 'maria@exemplo.com', 'Colheita de café', 120, NOW]);
+    assert.equal(certificate.data_hash, createHash('sha256').update(printed, 'utf8').digest('hex'));
     assert.deepEqual(unwrap(await tracks.getCertificate.execute({ code: certificate.code })), certificate);
     assert.deepEqual(await tracks.listCertificates.execute({ workerId: maria }), [certificate]);
   });

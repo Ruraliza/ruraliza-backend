@@ -47,6 +47,13 @@ export function pushRoutes(push: PushController, access: AccessPolicies): PushRo
         description: 'Chave pública VAPID para o `PushManager.subscribe()` do navegador.',
         success: { status: 200, description: 'Chave pública VAPID.', schema: 'PushConfig' },
         errors: { 503: 'VAPID_PUBLIC_KEY ou VAPID_PRIVATE_KEY não definida no .env.' }
+      }), PUBLIC_ROUTE),
+
+      route('get', '/config/whatsapp', push.whatsappConfig, pushOperation({
+        tag: TAGS.system,
+        summary: 'Avisos por WhatsApp disponíveis?',
+        description: 'O app só oferece "Avisos no WhatsApp" quando o servidor tem a integração configurada.',
+        success: { status: 200, description: 'Situação da integração.', schema: 'WhatsAppConfig' }
       }), PUBLIC_ROUTE)
     ]
   };
