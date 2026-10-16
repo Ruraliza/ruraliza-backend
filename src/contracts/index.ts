@@ -19,3 +19,4 @@ export type * from '../modules/notifications/push.contract';
 export type * from '../modules/notifications/notification.contract';
 export type * from '../modules/platform/platform.contract';
 export type * from '../modules/tracks/track.contract';
+export type * from '../modules/help/help.contract';

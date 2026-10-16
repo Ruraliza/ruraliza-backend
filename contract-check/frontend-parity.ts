@@ -6,6 +6,7 @@ import type * as FrontAuth from '../../ruraliza-frontend/src/app/core/models/aut
 import type * as FrontConfig from '../../ruraliza-frontend/src/app/core/models/config.model';
 import type * as FrontFarm from '../../ruraliza-frontend/src/app/core/models/farm.model';
 import type * as FrontFarmer from '../../ruraliza-frontend/src/app/core/models/farmer.model';
+import type * as FrontHelp from '../../ruraliza-frontend/src/app/core/models/help.model';
 import type * as FrontNotification from '../../ruraliza-frontend/src/app/core/models/notification.model';
 import type * as FrontPayment from '../../ruraliza-frontend/src/app/core/models/payment.model';
 import type * as FrontPush from '../../ruraliza-frontend/src/app/core/models/push.model';
@@ -63,6 +64,13 @@ export type ContractParity = [
   Expect<Equals<Api.FarmUpdate, FrontFarm.FarmUpdate>>,
   Expect<Equals<Api.FarmLocation, FrontFarm.FarmLocation>>,
   Expect<Equals<Api.FarmPhoto, FrontFarm.FarmPhoto>>,
+
+  Expect<Equals<Api.HelpTopic, FrontHelp.HelpTopic>>,
+  Expect<Equals<Api.HelpArticle, FrontHelp.HelpArticle>>,
+  Expect<Equals<Api.HelpArticleInput, FrontHelp.HelpArticleInput>>,
+  Expect<Equals<Api.HelpArticleUpdate, FrontHelp.HelpArticleUpdate>>,
+  Expect<Equals<Api.HelpArticleMoveInput, FrontHelp.HelpArticleMoveInput>>,
+  Expect<Equals<Api.HelpArticleResponse, FrontHelp.HelpArticleResponse>>,
 
   Expect<Equals<Api.Farmer, FrontFarmer.Farmer>>,
   Expect<Equals<Api.FarmerInput, FrontFarmer.FarmerInput>>,

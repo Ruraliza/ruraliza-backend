@@ -2,6 +2,7 @@ import { createInMemoryAccountRepository } from '#modules/accounts';
 import { type ChatMessageRepository, type ChatRepository, createInMemoryChatMessageRepository, createInMemoryChatRepository } from '#modules/chat';
 import type { AccountRepository } from '#modules/accounts';
 import { createInMemoryFarmerRepository } from '#modules/farmers';
+import { type HelpArticleRepository, createInMemoryHelpArticleRepository } from '#modules/help';
 import type { FarmerRepository } from '#modules/farmers';
 import { createInMemoryFarmRepository } from '#modules/farms';
 import type { FarmRepository } from '#modules/farms';
@@ -45,6 +46,7 @@ export interface Repositories {
   tracks: TrackRepository;
   enrollments: EnrollmentRepository;
   certificates: CertificateRepository;
+  helpArticles: HelpArticleRepository;
 }
 
 // Repositórios em memória (um conjunto novo por chamada, isolado dos outros).
@@ -66,6 +68,7 @@ export function createInMemoryRepositories(): Repositories {
     chatMessages: createInMemoryChatMessageRepository(),
     tracks: createInMemoryTrackRepository(),
     enrollments: createInMemoryEnrollmentRepository(),
-    certificates: createInMemoryCertificateRepository()
+    certificates: createInMemoryCertificateRepository(),
+    helpArticles: createInMemoryHelpArticleRepository()
   };
 }

@@ -17,6 +17,7 @@ export const TAGS = {
   reviews: 'Avaliações',
   chat: 'Conversas',
   notifications: 'Notificações',
+  help: 'Central de ajuda',
   tracks: 'Trilhas (tutor)',
   learning: 'Trilhas (trabalhador)',
   certificates: 'Certificados',

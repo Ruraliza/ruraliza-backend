@@ -4,6 +4,7 @@ import { type ChatUseCases, createChatUseCases } from '#modules/chat';
 import { type AuthUseCases, createAuthUseCases } from '#modules/auth';
 import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
+import { type HelpUseCases, createHelpUseCases } from '#modules/help';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import {
@@ -68,6 +69,7 @@ export interface UseCases {
   systemUsers: SystemUserUseCases;
   admin: AdminUseCases;
   tracks: TrackUseCases;
+  help: HelpUseCases;
 }
 
 export interface Container {
@@ -167,6 +169,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       notifications: notificationUseCases,
       systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),
       admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases }),
+      help: createHelpUseCases({ helpArticles: repos.helpArticles, clock }),
       tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })
     }
   };

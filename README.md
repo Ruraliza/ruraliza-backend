@@ -275,7 +275,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 
 ### Administração (`/api/admin`)
 
-Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe e supervisiona todas as trilhas de estudo (`tracks:oversee`: vê, cria escolhendo os tutores, edita e descontinua qualquer uma); `tutor` cria trilhas e edita as de que é tutor (`tracks:manage`). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
+Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **sem cadastro público**. Cada um tem um cargo (`role`): `admin` gerencia as contas do app e a equipe, supervisiona todas as trilhas de estudo (`tracks:oversee`: vê, cria escolhendo os tutores, edita e descontinua qualquer uma), edita a central de ajuda (`content:manage`) e modera denúncias e verificações (`moderation:manage`); `tutor` cria trilhas e edita as de que é tutor (`tracks:manage`). As rotas pedem uma permissão, não um cargo; o mapa cargo → permissões fica em `src/modules/system-users/domain/system-user.ts`.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -295,6 +295,19 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 | GET / PATCH | `/api/admin/tracks/:id` | Detalhe / edita `title`, `description`, `categories` e `tutor_ids`. Só os tutores da trilha e o administrador editam (403 para os outros tutores) |
 | PUT | `/api/admin/tracks/:id/content` | Substitui módulos e aulas (`{ modules: [{ id?, title, lessons: [{ id?, title, video_url?, content?, duration_minutes }] }] }`). Com `id` mantém o item; ids nunca são reaproveitados |
 | PATCH | `/api/admin/tracks/:id/status` | `{ status: "published" \| "discontinued" }`. Não há remoção nem volta para rascunho; 409 se a transição não vale ou se faltam aulas |
+
+### Central de ajuda
+
+Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (20, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/help` | Perguntas publicadas, por tema (`comecar`, `produtores`, `trabalhadores`, `pagamentos`, `seguranca`, `trilhas`, `conta`) e na ordem da tela |
+| GET | `/api/admin/help` | Todas, inclusive os rascunhos (`published: false`) |
+| POST | `/api/admin/help` | `{ question, answer, topic, published? }`: entra no fim do tema |
+| PATCH | `/api/admin/help/:id` | Muda só o que veio; mudou de tema, vai para o fim do tema novo |
+| PATCH | `/api/admin/help/:id/move` | `{ direction: 'up' \| 'down' }`: troca de lugar com a vizinha no tema |
+| DELETE | `/api/admin/help/:id` | Apaga a pergunta |
 
 ### Avaliações
 

@@ -30,6 +30,8 @@ import type {
   FarmerResponse,
   FarmerServiceItem,
   FarmerSignupResponse,
+  HelpArticle,
+  HelpArticleResponse,
   LoginResponse,
   NotificationsPage,
   NotificationsReadResponse,
@@ -1082,6 +1084,32 @@ async function administration({ ana, outro, carla, farmer, other, worker, worker
   await step<SystemUser>('sessão do tutor', 'GET', '/auth/system/me', undefined, 200, (b) => assert.equal(b.role, 'tutor'));
   await step('tutor não gerencia contas', 'GET', '/admin/users', undefined, 403);
   await step('tutor não cadastra equipe', 'POST', '/admin/system-users', { email: 'y@exemplo.com', name: 'Y', role: 'admin', password: PW }, 403);
+
+  console.log('\nCentral de ajuda');
+  actAs(null);
+  await step<HelpArticle[]>('central de ajuda pública, sem login', 'GET', '/help', undefined, 200, (b) => assert.deepEqual(b, []));
+  actAs(tutor);
+  await step('tutor não edita a central de ajuda', 'POST', '/admin/help', { question: 'X?', answer: 'x', topic: 'comecar' }, 403);
+  actAs(admin);
+  const { article } = await step<HelpArticleResponse>('criar pergunta', 'POST', '/admin/help',
+    { question: 'Quanto custa?', answer: 'Nada nesta fase.', topic: 'comecar' }, 201, (b) => assert.equal(b.article.position, 1));
+  await step<HelpArticleResponse>('criar rascunho', 'POST', '/admin/help', { question: 'Rascunho?', answer: 'Ainda não.', topic: 'comecar', published: false }, 201);
+  await step('pergunta sem resposta', 'POST', '/admin/help', { question: 'X?', answer: '  ', topic: 'comecar' }, 400);
+  await step('tema inválido', 'POST', '/admin/help', { question: 'X?', answer: 'x', topic: 'outro' }, 400);
+  await step<HelpArticleResponse>('editar pergunta', 'PATCH', `/admin/help/${article.id}`, { answer: 'Nada: o app é gratuito nesta fase.' }, 200,
+    (b) => assert.equal(b.article.answer, 'Nada: o app é gratuito nesta fase.'));
+  await step('editar sem campos', 'PATCH', `/admin/help/${article.id}`, {}, 400);
+  await step<HelpArticleResponse>('mover pergunta para baixo', 'PATCH', `/admin/help/${article.id}/move`, { direction: 'down' }, 200,
+    (b) => assert.equal(b.article.position, 2));
+  await step('direção inválida', 'PATCH', `/admin/help/${article.id}/move`, { direction: 'left' }, 400);
+  await step<HelpArticle[]>('a gestão vê o rascunho', 'GET', '/admin/help', undefined, 200, (b) => assert.equal(b.length, 2));
+  actAs(null);
+  await step<HelpArticle[]>('a central pública mostra só a publicada', 'GET', '/help', undefined, 200,
+    (b) => assert.deepEqual(b.map((a) => a.question), ['Quanto custa?']));
+  actAs(admin);
+  await step('apagar pergunta', 'DELETE', `/admin/help/${article.id}`, undefined, 200);
+  await step('apagar pergunta que não existe', 'DELETE', `/admin/help/${article.id}`, undefined, 404);
+  actAs(tutor);
 
   console.log('\nPerfil dos usuários de sistema');
   await step<SystemUserResponse>('tutor edita o próprio perfil', 'PATCH', '/auth/system/me', { name: ' Tiago Souza ', email: 'Tiago@Exemplo.com' }, 200,

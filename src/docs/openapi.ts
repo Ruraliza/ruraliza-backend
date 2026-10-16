@@ -34,6 +34,7 @@ const TAG_DESCRIPTIONS: Record<(typeof TAGS)[keyof typeof TAGS], string> = {
   [TAGS.documents]: 'Currículos dos trabalhadores (PDF, até 5 MB).',
   [TAGS.reviews]: 'Avaliação dupla depois do serviço concluído: o produtor avalia o trabalhador, o trabalhador avalia a fazenda. As notas só aparecem quando os dois avaliaram (ou o prazo acaba).',
   [TAGS.chat]: 'Conversa do serviço entre o produtor e o trabalhador aceito, com o WhatsApp protegido até os dois liberarem.',
+  [TAGS.help]: 'Perguntas frequentes: a lista pública e a gestão pela equipe (criar, editar, ordenar e apagar).',
   [TAGS.notifications]: 'Central de notificações de cada perfil: o histórico de tudo o que vira push (com ou sem push ativado), o contador de não lidas e o aviso em tempo real para o sino.',
   [TAGS.tracks]: 'Trilhas de estudo do lado dos tutores: criar, montar módulos e aulas, publicar e descontinuar (não há remoção).',
   [TAGS.learning]: 'Trilhas de estudo do lado do trabalhador: listar por categoria, começar, concluir aulas e certificados.',

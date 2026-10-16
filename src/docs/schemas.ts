@@ -4,6 +4,7 @@ import { type AuthSchemaName, authSchemas } from '#modules/auth';
 import { type ChatSchemaName, chatSchemas } from '#modules/chat';
 import { type FarmerSchemaName, farmerSchemas } from '#modules/farmers';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
+import { type HelpSchemaName, helpSchemas } from '#modules/help';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
 import { type NotificationSchemaName, type PushSchemaName, notificationSchemas, pushSchemas } from '#modules/notifications';
 import { type PlatformSchemaName, platformSchemas } from '#modules/platform';
@@ -34,7 +35,8 @@ export type SchemaName =
   | NotificationSchemaName
   | SystemUserSchemaName
   | AdminSchemaName
-  | TrackSchemaName;
+  | TrackSchemaName
+  | HelpSchemaName;
 
 export const schemas = {
   ...coreSchemas,
@@ -52,5 +54,6 @@ export const schemas = {
   ...authSchemas,
   ...systemUserSchemas,
   ...adminSchemas,
-  ...trackSchemas
+  ...trackSchemas,
+  ...helpSchemas
 } satisfies Record<SchemaName, Schema>;

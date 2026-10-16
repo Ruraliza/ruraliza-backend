@@ -11,6 +11,7 @@ import type { PasswordHasher } from '#shared/domain/passwords';
 import type { Repositories } from './repositories';
 import { SERVICE_STATUS } from '#modules/services';
 import { createAccount } from '#modules/accounts';
+import { createDefaultHelpArticles } from '#modules/help';
 import { seedHistory } from './seed-history';
 import { seedTracks } from './seed-tracks';
 
@@ -159,4 +160,6 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
     farmerId: farmer.id, farmSaoJose: farmSaoJose.id, farmBoaVista: farmBoaVista.id, mariaId: worker.id, carlosWorkerId: bothWorker.id
   });
   await seedTracks(repos, now, tutor.id, worker.id);
+  // Central de ajuda: as perguntas frequentes que a equipe edita em /sistema/ajuda.
+  await createDefaultHelpArticles(repos.helpArticles, now);
 }

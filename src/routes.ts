@@ -4,6 +4,7 @@ import { createChatRoutes } from '#modules/chat';
 import { createAccess, createAuthRoutes } from '#modules/auth';
 import { createFarmerRoutes } from '#modules/farmers';
 import { createFarmRoutes } from '#modules/farms';
+import { createHelpRoutes } from '#modules/help';
 import { createHiringRoutes } from '#modules/hiring';
 import { createPhotoRoutes } from '#modules/media';
 import { createNotificationRoutes, createPushRoutes } from '#modules/notifications';
@@ -34,6 +35,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const reviews = createReviewRoutes(useCases.reviews, access);
   const chat = createChatRoutes(useCases.chat, access);
   const tracks = createTrackRoutes(useCases.tracks, access);
+  const help = createHelpRoutes(useCases.help, access);
 
   return [
     { prefix: '/api/auth', routes: [...auth.auth, ...systemUsers.auth] },
@@ -73,7 +75,8 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
     },
     { prefix: '/api/chats', routes: chat.chats },
     { prefix: '/api/reviews', routes: reviews.reputation },
-    { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage] },
+    { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage, ...help.admin] },
+    { prefix: '/api/help', routes: help.public },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },
     { prefix: '/api/categories', routes: categoryRoutes },
