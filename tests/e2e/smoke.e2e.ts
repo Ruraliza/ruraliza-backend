@@ -554,6 +554,7 @@ async function run(): Promise<void> {
   await farmerEvents.expectEvent('produtor avisado da desistência', 'applications');
   farmerEvents.close();
   await step('acompanhar candidaturas de outro trabalhador', 'GET', `/workers/${worker2.id}/events`, undefined, 403);
+  await step('acompanhar o perfil de outro trabalhador', 'GET', `/workers/${worker2.id}/live`, undefined, 403);
   actAs(ana);
   await step('acompanhar serviço inexistente', 'GET', '/farmers/services/999/events', undefined, 404);
   await step<ApplicationWithWorker[]>('candidatura removida', 'GET', `/farmers/services/${ws.id}/applications`, undefined, 200, (b) => assert.equal(b.length, 0));
@@ -565,10 +566,13 @@ async function run(): Promise<void> {
   const { application: wa3 } = await step<ApplicationResponse>('3º candidato', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker3.id }, 201);
   actAs(carla);
   const worker2Events = await openEvents('2º candidato acompanha as candidaturas (SSE)', `/workers/${worker2.id}/events`);
+  const worker2Live = await openEvents('2º candidato acompanha o perfil, um stream só (SSE)', `/workers/${worker2.id}/live`);
   actAs(ana);
   await step('produtor recusa o 3º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa3.id, action: 'Reject' }, 200);
   await step('produtor aceita o 1º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa1.id, action: 'Accept' }, 200);
   await worker2Events.expectEvent('2º candidato avisado da recusa pelo aceite', 'applications');
+  await worker2Live.expectEvent('o stream do perfil também traz as candidaturas', 'applications');
+  worker2Live.close();
   actAs(bruno);
   await step<ServiceResponse>('desistir do serviço aceito', 'PATCH', `/workers/services/${ws.id}/withdraw`, { worker_id: worker.id }, 200, (b) => {
     assert.equal(b.service.status, 'Pending');
@@ -786,12 +790,16 @@ async function run(): Promise<void> {
   await step<Chat[]>('trabalhador vê a mesma conversa', 'GET', `/workers/${tiagoWorker.id}/chats`, undefined, 200,
     (b) => assert.deepEqual(b.map((c) => [c.id, c.farmer.name]), [[opened.id, 'Rosa Produtora']]));
   const tiagoChat = await openEvents('trabalhador acompanha a conversa (SSE)', `/chats/${opened.id}/events`);
+  const tiagoLive = await openEvents('trabalhador acompanha o perfil, um stream só (SSE)', `/workers/${tiagoWorker.id}/live`);
   actAs(rosa);
   await step<ChatMessageResponse>('telefone na mensagem sai oculto', 'POST', `/chats/${opened.id}/messages`,
     { body: 'Pode chegar às 7h? Meu número é (24) 99999-1111' }, 201, (b) => {
       assert.deepEqual([b.sent.sender, b.sent.body, b.masked], ['farmer', 'Pode chegar às 7h? Meu número é [número oculto]', true]);
     });
   await tiagoChat.expectEvent('trabalhador recebe a mensagem na hora', 'chat');
+  await tiagoLive.expectEvent('o stream do perfil avisa a lista de conversas', 'chats');
+  await tiagoLive.expectEvent('e o sino', 'notifications');
+  tiagoLive.close();
   await rosaChats.expectEvent('lista da produtora atualizada', 'chats');
   actAs(tiago);
   await step<ChatDetail>('abrir a conversa', 'GET', `/chats/${opened.id}`, undefined, 200, (b) => {
