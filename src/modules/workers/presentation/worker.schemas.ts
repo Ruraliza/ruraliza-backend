@@ -39,7 +39,7 @@ export const workerSchemas = {
       ...profileInputProps,
       ...workerTextProps
     },
-    ['email', 'name', 'phone', 'cpf', 'password'],
+    ['email', 'name', 'phone', 'cpf', 'password', 'accept_terms'],
     'Cadastro de trabalhador.'
   ),
   WorkerUpdate: input(

@@ -24,7 +24,7 @@ export const farmerSchema: Schema = object(
 
 export const farmerSchemas = {
   Farmer: farmerSchema,
-  FarmerInput: input(profileInputProps, ['email', 'name', 'phone', 'cpf', 'password'], 'Cadastro de produtor.'),
+  FarmerInput: input(profileInputProps, ['email', 'name', 'phone', 'cpf', 'password', 'accept_terms'], 'Cadastro de produtor.'),
   FarmerUpdate: input(
     profileEditableProps,
     [],

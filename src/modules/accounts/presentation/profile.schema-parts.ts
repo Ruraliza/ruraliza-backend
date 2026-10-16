@@ -25,7 +25,13 @@ export const profileEditableProps: Properties = {
 export const profileInputProps: Properties = {
   ...profileEditableProps,
   cpf: { ...cpf, description: '11 dígitos com dígitos verificadores válidos. Pertence a uma conta só.' },
-  password: newPassword
+  password: newPassword,
+  accept_terms: {
+    type: 'boolean',
+    enum: [true],
+    example: true,
+    description: 'Precisa ser true: "Li e concordo com os Termos de Uso e a Política de Privacidade". A conta guarda a data e a versão aceitas.'
+  }
 };
 
 export const optionalTextSchema: Schema = { type: 'string', nullable: true };

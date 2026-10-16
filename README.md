@@ -189,7 +189,7 @@ CPF: enviado com 11 dígitos, só números, com dígitos verificadores válidos.
 
 ### Acesso (`/api/auth`)
 
-Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres enviada no cadastro em `password`. A conta começa com o perfil escolhido no cadastro (`POST /api/farmers` ou `POST /api/workers`, que já devolvem a sessão em `user`) e pode ganhar o outro perfil depois (`/api/accounts`). A mesma senha vale para os dois. A sessão (`user`) é `{ account_id, role, id, profiles: { farmer, worker } }`: `role`/`id` são o painel aberto.
+Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres enviada no cadastro em `password`. O cadastro exige `accept_terms: true` ("Li e concordo com os Termos de Uso e a Política de Privacidade", textos em `/termos` e `/privacidade` no frontend): a conta guarda `terms_version` e `terms_accepted_at`, para provar o consentimento (LGPD). Ao mudar os textos, troque `TERMS_VERSION` (`src/modules/accounts/domain/terms.ts`) e a do frontend. A conta começa com o perfil escolhido no cadastro (`POST /api/farmers` ou `POST /api/workers`, que já devolvem a sessão em `user`) e pode ganhar o outro perfil depois (`/api/accounts`). A mesma senha vale para os dois. A sessão (`user`) é `{ account_id, role, id, profiles: { farmer, worker } }`: `role`/`id` são o painel aberto.
 
 **Token de sessão.** Login, redefinição de senha e cadastro devolvem `token` (assinado com HMAC-SHA256 e `AUTH_TOKEN_SECRET`, válido por 12 horas). Toda rota que não é pública exige `Authorization: Bearer <token>` e confere o dono: uma conta só mexe nos próprios perfis, fazendas, serviços e candidaturas (`farmer_id`/`worker_id` no corpo ou na query precisam ser os dela). Sem token ou com token inválido/vencido: **401**; token de outra pessoa ou de outro tipo de usuário: **403**. O token diz só quem entrou; conta e perfis são relidos a cada requisição, então uma conta removida perde o acesso na hora. As regras ficam em `src/modules/auth/presentation/access.ts` e cada rota declara a sua em `route()` (a documentação mostra o cadeado e quem pode).
 
@@ -223,7 +223,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/farmers` | Lista produtores (só administração) |
-| POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`); 409 se e-mail/CPF já existe entre produtores |
+| POST | `/api/farmers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`, `accept_terms: true`); 400 sem o aceite dos termos; 409 se e-mail/CPF já existe entre produtores |
 | GET | `/api/farmers/:id` | Perfil completo (`farms` = lista de IDs das fazendas) |
 | PATCH | `/api/farmers/:id` | Edita `email`, `name`, `phone`; 400 se tentar alterar `id`/`cpf`/`password` |
 | PATCH | `/api/farmers/:id/password` | Troca a senha (ver [Acesso](#acesso-apiauth)) |
@@ -250,7 +250,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/workers` | Lista trabalhadores (só administração) |
-| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`) |
+| POST | `/api/workers` | Cadastra (`email`, `name`, `phone`, `cpf`, `password`, `accept_terms: true`, opcionais `bio` (até 500), `experience`, `certificates`, `courses`); 400 sem o aceite dos termos |
 | GET | `/api/workers/:id` | Perfil completo |
 | PATCH | `/api/workers/:id` | Edita `email`, `name`, `phone`, `bio`, `experience`, `certificates`, `courses`; 400 se tentar alterar `id`/`cpf`/`password` |
 | PATCH | `/api/workers/:id/password` | Troca a senha (ver [Acesso](#acesso-apiauth)) |

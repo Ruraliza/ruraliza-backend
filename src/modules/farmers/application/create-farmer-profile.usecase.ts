@@ -4,7 +4,7 @@ import { type Result, ok } from '#shared/domain/result';
 import type { Farmer, FarmerInput } from '../farmer.contract';
 import type { FarmerRepository } from '../domain/farmer.repository';
 
-export type NewFarmerProfile = Omit<FarmerInput, 'password'>;
+export type NewFarmerProfile = Omit<FarmerInput, 'password' | 'accept_terms'>;
 
 export interface CreateFarmerProfileDeps {
   farmers: FarmerRepository;

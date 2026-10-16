@@ -2,6 +2,7 @@ import { type Result, invalid, ok } from '#shared/domain/result';
 import { type Body, missingMessage } from '#shared/infra/http/body';
 import { normalizeEmail } from '#shared/utils/profile';
 import { isValidCpf, isValidEmail, missingFields, parseNewPassword, text, tooLong } from '#shared/utils/validation';
+import { TERMS_REQUIRED } from '../domain/terms';
 
 // Peças dos parsers de perfil (produtor e trabalhador), usadas também pelo segundo perfil da conta.
 
@@ -34,6 +35,9 @@ export function parseProfileInput(body: Body): Result<ProfileFields> {
 
   const password = parseNewPassword(body['password'], 'A senha');
   if (!password.ok) return password;
+
+  // Sem o aceite dos termos, não há conta (o caso de uso grava a data e a versão aceitas).
+  if (body['accept_terms'] !== true) return invalid(TERMS_REQUIRED);
 
   return ok({ email, name: text(body['name']).trim(), phone: text(body['phone']), cpf, password: password.value });
 }

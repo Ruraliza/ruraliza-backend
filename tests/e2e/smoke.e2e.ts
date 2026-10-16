@@ -242,7 +242,7 @@ async function run(): Promise<void> {
   await step<string[]>('categorias', 'GET', '/categories', undefined, 200, (b) => assert.equal(b.length, 7));
 
   const { farmer, user: farmerSession, token: ana } = await step<FarmerSignupResponse>('cadastrar produtor', 'POST', '/farmers',
-    { name: 'Ana Produtora', email: 'Ana@Exemplo.com', phone: '24999990000', cpf: '52998224725', password: PW }, 201,
+    { name: 'Ana Produtora', email: 'Ana@Exemplo.com', phone: '24999990000', cpf: '52998224725', password: PW, accept_terms: true }, 201,
     (b) => assert.equal(b.farmer.email, 'ana@exemplo.com'));
   actAs(ana);
 
@@ -255,10 +255,10 @@ async function run(): Promise<void> {
     (b) => assert.equal(b.service.status, 'Pending'));
 
   const { worker, user: workerSession, token: bruno } = await step<WorkerSignupResponse>('cadastrar trabalhador', 'POST', '/workers',
-    { name: 'Bruno Tratorista', email: 'bruno@exemplo.com', phone: '24988880000', cpf: '98765432100', password: PW }, 201,
+    { name: 'Bruno Tratorista', email: 'bruno@exemplo.com', phone: '24988880000', cpf: '98765432100', password: PW, accept_terms: true }, 201,
     (b) => assert.deepEqual([b.user.role, b.user.id, b.user.profiles], ['worker', b.worker.id, { farmer: null, worker: b.worker.id }]));
   const { worker: worker2, token: carla } = await step<WorkerSignupResponse>('cadastrar 2º trabalhador', 'POST', '/workers',
-    { name: 'Carla Diarista', email: 'carla@exemplo.com', phone: '24977770000', cpf: '12345678909', password: PW }, 201);
+    { name: 'Carla Diarista', email: 'carla@exemplo.com', phone: '24977770000', cpf: '12345678909', password: PW, accept_terms: true }, 201);
 
   actAs(bruno);
   await step<OpenService[]>('vagas com cidade/UF', 'GET', '/workers/services?category=Colheita', undefined, 200,
@@ -323,11 +323,13 @@ async function run(): Promise<void> {
     (b) => assert.equal(b.length, 1));
 
   console.log('\nCasos de erro');
-  await step('CPF inválido', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com', phone: '1', cpf: '12345678900', password: PW }, 400);
-  await step('e-mail inválido', 'POST', '/workers', { name: 'X', email: 'x@', phone: '1', cpf: '11144477735', password: PW }, 400);
+  await step('CPF inválido', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com', phone: '1', cpf: '12345678900', password: PW, accept_terms: true }, 400);
+  await step('e-mail inválido', 'POST', '/workers', { name: 'X', email: 'x@', phone: '1', cpf: '11144477735', password: PW, accept_terms: true }, 400);
   await step('campo faltando', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com' }, 400);
-  await step('e-mail duplicado', 'POST', '/farmers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '11144477735', password: PW }, 409);
-  await step('CPF duplicado', 'POST', '/farmers', { name: 'X', email: 'novo@exemplo.com', phone: '1', cpf: '52998224725', password: PW }, 409);
+  await step('cadastro sem aceitar os termos', 'POST', '/farmers', { name: 'X', email: 'semtermos@exemplo.com', phone: '1', cpf: '39053344705', password: PW }, 400);
+  await step('termos recusados', 'POST', '/workers', { name: 'X', email: 'semtermos@exemplo.com', phone: '1', cpf: '39053344705', password: PW, accept_terms: false }, 400);
+  await step('e-mail duplicado', 'POST', '/farmers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '11144477735', password: PW, accept_terms: true }, 409);
+  await step('CPF duplicado', 'POST', '/farmers', { name: 'X', email: 'novo@exemplo.com', phone: '1', cpf: '52998224725', password: PW, accept_terms: true }, 409);
   await step('fazenda em nome de outro produtor', 'POST', '/farmers/999/farms', { address: 'a', city: 'b', state: 'MG', latitude: -22.1165, longitude: -43.2092 }, 403);
 
   await step('fazenda sem o ponto no mapa', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG' }, 400);
@@ -335,7 +337,7 @@ async function run(): Promise<void> {
   await step('longitude como texto', 'POST', `/farmers/${farmer.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: 0, longitude: '-43' }, 400);
 
   const { farmer: other, token: outro } = await step<FarmerSignupResponse>('cadastrar outro produtor', 'POST', '/farmers',
-    { name: 'Outro', email: 'outro@exemplo.com', phone: '1', cpf: '11144477735', password: PW }, 201);
+    { name: 'Outro', email: 'outro@exemplo.com', phone: '1', cpf: '11144477735', password: PW, accept_terms: true }, 201);
   actAs(outro);
   await step('fazenda de outro produtor', 'POST', '/farmers/services',
     { farmer_id: other.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 400);
@@ -392,7 +394,7 @@ async function run(): Promise<void> {
 
   console.log('\nSenha e acesso');
   await step('cadastro sem senha', 'POST', '/workers', { name: 'X', email: 'semsenha@exemplo.com', phone: '1', cpf: '39053344705' }, 400);
-  await step('cadastro com senha curta', 'POST', '/workers', { name: 'X', email: 'curta@exemplo.com', phone: '1', cpf: '39053344705', password: '1234567' }, 400);
+  await step('cadastro com senha curta', 'POST', '/workers', { name: 'X', email: 'curta@exemplo.com', phone: '1', cpf: '39053344705', password: '1234567', accept_terms: true }, 400);
   await step<Farmer>('a senha não aparece no perfil', 'GET', `/farmers/${farmer.id}`, undefined, 200, (b) => assert.equal('password' in b, false));
   await step<LoginResponse>('entrar', 'POST', '/auth/login', { email: 'ANA@exemplo.com', password: PW }, 200,
     (b) => assert.deepEqual(b.user, farmerSession));
@@ -422,8 +424,8 @@ async function run(): Promise<void> {
   await step('entra com a senha redefinida', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: 'senha-redefinida' }, 200);
 
   console.log('\nConta com os dois perfis');
-  await step('e-mail de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '45612378955', password: PW }, 409);
-  await step('CPF de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'x2@exemplo.com', phone: '1', cpf: '52998224725', password: PW }, 409);
+  await step('e-mail de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'ana@exemplo.com', phone: '1', cpf: '45612378955', password: PW, accept_terms: true }, 409);
+  await step('CPF de outra conta no cadastro', 'POST', '/workers', { name: 'X', email: 'x2@exemplo.com', phone: '1', cpf: '52998224725', password: PW, accept_terms: true }, 409);
   actAs(ana);
   const accountUrl = `/accounts/${farmerSession.account_id}`;
   await step<SessionUser>('sessão da conta', 'GET', accountUrl, undefined, 200, (b) => assert.deepEqual(b, farmerSession));
@@ -458,7 +460,7 @@ async function run(): Promise<void> {
 
   console.log('\nEdição e remoção');
   const { farmer: fd, token: dora } = await step<FarmerSignupResponse>('produtor a remover', 'POST', '/farmers',
-    { name: 'Dora', email: 'dora@exemplo.com', phone: '1', cpf: '39053344705', password: PW }, 201);
+    { name: 'Dora', email: 'dora@exemplo.com', phone: '1', cpf: '39053344705', password: PW, accept_terms: true }, 201);
   actAs(dora);
   const { farm: fdFarm } = await step<FarmResponse>('fazenda a remover', 'POST', `/farmers/${fd.id}/farms`,
     { address: 'Sítio', city: 'Vassouras', state: 'RJ', latitude: -22.1165, longitude: -43.2092 }, 201);
@@ -470,7 +472,7 @@ async function run(): Promise<void> {
   const { service: fdService } = await step<ServiceResponse>('serviço a remover', 'POST', '/farmers/services',
     { farmer_id: fd.id, farm_id: fdFarm.id, name: 'Roçada', category: 'Outros', duration: 4, price: 200 }, 201);
   const { worker: wd, token: eli } = await step<WorkerSignupResponse>('trabalhador a remover', 'POST', '/workers',
-    { name: 'Eli', email: 'eli@exemplo.com', phone: '1', cpf: '93541134780', password: PW }, 201);
+    { name: 'Eli', email: 'eli@exemplo.com', phone: '1', cpf: '93541134780', password: PW, accept_terms: true }, 201);
   actAs(eli);
   const { application: wdApp } = await step<ApplicationResponse>('candidatura a remover', 'POST', `/workers/services/${fdService.id}/apply`, { worker_id: wd.id }, 201);
   actAs(dora);
@@ -529,7 +531,7 @@ async function run(): Promise<void> {
   const { service: ws } = await step<ServiceResponse>('serviço para desistência', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Capina', category: 'Manutenção', duration: 5, price: 150 }, 201);
   const { worker: worker3, token: davi } = await step<WorkerSignupResponse>('cadastrar 3º trabalhador', 'POST', '/workers',
-    { name: 'Davi', email: 'davi@exemplo.com', phone: '1', cpf: '71428793860', password: PW }, 201);
+    { name: 'Davi', email: 'davi@exemplo.com', phone: '1', cpf: '71428793860', password: PW, accept_terms: true }, 201);
   const farmerEvents = await openEvents('produtor acompanha as candidaturas (SSE)', `/farmers/services/${ws.id}/events`);
   actAs(bruno);
   await step('candidatar para desistir', 'POST', `/workers/services/${ws.id}/apply`, { worker_id: worker.id }, 201);
@@ -741,7 +743,7 @@ async function run(): Promise<void> {
   console.log('\nConversa do serviço');
   actAs(null);
   const { farmer: rosaFarmer, token: rosa } = await step<FarmerSignupResponse>('cadastrar produtora', 'POST', '/farmers',
-    { name: 'Rosa Produtora', email: 'rosa@exemplo.com', phone: '24999991111', cpf: '14725836982', password: PW }, 201);
+    { name: 'Rosa Produtora', email: 'rosa@exemplo.com', phone: '24999991111', cpf: '14725836982', password: PW, accept_terms: true }, 201);
   actAs(rosa);
   const { farm: rosaFarm } = await step<FarmResponse>('fazenda da produtora', 'POST', `/farmers/${rosaFarmer.id}/farms`,
     { address: 'Sítio Bela Vista', city: 'Vassouras', state: 'RJ', latitude: -22.4039, longitude: -43.6628 }, 201);
@@ -749,7 +751,7 @@ async function run(): Promise<void> {
     { farmer_id: rosaFarmer.id, farm_id: rosaFarm.id, name: 'Colheita de feijão', category: 'Colheita', duration: 8, price: 350 }, 201);
   actAs(null);
   const { worker: tiagoWorker, token: tiago } = await step<WorkerSignupResponse>('cadastrar trabalhador da conversa', 'POST', '/workers',
-    { name: 'Tiago Lima', email: 'tiago@exemplo.com', phone: '24988881111', cpf: '25836914737', password: PW }, 201);
+    { name: 'Tiago Lima', email: 'tiago@exemplo.com', phone: '24988881111', cpf: '25836914737', password: PW, accept_terms: true }, 201);
   actAs(tiago);
   const { application: tiagoApp } = await step<ApplicationResponse>('candidatar-se', 'POST', `/workers/services/${hired.id}/apply`, { worker_id: tiagoWorker.id }, 201);
   actAs(rosa);
@@ -1183,9 +1185,9 @@ async function tracksFlow(admin: string): Promise<void> {
   console.log('\nTrilhas de estudo (trabalhador)');
   actAs(null);
   const { worker: aluna, token: lia } = await step<WorkerSignupResponse>('cadastrar aluna', 'POST', '/workers',
-    { name: 'Lia Aluna', email: 'lia@exemplo.com', phone: '24911111111', cpf: '24681357928', password: PW }, 201);
+    { name: 'Lia Aluna', email: 'lia@exemplo.com', phone: '24911111111', cpf: '24681357928', password: PW, accept_terms: true }, 201);
   const { worker: outro, token: teo } = await step<WorkerSignupResponse>('cadastrar outro trabalhador', 'POST', '/workers',
-    { name: 'Teo', email: 'teo@exemplo.com', phone: '24922222222', cpf: '13579246828', password: PW }, 201);
+    { name: 'Teo', email: 'teo@exemplo.com', phone: '24922222222', cpf: '13579246828', password: PW, accept_terms: true }, 201);
   await step('trilhas sem token', 'GET', '/workers/tracks', undefined, 401);
   actAs(rita);
   await step('usuário de sistema não estuda', 'GET', '/workers/tracks', undefined, 403);

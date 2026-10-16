@@ -15,6 +15,10 @@ export interface Account {
   farmer_id: number | null;
   worker_id: number | null;
   last_role: UserRole; // painel aberto por último: é o que abre no próximo login
+  // Aceite dos Termos de Uso e da Política de Privacidade no cadastro (LGPD: quem aceitou o quê e quando).
+  // Ausente só nas contas de antes do aceite existir.
+  terms_version?: string;
+  terms_accepted_at?: string; // ISO 8601
   // Tema, tamanho do texto e contraste. Ausente: os padrões (ver domain/preferences.ts).
   // TODO(db): coluna `preferences jsonb` (ou três colunas) com os padrões no DEFAULT.
   preferences?: AccountPreferences;

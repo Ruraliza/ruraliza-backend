@@ -49,7 +49,8 @@ Content-Type: application/json
   "experience": "3 anos",
   "phone": "24966666666",
   "cpf": "71428793860",
-  "password": "minhasenha123"
+  "password": "minhasenha123",
+  "accept_terms": true
 }
 
 ### Perfil do trabalhador

@@ -6,6 +6,7 @@ import { type Result, conflict, ok, requireFound } from '#shared/domain/result';
 import type { UserRole } from '../accounts.contract';
 import type { Account, AccountRepository } from '../domain/account';
 import { CPF_TAKEN, EMAIL_TAKEN, ROLE_LABEL, findAccountByEmail, findAccountOf, hasProfile, otherRole, profileKey } from '../domain/account.rules';
+import { TERMS_VERSION } from '../domain/terms';
 
 // O que cadastro, edição e remoção dos perfis (produtor e trabalhador) fazem na conta.
 
@@ -31,13 +32,15 @@ export async function checkCpfForAccount(repos: AccountRepos, account: Account, 
   return others.length > 0 ? conflict(CPF_TAKEN) : ok(null);
 }
 
-// Conta criada junto com o primeiro perfil, no cadastro.
+// Conta criada junto com o primeiro perfil, no cadastro. `termsAcceptedAt`: quando a pessoa aceitou os
+// Termos de Uso e a Política de Privacidade (guardado com a versão atual dos textos).
 // TODO(db): na mesma transação que cria o perfil.
 export async function createAccount(
   accounts: AccountRepository,
   hasher: PasswordHasher,
-  input: { email: string; password: string; role: UserRole; profileId: number }
+  input: { email: string; password: string; role: UserRole; profileId: number; termsAcceptedAt?: string }
 ): Promise<Account> {
+  const terms = input.termsAcceptedAt === undefined ? {} : { terms_version: TERMS_VERSION, terms_accepted_at: input.termsAcceptedAt };
   return accounts.create({
     email: input.email,
     password_hash: await hasher.hash(input.password),
@@ -45,7 +48,8 @@ export async function createAccount(
     reset_expires_at: null,
     farmer_id: input.role === 'farmer' ? input.profileId : null,
     worker_id: input.role === 'worker' ? input.profileId : null,
-    last_role: input.role
+    last_role: input.role,
+    ...terms
   });
 }
 
