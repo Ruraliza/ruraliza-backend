@@ -469,6 +469,7 @@ O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`)
 - [ ] Encerrar as sessões abertas ao trocar a senha (hoje o token vale até vencer).
 - [x] Trilhas de estudo: rotas do tutor (`tracks:manage`), estudo pelo trabalhador e certificados.
 - [ ] Registro de horas e relatórios em PDF.
+- [ ] Assinatura digital dos certificados: a API gov.br é só para órgãos públicos; o caminho para o Ruraliza é um e-CNPJ ICP-Brasil (ver [docs/estudo-govbr-certificados.md](docs/estudo-govbr-certificados.md)).
 - [ ] Avaliações: lembrete por push perto do fim do prazo de 14 dias (precisa de uma tarefa agendada) e moderação de comentários pela equipe (denúncia e remoção).
 - [ ] Conversas: denunciar mensagem/bloquear, limite de mensagens por minuto, paginação das mensagens antigas e envio de foto (ex.: "cheguei na porteira").
 - [ ] Reputação também a partir de sinais objetivos (ex.: desistências depois do aceite), com cuidado para não punir quem desistiu por motivo justo.
