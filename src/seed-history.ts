@@ -4,7 +4,8 @@
 // - um concluído há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida);
 // - um concluído ontem, sem avaliações (pendente para os dois) e com a conversa ainda aberta;
 // - um em andamento com a Maria, com conversa (a última mensagem do produtor ainda não lida por ela);
-// - o Pedro, trabalhador com uma avaliação mediana, candidato à vaga 1 junto com o Carlos (sem avaliações).
+// - o Pedro, trabalhador com uma avaliação mediana, candidato à vaga 1 junto com o Carlos (sem avaliações);
+// - a central de notificações do João e da Maria com os avisos que essa história teria gerado.
 import { HIRED_MESSAGE } from '#modules/chat';
 import { windowEndsAt } from '#modules/reviews';
 import { SERVICE_STATUS, type Service } from '#modules/services';
@@ -144,4 +145,18 @@ export async function seedHistory(repos: Repositories, now: string, passwords: P
   // Dois candidatos na vaga 1 (Colheita de café): o Pedro, com nota, e o Carlos, ainda sem avaliações.
   await repos.applications.create({ service_id: 1, worker_id: pedro.id, status: 'Pending', insertion_date: shift(-1) });
   await repos.applications.create({ service_id: 1, worker_id: carlosWorkerId, status: 'Pending', insertion_date: shift(0) });
+
+  // Central de notificações: os avisos que essa história geraria (os textos são os mesmos dos casos de uso).
+  const hoursAgo = (hours: number): string => new Date(Date.parse(now) - hours * 3_600_000).toISOString();
+  const notices = [
+    // João (produtor)
+    { role: 'farmer', profile_id: farmerId, title: 'Nova candidatura', body: 'Carlos Produtor e Trabalhador se candidatou a Colheita de café.', url: 'produtor/servicos/1', count: 2, read: false, insertion_date: hoursAgo(1) },
+    { role: 'farmer', profile_id: farmerId, title: 'Sua fazenda foi avaliada', body: `O trabalhador avaliou ${ordenha.service.name}. Avalie o trabalho dele para ver a nota.`, url: `produtor/servicos/${ordenha.service.id}`, count: 1, read: false, insertion_date: shift(-2) },
+    { role: 'farmer', profile_id: farmerId, title: 'Nova mensagem de Maria', body: 'Terminei o pasto de cima. Amanhã faço o de baixo.', url: `produtor/conversas/${pastoChat.id}`, count: 1, read: true, insertion_date: shift(-2) },
+    // Maria (trabalhadora)
+    { role: 'worker', profile_id: mariaId, title: 'Nova mensagem de João', body: 'Só luvas. O resto a fazenda fornece, e o almoço é por nossa conta.', url: `trabalhador/conversas/${curralChat.id}`, count: 1, read: false, insertion_date: hoursAgo(2) },
+    { role: 'worker', profile_id: mariaId, title: 'Pagamento liberado', body: `O pagamento de ${pasto.service.name} foi liberado. Conte como foi na fazenda.`, url: `trabalhador/vagas/${pasto.service.id}`, count: 1, read: false, insertion_date: shift(-1) },
+    { role: 'worker', profile_id: mariaId, title: 'Você foi aceito!', body: `O produtor aceitou sua candidatura em ${curral.name}.`, url: 'trabalhador/candidaturas', count: 1, read: true, insertion_date: shift(-5) }
+  ] as const;
+  for (const notice of notices) await repos.notifications.create(notice);
 }
