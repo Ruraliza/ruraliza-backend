@@ -9,6 +9,8 @@ export const APPLICATIONS_CHANGED_EVENT = 'applications';
 export const CHAT_CHANGED_EVENT = 'chat';
 // Alguma conversa do perfil mudou (mensagem nova, lida, aberta ou encerrada): lista e contador do menu.
 export const CHATS_CHANGED_EVENT = 'chats';
+// Chegou aviso novo (ou algum foi lido): central de notificações e o contador do sino.
+export const NOTIFICATIONS_CHANGED_EVENT = 'notifications';
 
 // Comentário periódico: mantém a conexão viva atrás de proxies que cortam conexões ociosas.
 const HEARTBEAT_MS = 25_000;

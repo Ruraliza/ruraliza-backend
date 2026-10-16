@@ -5,7 +5,7 @@ import { type ChatSchemaName, chatSchemas } from '#modules/chat';
 import { type FarmerSchemaName, farmerSchemas } from '#modules/farmers';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
-import { type PushSchemaName, pushSchemas } from '#modules/notifications';
+import { type NotificationSchemaName, type PushSchemaName, notificationSchemas, pushSchemas } from '#modules/notifications';
 import { type PlatformSchemaName, platformSchemas } from '#modules/platform';
 import { type ReviewSchemaName, reviewSchemas } from '#modules/reviews';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
@@ -31,6 +31,7 @@ export type SchemaName =
   | ReviewSchemaName
   | ChatSchemaName
   | PushSchemaName
+  | NotificationSchemaName
   | SystemUserSchemaName
   | AdminSchemaName
   | TrackSchemaName;
@@ -46,6 +47,7 @@ export const schemas = {
   ...reviewSchemas,
   ...chatSchemas,
   ...pushSchemas,
+  ...notificationSchemas,
   ...accountSchemas,
   ...authSchemas,
   ...systemUserSchemas,

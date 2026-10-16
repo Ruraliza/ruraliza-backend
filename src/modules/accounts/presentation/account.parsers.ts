@@ -64,5 +64,12 @@ export function parsePreferencesUpdate(body: Body): Result<AccountPreferencesInp
     if (typeof highContrast !== 'boolean') return invalid('O alto contraste (high_contrast) deve ser true ou false.');
     changes.high_contrast = highContrast;
   }
-  return Object.keys(changes).length > 0 ? ok(changes) : invalid('Envie ao menos uma preferência: theme, text_size ou high_contrast.');
+  const whatsapp = body['whatsapp_alerts'];
+  if (whatsapp !== undefined) {
+    if (typeof whatsapp !== 'boolean') return invalid('Os avisos no WhatsApp (whatsapp_alerts) devem ser true ou false.');
+    changes.whatsapp_alerts = whatsapp;
+  }
+  return Object.keys(changes).length > 0
+    ? ok(changes)
+    : invalid('Envie ao menos uma preferência: theme, text_size, high_contrast ou whatsapp_alerts.');
 }

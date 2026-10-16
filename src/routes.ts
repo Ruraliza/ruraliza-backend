@@ -6,7 +6,7 @@ import { createFarmerRoutes } from '#modules/farmers';
 import { createFarmRoutes } from '#modules/farms';
 import { createHiringRoutes } from '#modules/hiring';
 import { createPhotoRoutes } from '#modules/media';
-import { createPushRoutes } from '#modules/notifications';
+import { createNotificationRoutes, createPushRoutes } from '#modules/notifications';
 import { platformRoutes } from '#modules/platform';
 import { createReviewRoutes } from '#modules/reviews';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
@@ -24,6 +24,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const auth = createAuthRoutes(useCases.auth, tokens, access);
   const systemUsers = createSystemUserRoutes(useCases.systemUsers, tokens, access);
   const push = createPushRoutes(useCases.push, access);
+  const notifications = createNotificationRoutes(useCases.notifications, access);
   const farmers = createFarmerRoutes(useCases.farmers, tokens, access);
   const farms = createFarmRoutes(useCases.farms, access);
   const workers = createWorkerRoutes(useCases.workers, tokens, access);
@@ -44,6 +45,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
         ...hiring.farmer, // candidaturas, avisos, aceite e pagamento
         ...reviews.farmer, // avaliar o trabalhador e o que falta avaliar
         ...chat.farmer, // conversas do produtor
+        ...notifications.farmer, // central de notificações
         ...farmers, // cadastro e perfil
         ...auth.farmerPassword,
         ...photos.farmer,
@@ -60,6 +62,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
         ...hiring.worker, // candidatura e desistência
         ...reviews.worker, // avaliar a fazenda e o que falta avaliar
         ...chat.worker, // conversas do trabalhador
+        ...notifications.worker, // central de notificações
         ...workers.profile, // cadastro e perfil
         ...auth.workerPassword,
         ...photos.worker,

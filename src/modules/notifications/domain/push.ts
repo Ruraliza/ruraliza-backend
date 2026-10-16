@@ -13,10 +13,13 @@ export interface PushSubscriptionRecord {
 
 // O que aparece na notificação. `url` é relativa ao app (sem / no início, ex.: 'produtor/servicos/12'),
 // porque o frontend é publicado num subcaminho; o clique abre o app nessa tela.
+// `whatsapp`: texto para o WhatsApp, só nos avisos que merecem (ex.: candidatura aceita); sai para quem
+// ligou "Avisos no WhatsApp" e tem celular no cadastro, se a integração estiver configurada.
 export interface PushMessage {
   title: string;
   body: string;
   url: string;
+  whatsapp?: string;
 }
 
 // Telas do frontend que as notificações abrem.
@@ -43,7 +46,11 @@ export interface PushSender {
   send(subscription: PushSubscriptionRecord, message: PushMessage): Promise<PushDelivery>;
 }
 
-// Quem avisa o perfil de uma mudança. Não espera o envio: falha de push nunca afeta a operação.
+// Telefone do perfil (DDD + número, só dígitos), para os avisos por WhatsApp. null = perfil não existe.
+export type PhoneDirectory = (role: UserRole, profileId: number) => Promise<string | null>;
+
+// Quem avisa o perfil de uma mudança: guarda na central de notificações, manda o push e, quando a
+// mensagem pede e a pessoa quer, o WhatsApp. Não espera o envio: falha nunca afeta a operação.
 export interface PushNotifier {
   notify(role: UserRole, profileId: number, message: PushMessage): void;
 }

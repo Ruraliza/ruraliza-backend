@@ -53,6 +53,8 @@ As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com 
 | `GOOGLE_MAPS_MAP_ID` | Map ID para o alfinete arrastável (padrão `DEMO_MAP_ID`, só para desenvolvimento) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Chaves das notificações push (gere com `npx web-push generate-vapid-keys`). Sem elas, `GET /api/config/push` responde 503 e nada é enviado |
 | `VAPID_SUBJECT` | Contato do responsável pelo envio (`mailto:` ou `https:`), exigido pelos serviços de push |
+| `WHATSAPP_API_URL` / `WHATSAPP_API_KEY` / `WHATSAPP_INSTANCE` | Avisos por WhatsApp pela [Evolution API](https://doc.evolution-api.com) v2. As três juntas ligam o envio; sem elas, nada sai |
+| `APP_URL` | Endereço do frontend nos links que saem do app (padrão `https://ruraliza.github.io/ruraliza-frontend`) |
 
 Em produção (Render), cadastre as mesmas variáveis no painel do serviço.
 
@@ -359,6 +361,25 @@ Cursos para os trabalhadores, divididos em módulos e aulas (vídeo do YouTube/V
 As telas de candidatos do serviço (produtor) e de candidaturas (trabalhador) se atualizam sozinhas por **Server-Sent Events**: o frontend abre `GET .../events` com `EventSource`, a resposta (`text/event-stream`) fica aberta e chega `event: applications` a cada mudança. O aviso não traz dados; a tela busca a lista de novo pela rota de sempre. A cada 25 s vai um `: ping` para a conexão não ser cortada por inatividade, e o `EventSource` reconecta sozinho se ela cair.
 
 Os casos de uso publicam os avisos (`ChangeFeed`, `src/shared/domain/changes.ts`) depois de cada mudança: candidatura, desistência, aceite/recusa (inclusive as recusadas pelo aceite e as que voltam a `Pending`), edição, cancelamento e pagamento do serviço, avaliação, e remoção de produtor ou trabalhador. As conversas têm dois canais próprios: o da conversa aberta (`event: chat`) e o da lista de cada perfil (`event: chats`). A implementação em memória (`InMemoryChangeFeed`) só vale para **um processo**; com várias instâncias da API, troque por algo compartilhado (LISTEN/NOTIFY do PostgreSQL ou Redis pub/sub) em `createContainer({ changes })`.
+
+### Central de notificações
+
+Tudo o que vira push também fica guardado na **central de notificações** do perfil (`/api/farmers/:id/notifications` e `/api/workers/:id/notifications`), mesmo para quem não ativou o push no aparelho: é o histórico do sino da barra de cima do app.
+
+- Cada perfil guarda até **100 avisos** (os mais antigos saem); a lista devolve os 50 mais recentes e o total de **não lidos**.
+- Avisos iguais ainda não lidos (mesmo título e mesma tela, ex.: 3 mensagens na mesma conversa) viram **um só**, com o texto do mais recente e a contagem em `count`.
+- `POST .../notifications/read` marca como lidos (sem `ids`, todos). O sino acompanha por SSE (`.../notifications/events`, `event: notifications`).
+- Ao remover um perfil, o histórico dele sai junto. Em memória, como o resto (`NotificationRepository`).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/farmers/:id/notifications` e `/api/workers/:id/notifications` | `{ unread, items: [{ id, title, body, url, count, read, insertion_date }] }`, os mais recentes primeiro |
+| POST | `/api/farmers/:id/notifications/read` e `/api/workers/:id/notifications/read` | `{ ids? }`: marca como lidos (ids de outro perfil são ignorados) → `{ message, unread }` |
+| GET | `/api/farmers/:id/notifications/events` e `/api/workers/:id/notifications/events` | SSE `event: notifications`: chegou aviso novo ou algum foi lido |
+
+### Avisos por WhatsApp
+
+Quem liga **Avisos no WhatsApp** (`whatsapp_alerts` nas preferências da conta, desligado por padrão) recebe no celular os avisos que não podem passar despercebidos; hoje, **candidatura aceita**, com o link da tela no app (`APP_URL`). Só sai para celular com DDD (o número vira `55` + DDD + número; telefone fixo é ignorado) e só com a integração configurada (`WHATSAPP_*` no `.env`, Evolution API v2). O `PushDispatcher` cuida das três frentes (central, push e WhatsApp) em segundo plano: uma falha em qualquer uma só vai para o log.
 
 ### Notificações push
 

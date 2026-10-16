@@ -31,8 +31,11 @@ import type {
   FarmerServiceItem,
   FarmerSignupResponse,
   LoginResponse,
+  NotificationsPage,
+  NotificationsReadResponse,
   MapsConfig,
   PushConfig,
+  WhatsAppConfig,
   OpenService,
   PasswordResetRequestResponse,
   PaymentResponse,
@@ -287,6 +290,17 @@ async function run(): Promise<void> {
   await step<ApplicationWithService[]>('outra candidatura foi recusada', 'GET', `/workers/${worker2.id}/applications`, undefined, 200,
     (b) => assert.equal(b[0]?.status, 'Rejected'));
   actAs(bruno);
+  await container.notifier.idle(); // os avisos são guardados em segundo plano
+  const { items: inbox } = await step<NotificationsPage>('central de notificações do aceito', 'GET', `/workers/${worker.id}/notifications`, undefined, 200, (b) => {
+    assert.equal(b.items[0]?.title, 'Você foi aceito!');
+    assert.ok(b.unread >= 1);
+  });
+  await step<NotificationsReadResponse>('marcar um aviso como lido', 'POST', `/workers/${worker.id}/notifications/read`, { ids: [inbox[0]?.id] }, 200,
+    (b) => assert.equal(typeof b.unread, 'number'));
+  await step<NotificationsReadResponse>('marcar todos como lidos', 'POST', `/workers/${worker.id}/notifications/read`, {}, 200,
+    (b) => assert.equal(b.unread, 0));
+  await step('ids inválidos', 'POST', `/workers/${worker.id}/notifications/read`, { ids: ['x'] }, 400);
+  await step('avisos de outro trabalhador', 'GET', `/workers/${worker2.id}/notifications`, undefined, 403);
   await step<OpenService[]>('serviços do trabalhador com o ponto no mapa', 'GET', `/workers/${worker.id}/services`, undefined, 200, (b) => {
     assert.equal(b[0]?.id, service.id);
     assert.deepEqual([b[0].farm.latitude, b[0].farm.longitude], [-22.1165, -43.2092]);
@@ -423,9 +437,9 @@ async function run(): Promise<void> {
   await step('desativar push', 'DELETE', `${accountUrl}/push-subscriptions`, { endpoint: pushSub.endpoint }, 200);
   await step('desativar push sem endpoint', 'DELETE', `${accountUrl}/push-subscriptions`, {}, 400);
   await step<AccountPreferences>('preferências padrão', 'GET', `${accountUrl}/preferences`, undefined, 200,
-    (b) => assert.deepEqual(b, { theme: 'light', text_size: 'normal', high_contrast: false }));
+    (b) => assert.deepEqual(b, { theme: 'light', text_size: 'normal', high_contrast: false, whatsapp_alerts: false }));
   await step<PreferencesResponse>('tema escuro e letras maiores', 'PATCH', `${accountUrl}/preferences`, { theme: 'dark', text_size: 'large' }, 200,
-    (b) => assert.deepEqual(b.preferences, { theme: 'dark', text_size: 'large', high_contrast: false }));
+    (b) => assert.deepEqual(b.preferences, { theme: 'dark', text_size: 'large', high_contrast: false, whatsapp_alerts: false }));
   await step('preferência sem campos', 'PATCH', `${accountUrl}/preferences`, {}, 400);
   await step('tema inválido', 'PATCH', `${accountUrl}/preferences`, { theme: 'azul' }, 400);
   await step('preferências de outra pessoa', 'GET', `/accounts/${workerSession.account_id}/preferences`, undefined, 403);
@@ -887,6 +901,8 @@ async function run(): Promise<void> {
   process.env['VAPID_PRIVATE_KEY'] = 'chave-privada';
   await step<PushConfig>('configuração do push', 'GET', '/config/push', undefined, 200,
     (b) => assert.equal(b.public_key, 'chave-publica'));
+  await step<WhatsAppConfig>('WhatsApp desligado sem as variáveis WHATSAPP_*', 'GET', '/config/whatsapp', undefined, 200,
+    (b) => assert.equal(b.enabled, false));
   if (savedVapid[0] === undefined) delete process.env['VAPID_PUBLIC_KEY'];
   else process.env['VAPID_PUBLIC_KEY'] = savedVapid[0];
   if (savedVapid[1] === undefined) delete process.env['VAPID_PRIVATE_KEY'];

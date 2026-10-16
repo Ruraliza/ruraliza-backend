@@ -26,7 +26,7 @@ describe('GetPreferencesUseCase / UpdatePreferencesUseCase', () => {
     await update.execute({ accountId: account.id, changes: { theme: 'dark' } });
     const saved = unwrap(await update.execute({ accountId: account.id, changes: { text_size: 'large', high_contrast: true } }));
 
-    assert.deepEqual(saved, { theme: 'dark', text_size: 'large', high_contrast: true });
+    assert.deepEqual(saved, { theme: 'dark', text_size: 'large', high_contrast: true, whatsapp_alerts: false });
     assert.deepEqual((await t.accounts.findById(account.id))?.preferences, saved);
   });
 

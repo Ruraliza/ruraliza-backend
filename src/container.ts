@@ -6,13 +6,25 @@ import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
-import { type PushDispatcher, type PushSender, type PushUseCases, WebPushSender, createPushDispatcher, createPushUseCases } from '#modules/notifications';
+import {
+  DISABLED_WHATSAPP,
+  EvolutionWhatsAppSender,
+  type NotificationUseCases,
+  type PushDispatcher,
+  type PushSender,
+  type PushUseCases,
+  WebPushSender,
+  type WhatsAppSender,
+  createNotificationUseCases,
+  createPushDispatcher,
+  createPushUseCases
+} from '#modules/notifications';
 import { type ReviewUseCases, createReviewUseCases } from '#modules/reviews';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
 import { type CertificateCodes, type TrackUseCases, createTrackUseCases, randomCertificateCodes } from '#modules/tracks';
 import { type WorkerUseCases, createWorkerUseCases } from '#modules/workers';
-import { authTokenSecret } from '#shared/config';
+import { authTokenSecret, whatsAppSettings } from '#shared/config';
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Clock, systemClock } from '#shared/domain/clock';
 import type { DocumentStore } from '#shared/domain/documents';
@@ -34,7 +46,9 @@ import { createInMemoryRepositories } from './repositories';
 // para os currículos em PDF, outro `documents` (ver src/domain/documents.ts).
 // As senhas usam scrypt (`passwords`); os testes podem passar um hasher mais rápido.
 // Os avisos de mudança para as telas abertas (`changes`, por SSE) ficam em memória;
-// as notificações push saem pelo `push` (Web Push com as chaves VAPID do .env; os testes passam um falso).
+// as notificações push saem pelo `push` (Web Push com as chaves VAPID do .env; os testes passam um falso),
+// ficam guardadas na central de notificações de cada perfil e, para quem pediu, saem também no WhatsApp
+// (`whatsapp`: Evolution API, ligada pelas variáveis WHATSAPP_* do .env; sem elas, desligada).
 // Os tokens de sessão (`tokens`) são assinados com AUTH_TOKEN_SECRET; os códigos dos certificados
 // (`certificateCodes`) são aleatórios, e os testes podem passar um gerador previsível.
 
@@ -50,6 +64,7 @@ export interface UseCases {
   chat: ChatUseCases;
   photos: PhotoUseCases;
   push: PushUseCases;
+  notifications: NotificationUseCases;
   systemUsers: SystemUserUseCases;
   admin: AdminUseCases;
   tracks: TrackUseCases;
@@ -78,6 +93,7 @@ export interface ContainerOptions {
   clock?: Clock;
   changes?: ChangeFeed;
   push?: PushSender;
+  whatsapp?: WhatsAppSender;
   tokens?: SessionTokens;
   certificateCodes?: CertificateCodes;
 }
@@ -92,16 +108,30 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const clock = options.clock ?? systemClock;
   const changes = options.changes ?? new InMemoryChangeFeed();
   const tokens = options.tokens ?? createHmacSessionTokens(authTokenSecret(), clock);
-  const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, systemUsers, workerReviews, farmReviews, chats, chatMessages, tracks, enrollments, certificates } = repos;
-  const pushDeps = { accounts, pushSubscriptions, clock, sender: options.push ?? new WebPushSender() };
+  const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, notifications, systemUsers, workerReviews, farmReviews, chats, chatMessages, tracks, enrollments, certificates } = repos;
+  const whatsAppConfig = whatsAppSettings();
+  const whatsapp = options.whatsapp ?? (whatsAppConfig ? new EvolutionWhatsAppSender(whatsAppConfig) : DISABLED_WHATSAPP);
+  // Telefone do perfil para o WhatsApp (o módulo de notificações não conhece produtores e trabalhadores).
+  const phoneOf = async (role: 'farmer' | 'worker', profileId: number): Promise<string | null> =>
+    (await (role === 'farmer' ? farmers.findById(profileId) : workers.findById(profileId)))?.phone ?? null;
+  const pushDeps = { accounts, pushSubscriptions, notifications, changes, clock, sender: options.push ?? new WebPushSender(), whatsapp, phoneOf };
+  const notificationUseCases = createNotificationUseCases({ notifications, changes });
   const notifier = createPushDispatcher(pushDeps);
   // Avaliações e conversas vêm antes: a contratação e as vagas leem a reputação, a contratação abre
   // e fecha a conversa, e a remoção de um perfil apaga as conversas e as avaliações dele.
   const reviewUseCases = createReviewUseCases({ services, payments, farms, workers, workerReviews, farmReviews, clock, changes, push: notifier });
   const chatUseCases = createChatUseCases({ chats, chatMessages, services, farmers, workers, clock, changes, push: notifier });
   const cleanup: ProfileCleanup = {
-    farmerRemoved: async (id) => { await chatUseCases.cleanup.farmerRemoved(id); await reviewUseCases.cleanup.farmerRemoved(id); },
-    workerRemoved: async (id) => { await chatUseCases.cleanup.workerRemoved(id); await reviewUseCases.cleanup.workerRemoved(id); }
+    farmerRemoved: async (id) => {
+      await chatUseCases.cleanup.farmerRemoved(id);
+      await reviewUseCases.cleanup.farmerRemoved(id);
+      await notificationUseCases.removeFor('farmer', id);
+    },
+    workerRemoved: async (id) => {
+      await chatUseCases.cleanup.workerRemoved(id);
+      await reviewUseCases.cleanup.workerRemoved(id);
+      await notificationUseCases.removeFor('worker', id);
+    }
   };
   const reputation = reviewUseCases.getReputation;
   const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes, cleanup });
@@ -134,6 +164,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       chat: chatUseCases,
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
       push: createPushUseCases(pushDeps),
+      notifications: notificationUseCases,
       systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),
       admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases }),
       tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })

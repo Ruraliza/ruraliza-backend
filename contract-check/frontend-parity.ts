@@ -6,6 +6,7 @@ import type * as FrontAuth from '../../ruraliza-frontend/src/app/core/models/aut
 import type * as FrontConfig from '../../ruraliza-frontend/src/app/core/models/config.model';
 import type * as FrontFarm from '../../ruraliza-frontend/src/app/core/models/farm.model';
 import type * as FrontFarmer from '../../ruraliza-frontend/src/app/core/models/farmer.model';
+import type * as FrontNotification from '../../ruraliza-frontend/src/app/core/models/notification.model';
 import type * as FrontPayment from '../../ruraliza-frontend/src/app/core/models/payment.model';
 import type * as FrontPush from '../../ruraliza-frontend/src/app/core/models/push.model';
 import type * as FrontReview from '../../ruraliza-frontend/src/app/core/models/review.model';
@@ -32,6 +33,12 @@ export type ContractParity = [
   Expect<Equals<Api.PushSubscriptionInput, FrontPush.PushSubscriptionInput>>,
   Expect<Equals<Api.PushUnsubscribeInput, FrontPush.PushUnsubscribeInput>>,
   Expect<Equals<Api.PushConfig, FrontPush.PushConfig>>,
+  Expect<Equals<Api.WhatsAppConfig, FrontPush.WhatsAppConfig>>,
+
+  Expect<Equals<Api.AppNotification, FrontNotification.AppNotification>>,
+  Expect<Equals<Api.NotificationsPage, FrontNotification.NotificationsPage>>,
+  Expect<Equals<Api.NotificationsReadInput, FrontNotification.NotificationsReadInput>>,
+  Expect<Equals<Api.NotificationsReadResponse, FrontNotification.NotificationsReadResponse>>,
 
   Expect<Equals<Api.UserRole, FrontAuth.UserRole>>,
   Expect<Equals<Api.SessionUser, FrontAuth.SessionUser>>,

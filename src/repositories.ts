@@ -7,8 +7,8 @@ import { createInMemoryFarmRepository } from '#modules/farms';
 import type { FarmRepository } from '#modules/farms';
 import { createInMemoryApplicationRepository, createInMemoryPaymentRepository } from '#modules/hiring';
 import type { ApplicationRepository, PaymentRepository } from '#modules/hiring';
-import { createInMemoryPushSubscriptionRepository } from '#modules/notifications';
-import type { PushSubscriptionRepository } from '#modules/notifications';
+import { createInMemoryNotificationRepository, createInMemoryPushSubscriptionRepository } from '#modules/notifications';
+import type { NotificationRepository, PushSubscriptionRepository } from '#modules/notifications';
 import { type FarmReviewRepository, type WorkerReviewRepository, createInMemoryFarmReviewRepository, createInMemoryWorkerReviewRepository } from '#modules/reviews';
 import { createInMemoryServiceRepository } from '#modules/services';
 import type { ServiceRepository } from '#modules/services';
@@ -36,6 +36,7 @@ export interface Repositories {
   payments: PaymentRepository;
   accounts: AccountRepository;
   pushSubscriptions: PushSubscriptionRepository;
+  notifications: NotificationRepository;
   systemUsers: SystemUserRepository;
   workerReviews: WorkerReviewRepository;
   farmReviews: FarmReviewRepository;
@@ -57,6 +58,7 @@ export function createInMemoryRepositories(): Repositories {
     payments: createInMemoryPaymentRepository(),
     accounts: createInMemoryAccountRepository(),
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
+    notifications: createInMemoryNotificationRepository(),
     systemUsers: createInMemorySystemUserRepository(),
     workerReviews: createInMemoryWorkerReviewRepository(),
     farmReviews: createInMemoryFarmReviewRepository(),
