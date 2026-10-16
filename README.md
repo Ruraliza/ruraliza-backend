@@ -338,6 +338,10 @@ Com os avisos ligados, quem combina com uma vaga nova (pela categoria escolhida 
 | GET / PUT | `/api/workers/:id/job-preferences` | `{ categories, near: { latitude, longitude, radius_km } \| null, alerts }`; o PUT troca tudo (raio de 5 a 300 km) |
 | GET | `/api/workers/:id/recommended-jobs?limit=` | As vagas que combinam (1 a 30; padrão 10), da que mais combina para a que menos |
 
+### Painel da fazenda
+
+`GET /api/farmers/:id/stats` traz os números do produtor, em todas as fazendas dele: horas e serviços concluídos (com o pagamento liberado, que é quando o trabalho fica validado no app), quanto foi pago, quantas pessoas já trabalharam com ele e quantas voltaram, a nota média das fazendas (pesada pela quantidade de avaliações de cada uma), as vagas abertas e as candidaturas esperando resposta, os últimos 6 meses (meses sem serviço vêm zerados), as categorias e a lista de quem já passou por lá (até 20, o mais recente primeiro).
+
 ### Central de ajuda
 
 Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (25, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).

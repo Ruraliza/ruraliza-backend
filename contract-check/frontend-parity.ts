@@ -5,6 +5,7 @@ import type * as Api from '../src/contracts';
 import type * as FrontAuth from '../../ruraliza-frontend/src/app/core/models/auth.model';
 import type * as FrontConfig from '../../ruraliza-frontend/src/app/core/models/config.model';
 import type * as FrontFarm from '../../ruraliza-frontend/src/app/core/models/farm.model';
+import type * as FrontFarmStats from '../../ruraliza-frontend/src/app/core/models/farm-stats.model';
 import type * as FrontFarmer from '../../ruraliza-frontend/src/app/core/models/farmer.model';
 import type * as FrontHelp from '../../ruraliza-frontend/src/app/core/models/help.model';
 import type * as FrontMatching from '../../ruraliza-frontend/src/app/core/models/matching.model';
@@ -102,6 +103,12 @@ export type ContractParity = [
   Expect<Equals<Api.JobPreferences, FrontMatching.JobPreferences>>,
   Expect<Equals<Api.JobPreferencesResponse, FrontMatching.JobPreferencesResponse>>,
   Expect<Equals<Api.RecommendedJob, FrontMatching.RecommendedJob>>,
+
+  Expect<Equals<Api.FarmerStatsRating, FrontFarmStats.FarmerStatsRating>>,
+  Expect<Equals<Api.FarmerStatsMonth, FrontFarmStats.FarmerStatsMonth>>,
+  Expect<Equals<Api.FarmerStatsCategory, FrontFarmStats.FarmerStatsCategory>>,
+  Expect<Equals<Api.FarmerStatsPerson, FrontFarmStats.FarmerStatsPerson>>,
+  Expect<Equals<Api.FarmerStats, FrontFarmStats.FarmerStats>>,
 
   Expect<Equals<Api.Farmer, FrontFarmer.Farmer>>,
   Expect<Equals<Api.FarmerInput, FrontFarmer.FarmerInput>>,

@@ -4,6 +4,7 @@ import { type AuthSchemaName, authSchemas } from '#modules/auth';
 import { type ChatSchemaName, chatSchemas } from '#modules/chat';
 import { type FarmerSchemaName, farmerSchemas } from '#modules/farmers';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
+import { type FarmStatsSchemaName, farmStatsSchemas } from '#modules/farm-stats';
 import { type HelpSchemaName, helpSchemas } from '#modules/help';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
 import { type MatchingSchemaName, matchingSchemas } from '#modules/matching';
@@ -42,7 +43,8 @@ export type SchemaName =
   | HelpSchemaName
   | ReportSchemaName
   | VerificationSchemaName
-  | MatchingSchemaName;
+  | MatchingSchemaName
+  | FarmStatsSchemaName;
 
 export const schemas = {
   ...coreSchemas,
@@ -64,5 +66,6 @@ export const schemas = {
   ...helpSchemas,
   ...reportSchemas,
   ...verificationSchemas,
-  ...matchingSchemas
+  ...matchingSchemas,
+  ...farmStatsSchemas
 } satisfies Record<SchemaName, Schema>;

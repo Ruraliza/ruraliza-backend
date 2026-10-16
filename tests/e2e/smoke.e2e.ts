@@ -60,6 +60,7 @@ import type {
   JobPreferences,
   JobPreferencesResponse,
   RecommendedJob,
+  FarmerStats,
   WorkerResponse,
   WorkerSignupResponse,
   Certificate,
@@ -333,6 +334,14 @@ async function run(): Promise<void> {
   });
   await step<FarmerServiceItem[]>('filtrar concluídos', 'GET', `/farmers/${farmer.id}/services?status=Completed`, undefined, 200,
     (b) => assert.equal(b.length, 1));
+  await step<FarmerStats>('painel da fazenda: horas, pagamento e quem passou por aqui', 'GET', `/farmers/${farmer.id}/stats`, undefined, 200, (b) => {
+    assert.deepEqual([b.services_completed, b.hours_completed, b.total_paid, b.people_count], [1, 16, 900, 1]);
+    assert.equal(b.people[0]?.name, 'Bruno Tratorista');
+    assert.equal(b.months.at(-1)?.hours, 16);
+  });
+  actAs(carla);
+  await step('painel de outro perfil', 'GET', `/farmers/${farmer.id}/stats`, undefined, 403);
+  actAs(ana);
 
   console.log('\nCasos de erro');
   await step('CPF inválido', 'POST', '/farmers', { name: 'X', email: 'x@exemplo.com', phone: '1', cpf: '12345678900', password: PW, accept_terms: true }, 400);

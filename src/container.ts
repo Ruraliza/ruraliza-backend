@@ -4,6 +4,7 @@ import { type ChatUseCases, createChatUseCases } from '#modules/chat';
 import { type AuthUseCases, createAuthUseCases } from '#modules/auth';
 import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
+import { type FarmStatsUseCases, createFarmStatsUseCases } from '#modules/farm-stats';
 import { type HelpUseCases, createHelpUseCases } from '#modules/help';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type MatchingUseCases, createMatchingUseCases } from '#modules/matching';
@@ -78,6 +79,7 @@ export interface UseCases {
   reports: ReportUseCases;
   verification: VerificationUseCases;
   matching: MatchingUseCases;
+  farmStats: FarmStatsUseCases;
 }
 
 export interface Container {
@@ -198,6 +200,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       help: createHelpUseCases({ helpArticles: repos.helpArticles, clock }),
       verification: verificationUseCases,
       matching: matchingUseCases,
+      farmStats: createFarmStatsUseCases({ farmers, farms, services, payments, applications, workers, reputation, clock }),
       reports: createReportUseCases({ reports: repos.reports, farmers, workers, services, applications, accounts, clock, push: notifier }),
       tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })
     }

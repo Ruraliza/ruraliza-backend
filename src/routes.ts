@@ -4,6 +4,7 @@ import { createChatRoutes } from '#modules/chat';
 import { createAccess, createAuthRoutes } from '#modules/auth';
 import { createFarmerRoutes } from '#modules/farmers';
 import { createFarmRoutes } from '#modules/farms';
+import { createFarmStatsRoutes } from '#modules/farm-stats';
 import { createHelpRoutes } from '#modules/help';
 import { createHiringRoutes } from '#modules/hiring';
 import { createLiveRoutes } from '#modules/live';
@@ -44,6 +45,7 @@ export function createRouteGroups({ useCases, repos, tokens, changes }: Pick<Con
   const verification = createVerificationRoutes(useCases.verification, access);
   const live = createLiveRoutes(changes, access);
   const matching = createMatchingRoutes(useCases.matching, access);
+  const farmStats = createFarmStatsRoutes(useCases.farmStats, access);
 
   return [
     { prefix: '/api/auth', routes: [...auth.auth, ...systemUsers.auth] },
@@ -56,6 +58,7 @@ export function createRouteGroups({ useCases, repos, tokens, changes }: Pick<Con
         ...reviews.farmer, // avaliar o trabalhador e o que falta avaliar
         ...chat.farmer, // conversas do produtor
         ...live.farmer, // avisos em tempo real: um stream só por aba
+        ...farmStats, // painel da fazenda
         ...notifications.farmer, // central de notificações
         ...reports.farmer, // denunciar um trabalhador
         ...verification.farmer, // verificação de identidade
