@@ -1,15 +1,17 @@
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { SessionResponse, SessionUser } from '../accounts.contract';
+import type { AccountPreferences, PreferencesResponse, SessionResponse, SessionUser } from '../accounts.contract';
 import type { AccountUseCases } from '../accounts.module';
-import { parseActiveRole, parseProfileCreate } from './account.parsers';
+import { parseActiveRole, parsePreferencesUpdate, parseProfileCreate } from './account.parsers';
 
-// HTTP da conta: sessão atual, segundo perfil e troca de painel. As inscrições de push ficam em src/modules/notifications.
+// HTTP da conta: sessão atual, segundo perfil, troca de painel e preferências de exibição. As inscrições de push ficam em src/modules/notifications.
 export interface AccountController {
   getAccount: Handler<SessionUser, IdParams>;
   createAccountProfile: Handler<SessionResponse, IdParams>;
   setActiveRole: Handler<SessionResponse, IdParams>;
+  getPreferences: Handler<AccountPreferences, IdParams>;
+  updatePreferences: Handler<PreferencesResponse, IdParams>;
 }
 
 export function createAccountController(accounts: AccountUseCases): AccountController {
@@ -40,5 +42,22 @@ export function createAccountController(accounts: AccountUseCases): AccountContr
     res.status(200).json({ message: 'Active profile changed successfully!', user: result.value });
   };
 
-  return { getAccount, createAccountProfile, setActiveRole };
+  // GET /api/accounts/:id/preferences - Tema, tamanho do texto e contraste
+  const getPreferences: Handler<AccountPreferences, IdParams> = async (req, res) => {
+    const result = await accounts.getPreferences.execute({ accountId: toId(req.params.id) });
+    if (!result.ok) { sendFailure(res, result); return; }
+    res.status(200).json(result.value);
+  };
+
+  // PATCH /api/accounts/:id/preferences - Muda só as preferências enviadas
+  const updatePreferences: Handler<PreferencesResponse, IdParams> = async (req, res) => {
+    const changes = parsePreferencesUpdate(toBody(req.body));
+    if (!changes.ok) { sendFailure(res, changes); return; }
+
+    const result = await accounts.updatePreferences.execute({ accountId: toId(req.params.id), changes: changes.value });
+    if (!result.ok) { sendFailure(res, result); return; }
+    res.status(200).json({ message: 'Preferences saved successfully!', preferences: result.value });
+  };
+
+  return { getAccount, createAccountProfile, setActiveRole, getPreferences, updatePreferences };
 }

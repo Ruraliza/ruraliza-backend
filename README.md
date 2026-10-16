@@ -147,6 +147,7 @@ Regras de fronteira:
 | Currículos dos trabalhadores (PDF) | `Map` em memória de id para bytes do PDF | `InMemoryDocumentStore` (`src/shared/infra/documents/in-memory-document-store.ts`) |
 | Avaliações (produtor → trabalhador e trabalhador → fazenda) | Um array por lado, com o prazo e se já foi publicada | `InMemoryRepository` (`src/modules/reviews/infra/`) |
 | Conversas e mensagens | Um array de conversas e um de mensagens | `InMemoryRepository` (`src/modules/chat/infra/`) |
+| Preferências de exibição (tema, letras maiores, alto contraste) | Campo `preferences` da conta, opcional (ausente = padrões) | `InMemoryRepository` de `Account` |
 
 - Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
 - As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
@@ -209,6 +210,8 @@ Rotas públicas: login e redefinição de senha, cadastro (`POST /api/farmers` e
 | GET | `/api/accounts/:id` | Sessão da conta (`user`), no mesmo formato do login |
 | POST | `/api/accounts/:id/profiles` | Cria o outro perfil na conta: `{ role, name, phone, cpf }` (+ `bio`, `certificates`, `courses`, `experience` para trabalhador). E-mail e senha são os da conta. Já abre o painel novo. 409 se a conta já tem esse perfil ou se o CPF é de outra conta |
 | PATCH | `/api/accounts/:id/active-role` | `{ role }`: troca o painel aberto (e o que abre no próximo login); 404 se a conta não tem esse perfil |
+| GET | `/api/accounts/:id/preferences` | Preferências de exibição da conta: `{ theme: 'light' \| 'dark' \| 'system', text_size: 'normal' \| 'large', high_contrast }`. Padrão: tema claro, texto normal, sem alto contraste. Valem nos dois painéis e em qualquer aparelho |
+| PATCH | `/api/accounts/:id/preferences` | Muda só os campos enviados (ao menos um); 400 se nenhum vier ou se algum valor for inválido |
 | POST | `/api/accounts/:id/push-subscriptions` | `{ endpoint, keys: { p256dh, auth } }` (o `PushSubscription.toJSON()` do navegador): ativa as notificações push neste navegador, para os dois perfis da conta. Reenviar a mesma inscrição não duplica |
 | DELETE | `/api/accounts/:id/push-subscriptions` | `{ endpoint }`: desativa as notificações neste navegador |
 

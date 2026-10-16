@@ -9,6 +9,7 @@ import sharp from 'sharp';
 import { createApi } from '../../app';
 import { createContainer } from '../../src/container';
 import type {
+  AccountPreferences,
   ApplicationResponse,
   ApplicationWithService,
   ApplicationWithWorker,
@@ -35,6 +36,7 @@ import type {
   OpenService,
   PasswordResetRequestResponse,
   PaymentResponse,
+  PreferencesResponse,
   ServiceResponse,
   ServiceWithFarm,
   SessionResponse,
@@ -420,6 +422,13 @@ async function run(): Promise<void> {
   await step('push em conta de outra pessoa', 'POST', `/accounts/${workerSession.account_id}/push-subscriptions`, pushSub, 403);
   await step('desativar push', 'DELETE', `${accountUrl}/push-subscriptions`, { endpoint: pushSub.endpoint }, 200);
   await step('desativar push sem endpoint', 'DELETE', `${accountUrl}/push-subscriptions`, {}, 400);
+  await step<AccountPreferences>('preferências padrão', 'GET', `${accountUrl}/preferences`, undefined, 200,
+    (b) => assert.deepEqual(b, { theme: 'light', text_size: 'normal', high_contrast: false }));
+  await step<PreferencesResponse>('tema escuro e letras maiores', 'PATCH', `${accountUrl}/preferences`, { theme: 'dark', text_size: 'large' }, 200,
+    (b) => assert.deepEqual(b.preferences, { theme: 'dark', text_size: 'large', high_contrast: false }));
+  await step('preferência sem campos', 'PATCH', `${accountUrl}/preferences`, {}, 400);
+  await step('tema inválido', 'PATCH', `${accountUrl}/preferences`, { theme: 'azul' }, 400);
+  await step('preferências de outra pessoa', 'GET', `/accounts/${workerSession.account_id}/preferences`, undefined, 403);
   await step('painel que a conta não tem', 'PATCH', `${accountUrl}/active-role`, { role: 'worker' }, 404);
   await step('perfil novo com e-mail', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725', email: 'x@exemplo.com' }, 400);
   await step('perfil novo com CPF de outra conta', 'POST', `${accountUrl}/profiles`, { role: 'worker', name: 'Ana', phone: '1', cpf: '98765432100' }, 409);
