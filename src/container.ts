@@ -20,6 +20,7 @@ import {
   createPushDispatcher,
   createPushUseCases
 } from '#modules/notifications';
+import { type ReportUseCases, createReportUseCases } from '#modules/reports';
 import { type ReviewUseCases, createReviewUseCases } from '#modules/reviews';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
@@ -70,6 +71,7 @@ export interface UseCases {
   admin: AdminUseCases;
   tracks: TrackUseCases;
   help: HelpUseCases;
+  reports: ReportUseCases;
 }
 
 export interface Container {
@@ -170,6 +172,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),
       admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases }),
       help: createHelpUseCases({ helpArticles: repos.helpArticles, clock }),
+      reports: createReportUseCases({ reports: repos.reports, farmers, workers, services, applications, accounts, clock, push: notifier }),
       tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })
     }
   };

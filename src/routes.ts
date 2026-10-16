@@ -9,6 +9,7 @@ import { createHiringRoutes } from '#modules/hiring';
 import { createPhotoRoutes } from '#modules/media';
 import { createNotificationRoutes, createPushRoutes } from '#modules/notifications';
 import { platformRoutes } from '#modules/platform';
+import { createReportRoutes } from '#modules/reports';
 import { createReviewRoutes } from '#modules/reviews';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
 import { createSystemUserRoutes } from '#modules/system-users';
@@ -36,6 +37,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
   const chat = createChatRoutes(useCases.chat, access);
   const tracks = createTrackRoutes(useCases.tracks, access);
   const help = createHelpRoutes(useCases.help, access);
+  const reports = createReportRoutes(useCases.reports, access);
 
   return [
     { prefix: '/api/auth', routes: [...auth.auth, ...systemUsers.auth] },
@@ -48,6 +50,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
         ...reviews.farmer, // avaliar o trabalhador e o que falta avaliar
         ...chat.farmer, // conversas do produtor
         ...notifications.farmer, // central de notificações
+        ...reports.farmer, // denunciar um trabalhador
         ...farmers, // cadastro e perfil
         ...auth.farmerPassword,
         ...photos.farmer,
@@ -65,6 +68,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
         ...reviews.worker, // avaliar a fazenda e o que falta avaliar
         ...chat.worker, // conversas do trabalhador
         ...notifications.worker, // central de notificações
+        ...reports.worker, // denunciar uma vaga ou um produtor
         ...workers.profile, // cadastro e perfil
         ...auth.workerPassword,
         ...photos.worker,
@@ -75,7 +79,7 @@ export function createRouteGroups({ useCases, repos, tokens }: Pick<Container, '
     },
     { prefix: '/api/chats', routes: chat.chats },
     { prefix: '/api/reviews', routes: reviews.reputation },
-    { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage, ...help.admin] },
+    { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage, ...help.admin, ...reports.admin] },
     { prefix: '/api/help', routes: help.public },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },

@@ -159,4 +159,15 @@ export async function seedHistory(repos: Repositories, now: string, passwords: P
     { role: 'worker', profile_id: mariaId, title: 'Você foi aceito!', body: `O produtor aceitou sua candidatura em ${curral.name}.`, url: 'trabalhador/candidaturas', count: 1, read: true, insertion_date: shift(-5) }
   ] as const;
   for (const notice of notices) await repos.notifications.create(notice);
+
+  // Duas denúncias em análise, para a fila de moderação da equipe (/sistema/moderacao).
+  const report = { status: 'open', resolution_note: null, reviewed_at: null } as const;
+  await repos.reports.create({
+    ...report, reporter_role: 'worker', reporter_id: carlosWorkerId, target_type: 'service', target_id: 1, reason: 'condicoes',
+    details: 'A vaga não diz se a fazenda fornece EPI para a colheita.', insertion_date: hoursAgo(5)
+  });
+  await repos.reports.create({
+    ...report, reporter_role: 'farmer', reporter_id: farmerId, target_type: 'worker', target_id: pedro.id, reason: 'outro',
+    details: 'Pediu para receber adiantado, por fora do app.', insertion_date: hoursAgo(3)
+  });
 }

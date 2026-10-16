@@ -300,9 +300,22 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 
 Títulos e descrições de vagas (publicar e editar) e os textos do perfil do trabalhador (apresentação, experiência, certificados e cursos) são recusados com **400** quando têm palavrão ou ofensa: "Há palavras não permitidas no nome do serviço. Reescreva sem palavrões nem ofensas." A lista (`src/shared/domain/moderation.ts`) pega acento, maiúscula, letra repetida e número no lugar da letra (`p0rr4`), só com a palavra inteira (`curral` passa), e deixa de fora de propósito palavras com sentido comum no campo (`bosta` de vaca, `Cu` de cobre, `pica-pau`, `macaco` hidráulico, milho `crioulo`...). O frontend usa a mesma lista para avisar antes de enviar, e o `npm run check:contracts` confere que as duas são iguais.
 
+### Denúncias
+
+Quem usa o app avisa a equipe sobre vaga falsa, condições ruins de trabalho, mau comportamento ou conteúdo ofensivo. O trabalhador denuncia uma vaga (qualquer uma, mesmo sem candidatura: a vaga falsa aparece antes do contato) ou um produtor a cuja vaga se candidatou; o produtor denuncia um trabalhador que se candidatou a um serviço dele. Ninguém denuncia a si mesmo (nem o outro perfil da conta), e a mesma pessoa não denuncia o mesmo alvo de novo enquanto a equipe analisa (409). O relato (`details`, até 500 caracteres, obrigatório no motivo `outro`) **não** passa pelo filtro de palavrões, para quem denuncia uma ofensa poder contar o que ouviu; só a equipe lê, e quem foi denunciado não fica sabendo quem denunciou.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/api/workers/:id/reports` | `{ target_type: 'service' \| 'farmer', target_id, reason, details? }`; 403 se denunciar um produtor sem ter se candidatado a uma vaga dele |
+| POST | `/api/farmers/:id/reports` | `{ target_type: 'worker', target_id, reason, details? }`; 403 se o trabalhador não se candidatou a um serviço do produtor |
+| GET | `/api/admin/reports?status=` | (`moderation:manage`) A fila, a mais recente primeiro, com os nomes e as contas de quem denunciou e do alvo (no caso de uma vaga, a conta da produtora), para abrir em `/api/admin/users/:id` |
+| PATCH | `/api/admin/reports/:id` | `{ status: 'resolved' \| 'dismissed', note? }`: procedente ou descartada, com uma anotação interna. Quem denunciou recebe uma notificação com o resultado (sem a anotação); 409 se já foi decidida |
+
+Motivos (`reason`): `fraude` (vaga falsa ou golpe), `condicoes` (condições de trabalho ruins ou perigosas), `comportamento` (assédio, ameaça, não cumpriu o combinado), `ofensivo` e `outro`. A decisão só registra o resultado: remover a conta ou editar o perfil é feito na administração de usuários.
+
 ### Central de ajuda
 
-Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (20, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
+Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (23, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
 
 | Método | Rota | Descrição |
 |---|---|---|

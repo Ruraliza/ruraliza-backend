@@ -10,6 +10,7 @@ import { createInMemoryApplicationRepository, createInMemoryPaymentRepository } 
 import type { ApplicationRepository, PaymentRepository } from '#modules/hiring';
 import { createInMemoryNotificationRepository, createInMemoryPushSubscriptionRepository } from '#modules/notifications';
 import type { NotificationRepository, PushSubscriptionRepository } from '#modules/notifications';
+import { type ReportRepository, createInMemoryReportRepository } from '#modules/reports';
 import { type FarmReviewRepository, type WorkerReviewRepository, createInMemoryFarmReviewRepository, createInMemoryWorkerReviewRepository } from '#modules/reviews';
 import { createInMemoryServiceRepository } from '#modules/services';
 import type { ServiceRepository } from '#modules/services';
@@ -47,6 +48,7 @@ export interface Repositories {
   enrollments: EnrollmentRepository;
   certificates: CertificateRepository;
   helpArticles: HelpArticleRepository;
+  reports: ReportRepository;
 }
 
 // Repositórios em memória (um conjunto novo por chamada, isolado dos outros).
@@ -69,6 +71,7 @@ export function createInMemoryRepositories(): Repositories {
     tracks: createInMemoryTrackRepository(),
     enrollments: createInMemoryEnrollmentRepository(),
     certificates: createInMemoryCertificateRepository(),
-    helpArticles: createInMemoryHelpArticleRepository()
+    helpArticles: createInMemoryHelpArticleRepository(),
+    reports: createInMemoryReportRepository()
   };
 }

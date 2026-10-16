@@ -21,3 +21,4 @@ export type * from '../modules/notifications/notification.contract';
 export type * from '../modules/platform/platform.contract';
 export type * from '../modules/tracks/track.contract';
 export type * from '../modules/help/help.contract';
+export type * from '../modules/reports/report.contract';

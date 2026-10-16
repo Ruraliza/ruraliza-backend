@@ -13,6 +13,7 @@ export {
   WORKER_APPLICATIONS_URL,
   chatUrl,
   farmerServiceUrl,
+  helpUrl,
   workerJobUrl
 } from './domain/push';
 export type { NotificationRecord, NotificationRepository } from './domain/notification';

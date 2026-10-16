@@ -8,6 +8,7 @@ import { type HelpSchemaName, helpSchemas } from '#modules/help';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
 import { type NotificationSchemaName, type PushSchemaName, notificationSchemas, pushSchemas } from '#modules/notifications';
 import { type PlatformSchemaName, platformSchemas } from '#modules/platform';
+import { type ReportSchemaName, reportSchemas } from '#modules/reports';
 import { type ReviewSchemaName, reviewSchemas } from '#modules/reviews';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
 import { type SystemUserSchemaName, systemUserSchemas } from '#modules/system-users';
@@ -36,7 +37,8 @@ export type SchemaName =
   | SystemUserSchemaName
   | AdminSchemaName
   | TrackSchemaName
-  | HelpSchemaName;
+  | HelpSchemaName
+  | ReportSchemaName;
 
 export const schemas = {
   ...coreSchemas,
@@ -55,5 +57,6 @@ export const schemas = {
   ...systemUserSchemas,
   ...adminSchemas,
   ...trackSchemas,
-  ...helpSchemas
+  ...helpSchemas,
+  ...reportSchemas
 } satisfies Record<SchemaName, Schema>;

@@ -11,6 +11,7 @@ import type * as FrontModeration from '../../ruraliza-frontend/src/app/core/mode
 import type * as FrontNotification from '../../ruraliza-frontend/src/app/core/models/notification.model';
 import type * as FrontPayment from '../../ruraliza-frontend/src/app/core/models/payment.model';
 import type * as FrontPush from '../../ruraliza-frontend/src/app/core/models/push.model';
+import type * as FrontReport from '../../ruraliza-frontend/src/app/core/models/report.model';
 import type * as FrontReview from '../../ruraliza-frontend/src/app/core/models/review.model';
 import type * as FrontChat from '../../ruraliza-frontend/src/app/core/models/chat.model';
 import type * as FrontService from '../../ruraliza-frontend/src/app/core/models/service.model';
@@ -75,6 +76,17 @@ export type ContractParity = [
   Expect<Equals<Api.HelpArticleUpdate, FrontHelp.HelpArticleUpdate>>,
   Expect<Equals<Api.HelpArticleMoveInput, FrontHelp.HelpArticleMoveInput>>,
   Expect<Equals<Api.HelpArticleResponse, FrontHelp.HelpArticleResponse>>,
+
+  Expect<Equals<Api.ReportTargetType, FrontReport.ReportTargetType>>,
+  Expect<Equals<Api.ReportReason, FrontReport.ReportReason>>,
+  Expect<Equals<Api.ReportStatus, FrontReport.ReportStatus>>,
+  Expect<Equals<Api.ReportInput, FrontReport.ReportInput>>,
+  Expect<Equals<Api.Report, FrontReport.Report>>,
+  Expect<Equals<Api.ReportResponse, FrontReport.ReportResponse>>,
+  Expect<Equals<Api.ReportParty, FrontReport.ReportParty>>,
+  Expect<Equals<Api.AdminReport, FrontReport.AdminReport>>,
+  Expect<Equals<Api.ReportReviewInput, FrontReport.ReportReviewInput>>,
+  Expect<Equals<Api.AdminReportResponse, FrontReport.AdminReportResponse>>,
 
   Expect<Equals<Api.Farmer, FrontFarmer.Farmer>>,
   Expect<Equals<Api.FarmerInput, FrontFarmer.FarmerInput>>,

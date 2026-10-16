@@ -50,6 +50,9 @@ import type {
   SystemUser,
   SystemUserResponse,
   AdminUser,
+  AdminReport,
+  AdminReportResponse,
+  ReportResponse,
   WorkerResponse,
   WorkerSignupResponse,
   Certificate,
@@ -744,7 +747,7 @@ async function run(): Promise<void> {
   passed++;
   console.log('  ok  400 POST   /farmers  — JSON inválido');
 
-  await administration({ ana, outro, carla, farmer, other, worker, worker2, farmId: farm.id });
+  await administration({ ana, outro, carla, bruno, farmer, other, worker, worker2, service, farmId: farm.id });
 
   console.log('\nConversa do serviço');
   actAs(null);
@@ -965,14 +968,16 @@ interface AdminScenario {
   ana: string; // conta com os dois perfis
   outro: string;
   carla: string;
+  bruno: string;
   farmer: Farmer;
   other: Farmer;
   worker: { id: number };
   worker2: { id: number };
+  service: { id: number }; // 'Colheita de café', a que Bruno fez
   farmId: number;
 }
 
-async function administration({ ana, outro, carla, farmer, other, worker, worker2, farmId }: AdminScenario): Promise<void> {
+async function administration({ ana, outro, carla, bruno, farmer, other, worker, worker2, service, farmId }: AdminScenario): Promise<void> {
   console.log('\nAdministração (usuários de sistema)');
   // Sem cadastro público: o primeiro administrador vem do servidor (ADMIN_EMAIL/ADMIN_PASSWORD ou seed).
   assert.equal(await container.useCases.systemUsers.ensureInitialAdmin.execute({ email: 'admin@exemplo.com', password: PW, name: 'Ana Admin' }), 'created');
@@ -1113,6 +1118,44 @@ async function administration({ ana, outro, carla, farmer, other, worker, worker
   actAs(admin);
   await step('apagar pergunta', 'DELETE', `/admin/help/${article.id}`, undefined, 200);
   await step('apagar pergunta que não existe', 'DELETE', `/admin/help/${article.id}`, undefined, 404);
+
+  console.log('\nDenúncias');
+  actAs(bruno);
+  const { report: jobReport } = await step<ReportResponse>('trabalhador denuncia uma vaga', 'POST', `/workers/${worker.id}/reports`,
+    { target_type: 'service', target_id: service.id, reason: 'fraude', details: 'Pediu um depósito antes de começar.' }, 201,
+    (b) => assert.deepEqual([b.report.status, b.report.target_type], ['open', 'service']));
+  await step('a mesma vaga de novo, em análise', 'POST', `/workers/${worker.id}/reports`, { target_type: 'service', target_id: service.id, reason: 'fraude' }, 409);
+  await step<ReportResponse>('trabalhador denuncia o produtor com quem teve contato', 'POST', `/workers/${worker.id}/reports`,
+    { target_type: 'farmer', target_id: farmer.id, reason: 'comportamento' }, 201, (b) => assert.equal(b.report.details, null));
+  await step('motivo "outro" sem relato', 'POST', `/workers/${worker.id}/reports`, { target_type: 'farmer', target_id: farmer.id, reason: 'outro', details: '  ' }, 400);
+  await step('motivo inválido', 'POST', `/workers/${worker.id}/reports`, { target_type: 'farmer', target_id: farmer.id, reason: 'chato' }, 400);
+  await step('trabalhador não denuncia trabalhador', 'POST', `/workers/${worker.id}/reports`, { target_type: 'worker', target_id: worker2.id, reason: 'ofensivo' }, 400);
+  await step('denunciar em nome de outro trabalhador', 'POST', `/workers/${worker2.id}/reports`, { target_type: 'service', target_id: service.id, reason: 'fraude' }, 403);
+  await step('vaga inexistente', 'POST', `/workers/${worker.id}/reports`, { target_type: 'service', target_id: 999, reason: 'fraude' }, 404);
+  actAs(ana);
+  await step<ReportResponse>('produtor denuncia uma candidata', 'POST', `/farmers/${farmer.id}/reports`,
+    { target_type: 'worker', target_id: worker2.id, reason: 'outro', details: 'Faltou sem avisar.' }, 201);
+  await step('conta do app não vê a fila', 'GET', '/admin/reports', undefined, 403);
+  actAs(tutor);
+  await step('tutor não vê a fila', 'GET', '/admin/reports', undefined, 403);
+  actAs(admin);
+  await step<AdminReport[]>('fila de denúncias, a mais recente primeiro', 'GET', '/admin/reports?status=open', undefined, 200, (b) => {
+    assert.deepEqual(b.map((r) => [r.reporter.name, r.target_name]), [
+      ['Ana Souza', 'Carla Diarista'], ['Bruno Tratorista', 'Ana Souza'], ['Bruno Tratorista', 'Colheita de café']
+    ]);
+    assert.equal(b[2]?.target_account_id, b[1]?.target_account_id); // a vaga leva à conta da produtora
+  });
+  await step('status inválido na fila', 'GET', '/admin/reports?status=aberta', undefined, 400);
+  await step<AdminReportResponse>('decidir denúncia (procedente)', 'PATCH', `/admin/reports/${jobReport.id}`, { status: 'resolved', note: 'Conferido com a produtora.' }, 200,
+    (b) => assert.deepEqual([b.report.status, b.report.resolution_note], ['resolved', 'Conferido com a produtora.']));
+  await step('decidir de novo', 'PATCH', `/admin/reports/${jobReport.id}`, { status: 'dismissed' }, 409);
+  await step('decisão inválida', 'PATCH', `/admin/reports/${jobReport.id}`, { status: 'open' }, 400);
+  await step('denúncia inexistente', 'PATCH', '/admin/reports/999', { status: 'dismissed' }, 404);
+  await step<AdminReport[]>('decididas saem da fila aberta', 'GET', '/admin/reports?status=open', undefined, 200, (b) => assert.equal(b.length, 2));
+  await container.notifier.idle();
+  actAs(bruno);
+  await step<NotificationsPage>('quem denunciou recebe o resultado', 'GET', `/workers/${worker.id}/notifications`, undefined, 200,
+    (b) => assert.deepEqual([b.items[0]?.title, b.items[0]?.url], ['Sua denúncia foi analisada', 'trabalhador/ajuda']));
   actAs(tutor);
 
   console.log('\nPerfil dos usuários de sistema');
