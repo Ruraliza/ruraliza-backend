@@ -39,6 +39,11 @@ export function chatUrl(role: UserRole, chatId: number): string {
   return `${role === 'farmer' ? 'produtor' : 'trabalhador'}/conversas/${chatId}`;
 }
 
+// Perfil de quem recebe (ex.: o resultado da verificação de identidade).
+export function profileUrl(role: UserRole): string {
+  return `${role === 'farmer' ? 'produtor' : 'trabalhador'}/perfil`;
+}
+
 // Central de ajuda, no painel de quem recebe (ex.: o resultado de uma denúncia).
 export function helpUrl(role: UserRole): string {
   return `${role === 'farmer' ? 'produtor' : 'trabalhador'}/ajuda`;

@@ -14,6 +14,7 @@ export {
   chatUrl,
   farmerServiceUrl,
   helpUrl,
+  profileUrl,
   workerJobUrl
 } from './domain/push';
 export type { NotificationRecord, NotificationRepository } from './domain/notification';

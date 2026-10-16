@@ -14,6 +14,7 @@ import { WithdrawFromServiceUseCase } from './application/withdraw-from-service.
 import type { ApplicationRepository } from './domain/application.repository';
 import type { HiringEvents, WorkerReputationReader } from './domain/hiring-events';
 import type { PaymentRepository } from './domain/payment.repository';
+import type { WorkerVerificationReader } from './domain/worker-verification';
 import { createHiringController } from './presentation/hiring.controller';
 import { type HiringRoutes, hiringRoutes } from './presentation/hiring.routes';
 
@@ -29,6 +30,7 @@ export interface HiringModuleDeps {
   // Quem acompanha as etapas (a conversa) e quem dá a reputação dos candidatos (avaliações).
   events: HiringEvents;
   reputation: WorkerReputationReader;
+  verification: WorkerVerificationReader;
 }
 
 export interface HiringUseCases {

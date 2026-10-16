@@ -25,8 +25,20 @@ describe('ListServiceApplicationsUseCase', () => {
     assert.deepEqual(items, [{
       ...application,
       worker: { ...maria, cpf: '***.444.777-**', phone: '(24) *****-**66', email: 'm***@exemplo.com' },
-      reputation: { average: null, count: 0, score: 3.5, punctuality: null, effort: null, quality: null }
+      reputation: { average: null, count: 0, score: 3.5, punctuality: null, effort: null, quality: null },
+      verified: false
     }]);
+  });
+
+  it('marca quem tem o selo de verificado', async () => {
+    const service = await givenService(t);
+    const maria = await givenWorker(t);
+    await givenApplication(t, service, maria);
+    const verifiedList = new ListServiceApplicationsUseCase({ ...t, verification: { verifiedWorkers: (ids) => Promise.resolve(new Set(ids)) } });
+
+    const [item] = unwrap(await verifiedList.execute({ serviceId: service.id }));
+
+    assert.equal(item?.verified, true);
   });
 
   it('serviço inexistente dá not_found', async () => {

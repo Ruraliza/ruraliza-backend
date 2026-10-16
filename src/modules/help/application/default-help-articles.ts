@@ -35,6 +35,8 @@ const DEFAULT_ARTICLES: readonly [HelpTopic, string, string][] = [
     'Não. Nas listas, CPF, telefone e e-mail aparecem mascarados. O WhatsApp só é liberado na conversa quando os dois tocam para liberar. Antes disso, números e e-mails escritos nas mensagens ficam ocultos.'],
   ['seguranca', 'O Ruraliza é responsável pelo trabalho combinado?',
     'Não. O Ruraliza aproxima quem precisa de quem sabe fazer: não é empregador nem agência de emprego. As condições de trabalho, a segurança (como os EPIs e a NR-31) e o pagamento são combinados e garantidos entre o produtor e o trabalhador. Os detalhes estão nos Termos de Uso.'],
+  ['seguranca', 'O que é o selo de verificado?',
+    'É o sinal de que a equipe do Ruraliza conferiu o documento da pessoa (RG ou CNH) com o nome e o CPF do perfil. Para ganhar o seu, abra Perfil e envie a foto da frente do documento no cartão Verificação de identidade. A foto é apagada logo depois da conferência.\nSe você mudar o nome no perfil, o selo sai até você verificar de novo.'],
   ['seguranca', 'Como denuncio uma vaga ou uma pessoa?',
     'Na vaga, toque em "Denunciar vaga", no fim da tela. Na conversa, toque em Denunciar, no alto. O produtor também denuncia um candidato pelo cartão dele no serviço.\nEscolha o motivo e, se quiser, conte o que aconteceu: só a equipe do Ruraliza lê, e a pessoa não fica sabendo quem denunciou. Quando a equipe decidir, chega um aviso para você.'],
   ['seguranca', 'Por que meu texto foi recusado?',

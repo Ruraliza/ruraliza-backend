@@ -25,6 +25,7 @@ import { type ReviewUseCases, createReviewUseCases } from '#modules/reviews';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
 import { type CertificateCodes, type TrackUseCases, createTrackUseCases, randomCertificateCodes } from '#modules/tracks';
+import { type VerificationUseCases, createVerificationUseCases } from '#modules/verification';
 import { type WorkerUseCases, createWorkerUseCases } from '#modules/workers';
 import { authTokenSecret, whatsAppSettings } from '#shared/config';
 import type { ChangeFeed } from '#shared/domain/changes';
@@ -53,6 +54,8 @@ import { createInMemoryRepositories } from './repositories';
 // (`whatsapp`: Evolution API, ligada pelas variáveis WHATSAPP_* do .env; sem elas, desligada).
 // Os tokens de sessão (`tokens`) são assinados com AUTH_TOKEN_SECRET; os códigos dos certificados
 // (`certificateCodes`) são aleatórios, e os testes podem passar um gerador previsível.
+// As fotos dos documentos da verificação de identidade (`idDocuments`) ficam num armazenamento à parte,
+// privado: não passam por /api/images e são apagadas logo depois da decisão da equipe.
 
 export interface UseCases {
   auth: AuthUseCases;
@@ -72,12 +75,14 @@ export interface UseCases {
   tracks: TrackUseCases;
   help: HelpUseCases;
   reports: ReportUseCases;
+  verification: VerificationUseCases;
 }
 
 export interface Container {
   repos: Repositories;
   images: ImageStore;
   documents: DocumentStore;
+  idDocuments: ImageStore;
   passwords: PasswordHasher;
   clock: Clock;
   changes: ChangeFeed;
@@ -91,6 +96,7 @@ export interface ContainerOptions {
   repos?: Repositories;
   images?: ImageStore;
   documents?: DocumentStore;
+  idDocuments?: ImageStore;
   imageProcessor?: ImageProcessor;
   passwords?: PasswordHasher;
   resetTokens?: ResetTokens;
@@ -106,6 +112,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const repos = options.repos ?? createInMemoryRepositories();
   const images = options.images ?? new InMemoryImageStore();
   const documents = options.documents ?? new InMemoryDocumentStore();
+  const idDocuments = options.idDocuments ?? new InMemoryImageStore();
   const imageProcessor = options.imageProcessor ?? new SharpImageProcessor();
   const passwords = options.passwords ?? scryptPasswordHasher;
   const resetTokens = options.resetTokens ?? randomResetTokens;
@@ -125,16 +132,22 @@ export function createContainer(options: ContainerOptions = {}): Container {
   // e fecha a conversa, e a remoção de um perfil apaga as conversas e as avaliações dele.
   const reviewUseCases = createReviewUseCases({ services, payments, farms, workers, workerReviews, farmReviews, clock, changes, push: notifier });
   const chatUseCases = createChatUseCases({ chats, chatMessages, services, farmers, workers, clock, changes, push: notifier });
+  // A verificação vem antes das vagas e da contratação, que mostram o selo.
+  const verificationUseCases = createVerificationUseCases({
+    verifications: repos.verifications, farmers, workers, accounts, idDocuments: { processor: imageProcessor, store: idDocuments }, clock, push: notifier
+  });
   const cleanup: ProfileCleanup = {
     farmerRemoved: async (id) => {
       await chatUseCases.cleanup.farmerRemoved(id);
       await reviewUseCases.cleanup.farmerRemoved(id);
       await notificationUseCases.removeFor('farmer', id);
+      await verificationUseCases.removeFor('farmer', id);
     },
     workerRemoved: async (id) => {
       await chatUseCases.cleanup.workerRemoved(id);
       await reviewUseCases.cleanup.workerRemoved(id);
       await notificationUseCases.removeFor('worker', id);
+      await verificationUseCases.removeFor('worker', id);
     }
   };
   const reputation = reviewUseCases.getReputation;
@@ -151,6 +164,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
     repos,
     images,
     documents,
+    idDocuments,
     passwords,
     clock,
     changes,
@@ -162,8 +176,8 @@ export function createContainer(options: ContainerOptions = {}): Container {
       farmers: farmerUseCases,
       workers: workerUseCases,
       farms: createFarmUseCases({ farmers, farms, services, clock }),
-      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier, reputation }),
-      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier, events: chatUseCases.hiringEvents, reputation }),
+      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier, reputation, verification: verificationUseCases.reader }),
+      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier, events: chatUseCases.hiringEvents, reputation, verification: verificationUseCases.reader }),
       reviews: reviewUseCases,
       chat: chatUseCases,
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),
@@ -172,6 +186,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       systemUsers: createSystemUserUseCases({ systemUsers, clock, passwords }),
       admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases }),
       help: createHelpUseCases({ helpArticles: repos.helpArticles, clock }),
+      verification: verificationUseCases,
       reports: createReportUseCases({ reports: repos.reports, farmers, workers, services, applications, accounts, clock, push: notifier }),
       tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })
     }

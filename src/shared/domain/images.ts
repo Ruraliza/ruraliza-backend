@@ -27,6 +27,8 @@ export interface NormalizeOptions {
   // Recorta um quadrado central (fotos de perfil). O app já envia a foto recortada pelo usuário;
   // aqui é só a garantia para quem enviar outra proporção.
   square?: boolean;
+  // Maior lado permitido (padrão IMAGE_MAX_SIDE). Os documentos da verificação usam mais, para ficarem legíveis.
+  maxSide?: number;
 }
 
 export interface ImageProcessor {

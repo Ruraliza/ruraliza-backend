@@ -7,6 +7,7 @@ import type { ChangeTopic } from '#shared/domain/changes';
 import { type SentPush, adjustableClock, recordingChangeFeed, recordingPush } from '#shared/testing/recorders';
 import type { ApplicationStatus, ServiceApplication } from '../hiring.contract';
 import { NO_HIRING_EVENTS } from '../domain/hiring-events';
+import { NO_VERIFIED_WORKERS } from '../domain/worker-verification';
 import type { HiringModuleDeps } from '../hiring.module';
 import { createInMemoryApplicationRepository } from '../infra/in-memory-application.repository';
 import { createInMemoryPaymentRepository } from '../infra/in-memory-payment.repository';
@@ -42,6 +43,7 @@ export function hiringTestbed(): HiringTestbed {
     events: NO_HIRING_EVENTS,
     // Sem avaliações: todo candidato sai com a reputação vazia.
     reputation: { forWorkers: (ids) => Promise.resolve(new Map(ids.map((id) => [id, workerReputation([])]))) },
+    verification: NO_VERIFIED_WORKERS,
     setNow: clock.set,
     published: changes.published,
     pushes: push.sent

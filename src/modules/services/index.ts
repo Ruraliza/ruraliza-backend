@@ -2,6 +2,7 @@
 export type * from './service.contract';
 export { CATEGORIES } from './domain/categories';
 export type { FarmReputationReader } from './domain/farm-reputation';
+export { type FarmerVerificationReader, NO_VERIFIED_FARMERS } from './domain/farmer-verification';
 export type { ServiceRepository } from './domain/service.repository';
 export { SERVICE_STATUS, isServiceStatus, serviceStatusList } from './domain/service-status';
 export { isExpired, toOpenService } from './domain/service.rules';

@@ -313,9 +313,23 @@ Quem usa o app avisa a equipe sobre vaga falsa, condições ruins de trabalho, m
 
 Motivos (`reason`): `fraude` (vaga falsa ou golpe), `condicoes` (condições de trabalho ruins ou perigosas), `comportamento` (assédio, ameaça, não cumpriu o combinado), `ofensivo` e `outro`. A decisão só registra o resultado: remover a conta ou editar o perfil é feito na administração de usuários.
 
+### Verificação de identidade
+
+A pessoa envia a foto da frente do RG ou da CNH; a equipe confere o nome e o CPF com os do perfil e aprova ou recusa (com o motivo, que a pessoa vê). Aprovado, o perfil ganha o **selo de verificado**: aparece para o produtor no cartão do candidato (`verified` em `GET /api/farmers/services/:id/applications`) e para o trabalhador nas vagas (`farm.farmer_verified` na busca e no detalhe). O selo vale para o nome conferido: se a pessoa muda o nome no perfil, ele some até ela verificar de novo. Quem tem os dois perfis com o mesmo CPF ganha o selo nos dois.
+
+A foto do documento é dado pessoal sensível, então: é reduzida para no máximo 1600px (legível) e perde os metadados; fica num armazenamento **privado** (`idDocuments` no container), que não passa por `/api/images`; só a equipe vê, com o token de sistema; e é **apagada logo depois da decisão** (e quando o perfil é removido). Em memória, como o resto (TODO(db): o pedido vai para uma tabela; a foto, para um bucket privado com expiração).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/farmers/:id/verification` e `/api/workers/:id/verification` | Situação: `status` (`none`, `pending`, `approved`, `rejected`), `rejection_reason` e `verified` (o selo aparece) |
+| POST | `/api/farmers/:id/verification?document_type=rg\|cnh` e o mesmo em `/api/workers` | A foto no corpo (Content-Type image/*, até 10 MB); reenviar troca a foto e volta para a fila; 409 com o selo valendo |
+| GET | `/api/admin/verifications?status=` | (`moderation:manage`) A fila, o envio mais antigo primeiro, com o nome e o CPF completos do perfil |
+| GET | `/api/admin/verifications/:id/document` | A foto (WebP, `Cache-Control: private, no-store`), só enquanto está em análise |
+| PATCH | `/api/admin/verifications/:id` | `{ status: 'approved' \| 'rejected', reason? }` (motivo obrigatório ao recusar). Apaga a foto e avisa a pessoa |
+
 ### Central de ajuda
 
-Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (23, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
+Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (24, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
 
 | Método | Rota | Descrição |
 |---|---|---|

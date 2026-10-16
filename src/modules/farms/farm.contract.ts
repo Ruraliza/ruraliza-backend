@@ -45,4 +45,5 @@ export interface FarmLocation {
   latitude?: number; // só para o trabalhador aceito no serviço
   longitude?: number;
   reputation?: FarmReputation; // avaliações publicadas da fazenda (na busca e no detalhe da vaga)
+  farmer_verified?: true; // o produtor tem a identidade conferida pela equipe (na busca e no detalhe da vaga)
 }

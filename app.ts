@@ -117,7 +117,7 @@ function errorHandler(error: unknown, req: Request, res: Response<ApiError>, _ne
 async function main(): Promise<void> {
   const devMode = process.argv.includes('--dev');
   const container = createContainer();
-  await seed(container.repos, container.clock, container.passwords);
+  await seed(container.repos, container.clock, container.passwords, container.idDocuments);
   const initialAdmin = initialAdminSettings();
   const adminStatus = initialAdmin && (await container.useCases.systemUsers.ensureInitialAdmin.execute(initialAdmin));
   const { app } = createApi(container, { devMode });

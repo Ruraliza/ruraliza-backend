@@ -7,6 +7,7 @@
 // histórico das avaliações e da conversa (src/seed-history.ts).
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
+import type { ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { Repositories } from './repositories';
 import { SERVICE_STATUS } from '#modules/services';
@@ -14,6 +15,7 @@ import { createAccount } from '#modules/accounts';
 import { createDefaultHelpArticles } from '#modules/help';
 import { seedHistory } from './seed-history';
 import { seedTracks } from './seed-tracks';
+import { seedVerifications } from './seed-verification';
 
 export const SEED_PASSWORD = 'ruraliza123';
 
@@ -30,7 +32,8 @@ interface DemoService {
   expiresInDays: number | null; // null = sem prazo; negativo = já vencida
 }
 
-export async function seed(repos: Repositories, clock: Clock, passwords: PasswordHasher): Promise<void> {
+// `idDocuments`: armazenamento das fotos de documento da verificação (para o pedido de exemplo na fila da equipe).
+export async function seed(repos: Repositories, clock: Clock, passwords: PasswordHasher, idDocuments?: ImageStore): Promise<void> {
   const now = clock.now();
 
   // Equipe: entra por POST /api/auth/system/login.
@@ -162,4 +165,6 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   await seedTracks(repos, now, tutor.id, worker.id);
   // Central de ajuda: as perguntas frequentes que a equipe edita em /sistema/ajuda.
   await createDefaultHelpArticles(repos.helpArticles, now);
+  // Verificação de identidade: o João com o selo; o Pedro na fila da equipe (src/seed-verification.ts).
+  await seedVerifications(repos, now, { farmerId: farmer.id, farmerName: farmer.name, pedroEmail: 'pedro@exemplo.com' }, idDocuments);
 }

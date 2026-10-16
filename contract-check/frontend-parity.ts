@@ -19,6 +19,7 @@ import type * as FrontApplication from '../../ruraliza-frontend/src/app/core/mod
 import type * as FrontStatus from '../../ruraliza-frontend/src/app/core/models/status';
 import type * as FrontSystem from '../../ruraliza-frontend/src/app/core/models/system.model';
 import type * as FrontTrack from '../../ruraliza-frontend/src/app/core/models/track.model';
+import type * as FrontVerification from '../../ruraliza-frontend/src/app/core/models/verification.model';
 import type * as FrontWorker from '../../ruraliza-frontend/src/app/core/models/worker.model';
 
 // Igualdade estrita de tipos (distingue opcional de `| undefined`, readonly etc.).
@@ -87,6 +88,14 @@ export type ContractParity = [
   Expect<Equals<Api.AdminReport, FrontReport.AdminReport>>,
   Expect<Equals<Api.ReportReviewInput, FrontReport.ReportReviewInput>>,
   Expect<Equals<Api.AdminReportResponse, FrontReport.AdminReportResponse>>,
+
+  Expect<Equals<Api.VerificationDocumentType, FrontVerification.VerificationDocumentType>>,
+  Expect<Equals<Api.VerificationStatus, FrontVerification.VerificationStatus>>,
+  Expect<Equals<Api.Verification, FrontVerification.Verification>>,
+  Expect<Equals<Api.VerificationResponse, FrontVerification.VerificationResponse>>,
+  Expect<Equals<Api.AdminVerification, FrontVerification.AdminVerification>>,
+  Expect<Equals<Api.VerificationReviewInput, FrontVerification.VerificationReviewInput>>,
+  Expect<Equals<Api.AdminVerificationResponse, FrontVerification.AdminVerificationResponse>>,
 
   Expect<Equals<Api.Farmer, FrontFarmer.Farmer>>,
   Expect<Equals<Api.FarmerInput, FrontFarmer.FarmerInput>>,

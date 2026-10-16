@@ -23,6 +23,7 @@ import {
   createInMemoryEnrollmentRepository,
   createInMemoryTrackRepository
 } from '#modules/tracks';
+import { type VerificationRepository, createInMemoryVerificationRepository } from '#modules/verification';
 import { type WorkerRepository, createInMemoryWorkerRepository } from '#modules/workers';
 
 // Todos os repositórios da API (cada módulo declara a sua porta em src/modules/<módulo>/domain).
@@ -49,6 +50,7 @@ export interface Repositories {
   certificates: CertificateRepository;
   helpArticles: HelpArticleRepository;
   reports: ReportRepository;
+  verifications: VerificationRepository;
 }
 
 // Repositórios em memória (um conjunto novo por chamada, isolado dos outros).
@@ -72,6 +74,7 @@ export function createInMemoryRepositories(): Repositories {
     enrollments: createInMemoryEnrollmentRepository(),
     certificates: createInMemoryCertificateRepository(),
     helpArticles: createInMemoryHelpArticleRepository(),
-    reports: createInMemoryReportRepository()
+    reports: createInMemoryReportRepository(),
+    verifications: createInMemoryVerificationRepository()
   };
 }

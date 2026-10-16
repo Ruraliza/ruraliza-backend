@@ -53,6 +53,10 @@ import type {
   AdminReport,
   AdminReportResponse,
   ReportResponse,
+  AdminVerification,
+  AdminVerificationResponse,
+  Verification,
+  VerificationResponse,
   WorkerResponse,
   WorkerSignupResponse,
   Certificate,
@@ -1156,6 +1160,69 @@ async function administration({ ana, outro, carla, bruno, farmer, other, worker,
   actAs(bruno);
   await step<NotificationsPage>('quem denunciou recebe o resultado', 'GET', `/workers/${worker.id}/notifications`, undefined, 200,
     (b) => assert.deepEqual([b.items[0]?.title, b.items[0]?.url], ['Sua denúncia foi analisada', 'trabalhador/ajuda']));
+
+  console.log('\nVerificação de identidade');
+  const documentPhoto = new Uint8Array(await sharp({ create: { width: 2400, height: 1500, channels: 3, background: '#d8e2dc' } }).jpeg().toBuffer());
+  await step<Verification>('sem pedido', 'GET', `/workers/${worker.id}/verification`, undefined, 200, (b) => assert.deepEqual([b.status, b.verified], ['none', false]));
+  await upload('documento sem o tipo', `/workers/${worker.id}/verification`, documentPhoto, 'image/jpeg', 400);
+  await upload('arquivo que não é imagem', `/workers/${worker.id}/verification?document_type=rg`, new TextEncoder().encode('não sou foto'), 'image/jpeg', 400);
+  await upload<VerificationResponse>('enviar a CNH', `/workers/${worker.id}/verification?document_type=cnh`, documentPhoto, 'image/jpeg', 201,
+    (b) => assert.deepEqual([b.verification.status, b.verification.document_type], ['pending', 'cnh']));
+  actAs(carla);
+  await upload('enviar pelo perfil de outro trabalhador', `/workers/${worker.id}/verification?document_type=cnh`, documentPhoto, 'image/jpeg', 403);
+  await step('ver a verificação de outro trabalhador', 'GET', `/workers/${worker.id}/verification`, undefined, 403);
+  actAs(tutor);
+  await step('tutor não vê a fila de verificações', 'GET', '/admin/verifications', undefined, 403);
+  actAs(admin);
+  const [request] = await step<AdminVerification[]>('fila de verificações', 'GET', '/admin/verifications?status=pending', undefined, 200, (b) => {
+    assert.equal(b.length, 1);
+    assert.deepEqual([b[0]?.name, b[0]?.cpf, b[0]?.has_document], ['Bruno Tratorista', '98765432100', true]);
+  });
+  assert.ok(request);
+  const documentUrl = `/admin/verifications/${request.id}/document`;
+  const doc = await fetch(`${baseUrl}${documentUrl}`, { headers: authHeader() });
+  assert.equal(doc.status, 200, 'foto do documento para a equipe');
+  assert.equal(doc.headers.get('cache-control'), 'private, no-store');
+  const docMeta = await sharp(Buffer.from(await doc.arrayBuffer())).metadata();
+  assert.deepEqual([docMeta.format, docMeta.width, docMeta.height], ['webp', 1600, 1000]); // reduzida para 1600px, legível
+  passed++;
+  console.log(`  ok  200 GET    ${documentUrl}  — foto do documento (WebP, 1600px)`);
+  actAs(null);
+  const anonymous = await fetch(`${baseUrl}${documentUrl}`);
+  assert.equal(anonymous.status, 401, 'foto do documento sem login');
+  passed++;
+  console.log(`  ok  401 GET    ${documentUrl}  — sem login, nada`);
+  actAs(admin);
+  await step('recusar sem motivo', 'PATCH', `/admin/verifications/${request.id}`, { status: 'rejected' }, 400);
+  await step<AdminVerificationResponse>('aprovar', 'PATCH', `/admin/verifications/${request.id}`, { status: 'approved' }, 200,
+    (b) => assert.deepEqual([b.verification.status, b.verification.has_document], ['approved', false]));
+  await step('decidir de novo', 'PATCH', `/admin/verifications/${request.id}`, { status: 'rejected', reason: 'x' }, 409);
+  const gone = await fetch(`${baseUrl}${documentUrl}`, { headers: authHeader() });
+  assert.equal(gone.status, 404, 'a foto some depois da decisão');
+  passed++;
+  console.log(`  ok  404 GET    ${documentUrl}  — a foto foi apagada`);
+  actAs(bruno);
+  await step<Verification>('trabalhador verificado', 'GET', `/workers/${worker.id}/verification`, undefined, 200, (b) => assert.equal(b.verified, true));
+  await upload('enviar de novo com o selo valendo', `/workers/${worker.id}/verification?document_type=rg`, documentPhoto, 'image/jpeg', 409);
+  actAs(ana);
+  await step<ApplicationWithWorker[]>('o produtor vê o selo no candidato', 'GET', `/farmers/services/${service.id}/applications`, undefined, 200,
+    (b) => assert.equal(b.find((a) => a.worker_id === worker.id)?.verified, true));
+  await upload<VerificationResponse>('produtora envia o RG', `/farmers/${farmer.id}/verification?document_type=rg`, documentPhoto, 'image/png', 201);
+  actAs(admin);
+  const [farmerRequest] = await step<AdminVerification[]>('pedido da produtora', 'GET', '/admin/verifications?status=pending', undefined, 200);
+  assert.ok(farmerRequest);
+  await step<AdminVerificationResponse>('recusar com motivo', 'PATCH', `/admin/verifications/${farmerRequest.id}`, { status: 'rejected', reason: 'O CPF não aparece na foto' }, 200);
+  await container.notifier.idle();
+  actAs(ana);
+  await step<Verification>('a produtora vê o motivo', 'GET', `/farmers/${farmer.id}/verification`, undefined, 200,
+    (b) => assert.deepEqual([b.status, b.rejection_reason], ['rejected', 'O CPF não aparece na foto']));
+  await upload<VerificationResponse>('produtora envia de novo', `/farmers/${farmer.id}/verification?document_type=cnh`, documentPhoto, 'image/jpeg', 201);
+  actAs(admin);
+  const [retry] = await step<AdminVerification[]>('pedido de novo na fila', 'GET', '/admin/verifications?status=pending', undefined, 200);
+  await step('aprovar a produtora', 'PATCH', `/admin/verifications/${retry?.id ?? 0}`, { status: 'approved' }, 200);
+  actAs(carla);
+  await step<OpenService[]>('as vagas mostram o produtor verificado', 'GET', '/workers/services', undefined, 200,
+    (b) => assert.ok(b.length > 0 && b.every((job) => job.farm.farmer_verified === true)));
   actAs(tutor);
 
   console.log('\nPerfil dos usuários de sistema');
