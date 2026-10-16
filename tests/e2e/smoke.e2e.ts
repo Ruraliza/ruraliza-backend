@@ -61,6 +61,9 @@ import type {
   JobPreferencesResponse,
   RecommendedJob,
   FarmerStats,
+  Sponsor,
+  SponsorResponse,
+  SponsorSlotResponse,
   WorkerResponse,
   WorkerSignupResponse,
   Certificate,
@@ -1266,6 +1269,36 @@ async function administration({ ana, outro, carla, bruno, farmer, other, worker,
   actAs(carla);
   await step<OpenService[]>('as vagas mostram o produtor verificado', 'GET', '/workers/services', undefined, 200,
     (b) => assert.ok(b.length > 0 && b.every((job) => job.farm.farmer_verified === true)));
+
+  console.log('\nPatrocínios');
+  const adInput = { sponsor: 'Casa Agrícola Boa Safra', title: 'Arame liso com 15% de desconto', cta_label: 'Ver a oferta', url: 'https://exemplo.com.br/arame', audience: 'farmer', states: ['RJ'] };
+  actAs(tutor);
+  await step('tutor não gerencia patrocínios', 'POST', '/admin/sponsors', adInput, 403);
+  actAs(admin);
+  await step('endereço sem https', 'POST', '/admin/sponsors', { ...adInput, url: 'http://exemplo.com.br' }, 400);
+  await step('palavrão na chamada do patrocínio', 'POST', '/admin/sponsors', { ...adInput, title: 'Oferta do caralho' }, 400);
+  await step('UF desconhecida', 'POST', '/admin/sponsors', { ...adInput, states: ['XX'] }, 400);
+  const { sponsor: ad } = await step<SponsorResponse>('criar patrocínio para produtores do RJ', 'POST', '/admin/sponsors', adInput, 201,
+    (b) => assert.deepEqual([b.sponsor.active, b.sponsor.impressions, b.sponsor.image_url], [true, 0, null]));
+  const logo = new Uint8Array(await sharp({ create: { width: 300, height: 120, channels: 3, background: '#2f6b3a' } }).png().toBuffer());
+  await upload<SponsorResponse>('logo do patrocínio', `/admin/sponsors/${ad.id}/image`, logo, 'image/png', 200, (b) => assert.ok(b.sponsor.image_url));
+  actAs(null);
+  await step<SponsorSlotResponse>('produtor de MG não vê o patrocínio do RJ', 'GET', '/sponsors/slot?audience=farmer&state=MG', undefined, 200,
+    (b) => assert.equal(b.card, null));
+  await step<SponsorSlotResponse>('trabalhador não vê o patrocínio de produtores', 'GET', '/sponsors/slot?audience=worker', undefined, 200,
+    (b) => assert.equal(b.card, null));
+  await step<SponsorSlotResponse>('produtor do RJ vê o patrocínio', 'GET', '/sponsors/slot?audience=farmer&state=rj', undefined, 200,
+    (b) => assert.deepEqual([b.card?.sponsor, b.card?.url], ['Casa Agrícola Boa Safra', 'https://exemplo.com.br/arame']));
+  await step('público inválido', 'GET', '/sponsors/slot?audience=todos', undefined, 400);
+  await step('contar clique', 'POST', `/sponsors/${ad.id}/click`, undefined, 200);
+  await step('clique em patrocínio inexistente', 'POST', '/sponsors/999/click', undefined, 404);
+  actAs(admin);
+  await step<Sponsor[]>('a equipe vê aparições e cliques', 'GET', '/admin/sponsors', undefined, 200,
+    (b) => assert.deepEqual([b[0]?.impressions, b[0]?.clicks], [1, 1]));
+  await step<SponsorResponse>('desligar o patrocínio', 'PATCH', `/admin/sponsors/${ad.id}`, { active: false }, 200, (b) => assert.equal(b.sponsor.active, false));
+  await step('editar sem campos', 'PATCH', `/admin/sponsors/${ad.id}`, {}, 400);
+  await step('apagar o patrocínio', 'DELETE', `/admin/sponsors/${ad.id}`, undefined, 200);
+  await step('apagar de novo', 'DELETE', `/admin/sponsors/${ad.id}`, undefined, 404);
   actAs(tutor);
 
   console.log('\nPerfil dos usuários de sistema');

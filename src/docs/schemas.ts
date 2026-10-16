@@ -13,6 +13,7 @@ import { type PlatformSchemaName, platformSchemas } from '#modules/platform';
 import { type ReportSchemaName, reportSchemas } from '#modules/reports';
 import { type ReviewSchemaName, reviewSchemas } from '#modules/reviews';
 import { type ServiceSchemaName, serviceSchemas } from '#modules/services';
+import { type SponsorSchemaName, sponsorSchemas } from '#modules/sponsors';
 import { type SystemUserSchemaName, systemUserSchemas } from '#modules/system-users';
 import { type TrackSchemaName, trackSchemas } from '#modules/tracks';
 import { type VerificationSchemaName, verificationSchemas } from '#modules/verification';
@@ -44,7 +45,8 @@ export type SchemaName =
   | ReportSchemaName
   | VerificationSchemaName
   | MatchingSchemaName
-  | FarmStatsSchemaName;
+  | FarmStatsSchemaName
+  | SponsorSchemaName;
 
 export const schemas = {
   ...coreSchemas,
@@ -67,5 +69,6 @@ export const schemas = {
   ...reportSchemas,
   ...verificationSchemas,
   ...matchingSchemas,
-  ...farmStatsSchemas
+  ...farmStatsSchemas,
+  ...sponsorSchemas
 } satisfies Record<SchemaName, Schema>;

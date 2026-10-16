@@ -342,9 +342,21 @@ Com os avisos ligados, quem combina com uma vaga nova (pela categoria escolhida 
 
 `GET /api/farmers/:id/stats` traz os números do produtor, em todas as fazendas dele: horas e serviços concluídos (com o pagamento liberado, que é quando o trabalho fica validado no app), quanto foi pago, quantas pessoas já trabalharam com ele e quantas voltaram, a nota média das fazendas (pesada pela quantidade de avaliações de cada uma), as vagas abertas e as candidaturas esperando resposta, os últimos 6 meses (meses sem serviço vêm zerados), as categorias e a lista de quem já passou por lá (até 20, o mais recente primeiro).
 
+### Patrocínios
+
+Espaço para lojas agropecuárias, revendas de máquinas e marcas de sementes: um cartão marcado como **Patrocinado** no Início de produtores e trabalhadores (identificar o anúncio como anúncio é exigência do Código de Defesa do Consumidor). A equipe (permissão `content:manage`) cadastra o anunciante, a chamada, o link (sempre https), a logo, o público (`farmer`, `worker` ou `all`), as UFs, as categorias de interesse (para trabalhadores) e o período, e acompanha as aparições e os cliques. A rotação mostra, entre os que servem, o que menos apareceu. **Nenhum dado de quem usa o app vai para o anunciante:** o cartão é pedido sem login, com a UF e as categorias na própria URL, e o link abre direto a página do anunciante.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/sponsors/slot?audience=&state=&categories=` | (público) O cartão da vez (`card: null` quando não há); conta a aparição |
+| POST | `/api/sponsors/:id/click` | (público) Conta o clique (o app chama ao abrir o link) |
+| GET / POST | `/api/admin/sponsors` | Lista (com aparições e cliques) / cria |
+| PATCH / DELETE | `/api/admin/sponsors/:id` | Edita / apaga (com a imagem) |
+| POST / DELETE | `/api/admin/sponsors/:id/image` | Envia / tira a logo (WebP, até 1000px) |
+
 ### Central de ajuda
 
-Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (25, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
+Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (26, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
 
 | Método | Rota | Descrição |
 |---|---|---|

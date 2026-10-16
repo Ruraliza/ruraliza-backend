@@ -171,6 +171,18 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
     worker_id: worker.id, categories: ['Colheita', 'Manejo de gado'], near: { latitude: -22.12, longitude: -43.21, radius_km: 50 },
     alerts: true, last_digest_at: now
   });
+  // Patrocínios de EXEMPLO (anunciantes fictícios), um para produtores do RJ e um para trabalhadores.
+  const sponsor = { text: null, image_url: null, categories: [], starts_on: null, ends_on: null, active: true, impressions: 0, clicks: 0, updated_at: now };
+  await repos.sponsors.create({
+    ...sponsor, sponsor: 'Casa Agrícola Boa Safra (exemplo)', title: 'Arame, mourão e grampo com entrega na fazenda',
+    text: 'Anúncio de exemplo da demonstração do Ruraliza.', cta_label: 'Ver ofertas', url: 'https://exemplo.com.br/boa-safra',
+    audience: 'farmer', states: ['RJ']
+  });
+  await repos.sponsors.create({
+    ...sponsor, sponsor: 'EPI do Campo (exemplo)', title: 'Luva, botina e chapéu com desconto para quem trabalha pelo app',
+    text: 'Anúncio de exemplo da demonstração do Ruraliza.', cta_label: 'Conhecer', url: 'https://exemplo.com.br/epi-do-campo',
+    audience: 'worker', states: [], categories: ['Colheita', 'Manejo de gado', 'Pulverização']
+  });
   // Verificação de identidade: o João com o selo; o Pedro na fila da equipe (src/seed-verification.ts).
   await seedVerifications(repos, now, { farmerId: farmer.id, farmerName: farmer.name, pedroEmail: 'pedro@exemplo.com' }, idDocuments);
 }

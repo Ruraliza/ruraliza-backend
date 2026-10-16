@@ -19,6 +19,7 @@ export const TAGS = {
   notifications: 'Notificações',
   help: 'Central de ajuda',
   moderation: 'Moderação',
+  sponsors: 'Patrocínios',
   tracks: 'Trilhas (tutor)',
   learning: 'Trilhas (trabalhador)',
   certificates: 'Certificados',

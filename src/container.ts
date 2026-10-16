@@ -25,6 +25,7 @@ import {
 import { type ReportUseCases, createReportUseCases } from '#modules/reports';
 import { type ReviewUseCases, createReviewUseCases } from '#modules/reviews';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
+import { type SponsorUseCases, createSponsorUseCases } from '#modules/sponsors';
 import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
 import { type CertificateCodes, type TrackUseCases, createTrackUseCases, randomCertificateCodes } from '#modules/tracks';
 import { type VerificationUseCases, createVerificationUseCases } from '#modules/verification';
@@ -80,6 +81,7 @@ export interface UseCases {
   verification: VerificationUseCases;
   matching: MatchingUseCases;
   farmStats: FarmStatsUseCases;
+  sponsors: SponsorUseCases;
 }
 
 export interface Container {
@@ -200,6 +202,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       help: createHelpUseCases({ helpArticles: repos.helpArticles, clock }),
       verification: verificationUseCases,
       matching: matchingUseCases,
+      sponsors: createSponsorUseCases({ sponsors: repos.sponsors, images: { processor: imageProcessor, store: images }, clock }),
       farmStats: createFarmStatsUseCases({ farmers, farms, services, payments, applications, workers, reputation, clock }),
       reports: createReportUseCases({ reports: repos.reports, farmers, workers, services, applications, accounts, clock, push: notifier }),
       tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })

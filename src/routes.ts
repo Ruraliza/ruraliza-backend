@@ -15,6 +15,7 @@ import { platformRoutes } from '#modules/platform';
 import { createReportRoutes } from '#modules/reports';
 import { createReviewRoutes } from '#modules/reviews';
 import { categoryRoutes, createServiceRoutes } from '#modules/services';
+import { createSponsorRoutes } from '#modules/sponsors';
 import { createSystemUserRoutes } from '#modules/system-users';
 import { createTrackRoutes } from '#modules/tracks';
 import { createVerificationRoutes } from '#modules/verification';
@@ -46,6 +47,7 @@ export function createRouteGroups({ useCases, repos, tokens, changes }: Pick<Con
   const live = createLiveRoutes(changes, access);
   const matching = createMatchingRoutes(useCases.matching, access);
   const farmStats = createFarmStatsRoutes(useCases.farmStats, access);
+  const sponsors = createSponsorRoutes(useCases.sponsors, access);
 
   return [
     { prefix: '/api/auth', routes: [...auth.auth, ...systemUsers.auth] },
@@ -93,8 +95,9 @@ export function createRouteGroups({ useCases, repos, tokens, changes }: Pick<Con
     },
     { prefix: '/api/chats', routes: chat.chats },
     { prefix: '/api/reviews', routes: reviews.reputation },
-    { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage, ...help.admin, ...reports.admin, ...verification.admin] },
+    { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage, ...help.admin, ...reports.admin, ...verification.admin, ...sponsors.admin] },
     { prefix: '/api/help', routes: help.public },
+    { prefix: '/api/sponsors', routes: sponsors.public },
     { prefix: '/api/images', routes: photos.images },
     { prefix: '/api/documents', routes: workers.documents },
     { prefix: '/api/categories', routes: categoryRoutes },

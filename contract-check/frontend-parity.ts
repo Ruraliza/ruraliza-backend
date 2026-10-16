@@ -18,6 +18,7 @@ import type * as FrontReview from '../../ruraliza-frontend/src/app/core/models/r
 import type * as FrontChat from '../../ruraliza-frontend/src/app/core/models/chat.model';
 import type * as FrontService from '../../ruraliza-frontend/src/app/core/models/service.model';
 import type * as FrontApplication from '../../ruraliza-frontend/src/app/core/models/service-application.model';
+import type * as FrontSponsor from '../../ruraliza-frontend/src/app/core/models/sponsor.model';
 import type * as FrontStatus from '../../ruraliza-frontend/src/app/core/models/status';
 import type * as FrontSystem from '../../ruraliza-frontend/src/app/core/models/system.model';
 import type * as FrontTrack from '../../ruraliza-frontend/src/app/core/models/track.model';
@@ -109,6 +110,14 @@ export type ContractParity = [
   Expect<Equals<Api.FarmerStatsCategory, FrontFarmStats.FarmerStatsCategory>>,
   Expect<Equals<Api.FarmerStatsPerson, FrontFarmStats.FarmerStatsPerson>>,
   Expect<Equals<Api.FarmerStats, FrontFarmStats.FarmerStats>>,
+
+  Expect<Equals<Api.SponsorAudience, FrontSponsor.SponsorAudience>>,
+  Expect<Equals<Api.SponsorCard, FrontSponsor.SponsorCard>>,
+  Expect<Equals<Api.Sponsor, FrontSponsor.Sponsor>>,
+  Expect<Equals<Api.SponsorInput, FrontSponsor.SponsorInput>>,
+  Expect<Equals<Api.SponsorUpdate, FrontSponsor.SponsorUpdate>>,
+  Expect<Equals<Api.SponsorResponse, FrontSponsor.SponsorResponse>>,
+  Expect<Equals<Api.SponsorSlotResponse, FrontSponsor.SponsorSlotResponse>>,
 
   Expect<Equals<Api.Farmer, FrontFarmer.Farmer>>,
   Expect<Equals<Api.FarmerInput, FrontFarmer.FarmerInput>>,

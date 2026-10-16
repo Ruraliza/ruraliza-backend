@@ -7,6 +7,8 @@ const DEFAULT_ARTICLES: readonly [HelpTopic, string, string][] = [
   ['comecar', 'O que é o Ruraliza?',
     'Um app que conecta produtores rurais a trabalhadores, prestadores de serviço e estudantes. O produtor publica o serviço, quem sabe fazer se candidata, o produtor escolhe e os dois combinam os detalhes pela conversa do app.'],
   ['comecar', 'Quanto custa?', 'Nesta fase de testes, nada. Não há cobrança para produtores nem para trabalhadores.'],
+  ['comecar', 'O que é o cartão "Patrocinado"?',
+    'Lojas e empresas do campo podem apoiar o Ruraliza aparecendo num cartão marcado como Patrocinado, no Início. O anunciante não recebe nenhum dado seu: o app só mostra o cartão, e o link abre a página dele.'],
   ['comecar', 'Posso ser produtor e trabalhador na mesma conta?',
     'Sim. Você cria a conta com um perfil e depois ativa o outro em Perfil, em "Quero ser produtor" ou "Quero ser trabalhador". O e-mail e a senha são os mesmos, e você troca de painel quando quiser.'],
 

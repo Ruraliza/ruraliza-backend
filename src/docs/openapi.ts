@@ -36,6 +36,7 @@ const TAG_DESCRIPTIONS: Record<(typeof TAGS)[keyof typeof TAGS], string> = {
   [TAGS.chat]: 'Conversa do serviço entre o produtor e o trabalhador aceito, com o WhatsApp protegido até os dois liberarem.',
   [TAGS.help]: 'Perguntas frequentes: a lista pública e a gestão pela equipe (criar, editar, ordenar e apagar).',
   [TAGS.moderation]: 'Denúncias de vagas e perfis e verificação de identidade: a equipe analisa e decide; quem pediu recebe o resultado.',
+  [TAGS.sponsors]: 'Espaço de patrocínio: o cartão "Patrocinado" que aparece para produtores e trabalhadores, e a gestão pela equipe.',
   [TAGS.notifications]: 'Central de notificações de cada perfil: o histórico de tudo o que vira push (com ou sem push ativado), o contador de não lidas e o aviso em tempo real para o sino.',
   [TAGS.tracks]: 'Trilhas de estudo do lado dos tutores: criar, montar módulos e aulas, publicar e descontinuar (não há remoção).',
   [TAGS.learning]: 'Trilhas de estudo do lado do trabalhador: listar por categoria, começar, concluir aulas e certificados.',
