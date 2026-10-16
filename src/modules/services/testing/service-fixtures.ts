@@ -7,6 +7,7 @@ import type { ChangeTopic } from '#shared/domain/changes';
 import { type SentPush, adjustableClock, recordingChangeFeed, recordingPush } from '#shared/testing/recorders';
 import { createInMemoryServiceRepository } from '../infra/in-memory-service.repository';
 import { NO_VERIFIED_FARMERS } from '../domain/farmer-verification';
+import { NO_JOB_EVENTS } from '../domain/job-events';
 import type { Service } from '../service.contract';
 import type { ServicesModuleDeps } from '../services.module';
 
@@ -38,6 +39,7 @@ export function servicesTestbed(): ServicesTestbed {
     push,
     reputation: { forFarms: () => Promise.resolve(new Map()) }, // sem avaliações: as vagas saem sem `farm.reputation`
     verification: NO_VERIFIED_FARMERS,
+    jobEvents: NO_JOB_EVENTS,
     setNow: clock.set,
     published: changes.published,
     pushes: push.sent

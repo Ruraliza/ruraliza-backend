@@ -165,6 +165,12 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   await seedTracks(repos, now, tutor.id, worker.id);
   // Central de ajuda: as perguntas frequentes que a equipe edita em /sistema/ajuda.
   await createDefaultHelpArticles(repos.helpArticles, now);
+  // Vagas para você: a Maria quer colheita e manejo de gado perto de Três Rios, com avisos (o resumo semanal
+  // conta a partir de agora).
+  await repos.jobPreferences.create({
+    worker_id: worker.id, categories: ['Colheita', 'Manejo de gado'], near: { latitude: -22.12, longitude: -43.21, radius_km: 50 },
+    alerts: true, last_digest_at: now
+  });
   // Verificação de identidade: o João com o selo; o Pedro na fila da equipe (src/seed-verification.ts).
   await seedVerifications(repos, now, { farmerId: farmer.id, farmerName: farmer.name, pedroEmail: 'pedro@exemplo.com' }, idDocuments);
 }

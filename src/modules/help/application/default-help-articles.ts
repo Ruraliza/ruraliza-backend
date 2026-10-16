@@ -21,6 +21,8 @@ const DEFAULT_ARTICLES: readonly [HelpTopic, string, string][] = [
 
   ['trabalhadores', 'Como encontro vagas?',
     'Toque em Buscar. Dá para filtrar por categoria, carga horária, data de publicação e nota da fazenda. Cada vaga mostra a cidade, as horas e o valor antes de você se candidatar.'],
+  ['trabalhadores', 'Como o app escolhe as vagas para mim?',
+    'Em Início, "Vagas para você" mostra as vagas que combinam com o que você escolheu em Seus interesses, com as trilhas que você faz e com as vagas em que já se candidatou. Se você marcar "Perto de mim", só entram as vagas dentro da distância escolhida.\nLigue "Me avisar de vagas novas" para receber na hora as vagas que combinam (no máximo 3 por dia) e, uma vez por semana, um resumo.'],
   ['trabalhadores', 'Como sei se fui aceito?',
     'Em Candidaturas você acompanha cada uma: aguardando, aceita ou recusada. Quando o produtor aceita, chega um aviso no sino e, se você ativou, nas notificações do celular e no WhatsApp.'],
   ['trabalhadores', 'Posso desistir de um serviço?',

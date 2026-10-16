@@ -6,6 +6,7 @@ import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type HelpUseCases, createHelpUseCases } from '#modules/help';
 import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
+import { type MatchingUseCases, createMatchingUseCases } from '#modules/matching';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import {
   DISABLED_WHATSAPP,
@@ -76,6 +77,7 @@ export interface UseCases {
   help: HelpUseCases;
   reports: ReportUseCases;
   verification: VerificationUseCases;
+  matching: MatchingUseCases;
 }
 
 export interface Container {
@@ -151,6 +153,11 @@ export function createContainer(options: ContainerOptions = {}): Container {
     }
   };
   const reputation = reviewUseCases.getReputation;
+  // Vagas para você: as recomendações e os avisos de vaga nova (ligados na publicação das vagas).
+  const matchingUseCases = createMatchingUseCases({
+    jobPreferences: repos.jobPreferences, jobAlerts: repos.jobAlerts, services, farms, applications, tracks, enrollments, workers, accounts,
+    reputation, verification: verificationUseCases.reader, clock, push: notifier
+  });
   const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes, cleanup });
   const workerUseCases = createWorkerUseCases({ workers, farmers, farms, services, applications, accounts, pushSubscriptions, clock, images, documents, passwords, changes, cleanup });
   // O segundo perfil de uma conta (src/modules/accounts) é criado pelos casos de uso dos perfis.
@@ -176,7 +183,10 @@ export function createContainer(options: ContainerOptions = {}): Container {
       farmers: farmerUseCases,
       workers: workerUseCases,
       farms: createFarmUseCases({ farmers, farms, services, clock }),
-      services: createServiceUseCases({ farmers, farms, services, applications, clock, changes, push: notifier, reputation, verification: verificationUseCases.reader }),
+      services: createServiceUseCases({
+        farmers, farms, services, applications, clock, changes, push: notifier, reputation, verification: verificationUseCases.reader,
+        jobEvents: { jobPublished: (service) => matchingUseCases.alerts.jobPublished(service) }
+      }),
       hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier, events: chatUseCases.hiringEvents, reputation, verification: verificationUseCases.reader }),
       reviews: reviewUseCases,
       chat: chatUseCases,
@@ -187,6 +197,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       admin: createAdminUseCases({ accounts, farmers, workers, services, farmerUseCases, workerUseCases }),
       help: createHelpUseCases({ helpArticles: repos.helpArticles, clock }),
       verification: verificationUseCases,
+      matching: matchingUseCases,
       reports: createReportUseCases({ reports: repos.reports, farmers, workers, services, applications, accounts, clock, push: notifier }),
       tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })
     }

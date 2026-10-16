@@ -2,6 +2,7 @@ import type { FarmerRepository } from '#modules/farmers';
 import { type FarmRepository, findActiveFarm } from '#modules/farms';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, invalid, notFound, ok } from '#shared/domain/result';
+import type { JobEvents } from '../domain/job-events';
 import { SERVICE_STATUS } from '../domain/service-status';
 import type { ServiceRepository } from '../domain/service.repository';
 import { checkExpiry } from '../domain/service.rules';
@@ -12,9 +13,10 @@ export interface PublishServiceDeps {
   farms: FarmRepository;
   services: ServiceRepository;
   clock: Clock;
+  jobEvents: JobEvents;
 }
 
-// RF01 - Publica um serviço Pending numa fazenda ativa do produtor.
+// RF01 - Publica um serviço Pending numa fazenda ativa do produtor e avisa quem acompanha vagas novas.
 export class PublishServiceUseCase {
   constructor(private readonly deps: PublishServiceDeps) {}
 
@@ -43,6 +45,7 @@ export class PublishServiceUseCase {
       status: SERVICE_STATUS.PENDING,
       insertion_date: this.deps.clock.now()
     });
+    this.deps.jobEvents.jobPublished(service);
     return ok(service);
   }
 }

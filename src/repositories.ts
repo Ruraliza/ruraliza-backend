@@ -10,6 +10,7 @@ import { createInMemoryApplicationRepository, createInMemoryPaymentRepository } 
 import type { ApplicationRepository, PaymentRepository } from '#modules/hiring';
 import { createInMemoryNotificationRepository, createInMemoryPushSubscriptionRepository } from '#modules/notifications';
 import type { NotificationRepository, PushSubscriptionRepository } from '#modules/notifications';
+import { type JobAlertRepository, type JobPreferencesRepository, createInMemoryJobAlertRepository, createInMemoryJobPreferencesRepository } from '#modules/matching';
 import { type ReportRepository, createInMemoryReportRepository } from '#modules/reports';
 import { type FarmReviewRepository, type WorkerReviewRepository, createInMemoryFarmReviewRepository, createInMemoryWorkerReviewRepository } from '#modules/reviews';
 import { createInMemoryServiceRepository } from '#modules/services';
@@ -51,6 +52,8 @@ export interface Repositories {
   helpArticles: HelpArticleRepository;
   reports: ReportRepository;
   verifications: VerificationRepository;
+  jobPreferences: JobPreferencesRepository;
+  jobAlerts: JobAlertRepository;
 }
 
 // Repositórios em memória (um conjunto novo por chamada, isolado dos outros).
@@ -75,6 +78,8 @@ export function createInMemoryRepositories(): Repositories {
     certificates: createInMemoryCertificateRepository(),
     helpArticles: createInMemoryHelpArticleRepository(),
     reports: createInMemoryReportRepository(),
-    verifications: createInMemoryVerificationRepository()
+    verifications: createInMemoryVerificationRepository(),
+    jobPreferences: createInMemoryJobPreferencesRepository(),
+    jobAlerts: createInMemoryJobAlertRepository()
   };
 }

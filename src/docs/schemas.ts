@@ -6,6 +6,7 @@ import { type FarmerSchemaName, farmerSchemas } from '#modules/farmers';
 import { type FarmSchemaName, farmSchemas } from '#modules/farms';
 import { type HelpSchemaName, helpSchemas } from '#modules/help';
 import { type HiringSchemaName, hiringSchemas } from '#modules/hiring';
+import { type MatchingSchemaName, matchingSchemas } from '#modules/matching';
 import { type NotificationSchemaName, type PushSchemaName, notificationSchemas, pushSchemas } from '#modules/notifications';
 import { type PlatformSchemaName, platformSchemas } from '#modules/platform';
 import { type ReportSchemaName, reportSchemas } from '#modules/reports';
@@ -40,7 +41,8 @@ export type SchemaName =
   | TrackSchemaName
   | HelpSchemaName
   | ReportSchemaName
-  | VerificationSchemaName;
+  | VerificationSchemaName
+  | MatchingSchemaName;
 
 export const schemas = {
   ...coreSchemas,
@@ -61,5 +63,6 @@ export const schemas = {
   ...trackSchemas,
   ...helpSchemas,
   ...reportSchemas,
-  ...verificationSchemas
+  ...verificationSchemas,
+  ...matchingSchemas
 } satisfies Record<SchemaName, Schema>;

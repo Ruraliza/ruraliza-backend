@@ -23,3 +23,4 @@ export type * from '../modules/tracks/track.contract';
 export type * from '../modules/help/help.contract';
 export type * from '../modules/reports/report.contract';
 export type * from '../modules/verification/verification.contract';
+export type * from '../modules/matching/matching.contract';

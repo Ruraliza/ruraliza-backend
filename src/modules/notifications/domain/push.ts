@@ -24,6 +24,8 @@ export interface PushMessage {
 
 // Telas do frontend que as notificações abrem.
 export const WORKER_APPLICATIONS_URL = 'trabalhador/candidaturas';
+// Início do trabalhador (onde ficam as vagas recomendadas).
+export const WORKER_HOME_URL = 'trabalhador';
 
 export function farmerServiceUrl(serviceId: number): string {
   return `produtor/servicos/${serviceId}`;

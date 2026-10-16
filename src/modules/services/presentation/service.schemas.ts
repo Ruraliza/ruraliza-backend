@@ -37,6 +37,10 @@ const serviceProps: Properties = {
 };
 const serviceRequired = ['id', 'farmer_id', 'farm_id', 'payment_id', 'worker_id', 'name', 'description', 'category', 'duration', 'price', 'expires_at', 'status', 'insertion_date'];
 
+// Campos da vaga como o trabalhador vê (OpenService), para quem estende (ex.: RecommendedJob).
+export const openServiceProps: Properties = { ...serviceProps, farm: ref('FarmLocation') };
+export const openServiceRequired: readonly string[] = [...serviceRequired, 'farm'];
+
 export const serviceSchemas = {
   ServiceStatus: { type: 'string', enum: Object.values(SERVICE_STATUS), example: 'Pending' },
   CategoryList: { type: 'array', items: { type: 'string', enum: [...CATEGORIES] }, example: [...CATEGORIES] },
@@ -47,7 +51,7 @@ export const serviceSchemas = {
     { ...serviceProps, farm: ref('Farm'), applications_pending: { type: 'integer', minimum: 0, example: 2 } },
     [...serviceRequired, 'farm', 'applications_pending']
   ),
-  OpenService: object({ ...serviceProps, farm: ref('FarmLocation') }, [...serviceRequired, 'farm']),
+  OpenService: object(openServiceProps, openServiceRequired),
 
   ServiceInput: input(
     {

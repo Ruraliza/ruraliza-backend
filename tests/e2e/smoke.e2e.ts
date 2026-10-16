@@ -57,6 +57,9 @@ import type {
   AdminVerificationResponse,
   Verification,
   VerificationResponse,
+  JobPreferences,
+  JobPreferencesResponse,
+  RecommendedJob,
   WorkerResponse,
   WorkerSignupResponse,
   Certificate,
@@ -720,6 +723,20 @@ async function run(): Promise<void> {
   // Não existe exclusão de serviço: o caminho é cancelar (PATCH /cancel), que mantém o histórico.
   await step('rota de exclusão de serviço não existe', 'DELETE', `/farmers/services/${described.id}`, undefined, 404);
 
+  console.log('\nVagas para você');
+  actAs(bruno);
+  const prefsUrl = `/workers/${worker.id}/job-preferences`;
+  await step<JobPreferences>('preferências vazias', 'GET', prefsUrl, undefined, 200, (b) => assert.deepEqual(b, { categories: [], near: null, alerts: false }));
+  await step('categoria desconhecida', 'PUT', prefsUrl, { categories: ['Pescaria'], near: null, alerts: true }, 400);
+  await step('raio pequeno demais', 'PUT', prefsUrl, { categories: [], near: { latitude: -22.1, longitude: -43.2, radius_km: 1 }, alerts: true }, 400);
+  await step('preferências sem "perto de mim"', 'PUT', prefsUrl, { categories: [], alerts: true }, 400);
+  await step<JobPreferencesResponse>('quer manejo de gado perto de Três Rios, com avisos', 'PUT', prefsUrl,
+    { categories: ['Manejo de gado'], near: { latitude: -22.1165, longitude: -43.2092, radius_km: 30 }, alerts: true }, 200,
+    (b) => assert.deepEqual(b.preferences.near, { latitude: -22.12, longitude: -43.21, radius_km: 30 })); // região aproximada
+  actAs(carla);
+  await step('preferências de outro trabalhador', 'GET', prefsUrl, undefined, 403);
+  actAs(ana);
+
   console.log('\nFiltros de vagas');
   const post = (name: string, description: string, category: string, duration: number, price: number): Promise<ServiceResponse> =>
     step<ServiceResponse>(`publicar "${name}"`, 'POST', '/farmers/services', { farmer_id: farmer.id, farm_id: farm.id, name, description, category, duration, price }, 201);
@@ -748,6 +765,15 @@ async function run(): Promise<void> {
   await step('horas que não são número', 'GET', '/workers/services?min_hours=muitas', undefined, 400);
   await step('data inválida no filtro', 'GET', '/workers/services?from=ontem', undefined, 400);
   await step('ordem desconhecida', 'GET', '/workers/services?sort=aleatorio', undefined, 400);
+  await container.useCases.matching.alerts.idle(); // os avisos de vaga nova saem em segundo plano
+  await container.notifier.idle();
+  await step<RecommendedJob[]>('vagas para você: a que combina primeiro, com os motivos', 'GET', `/workers/${worker.id}/recommended-jobs?limit=5`, undefined, 200, (b) => {
+    assert.equal(b[0]?.id, ordenha.id);
+    assert.deepEqual([b[0].reasons[0], b[0].distance_km, b[0].farm.latitude], ['Você escolheu Manejo de gado', 0, undefined]);
+  });
+  await step('limite de recomendações inválido', 'GET', `/workers/${worker.id}/recommended-jobs?limit=99`, undefined, 400);
+  await step<NotificationsPage>('aviso na hora da vaga nova que combina', 'GET', `/workers/${worker.id}/notifications`, undefined, 200,
+    (b) => assert.ok(b.items.some((n) => n.title === 'Vaga nova perto de você' && n.url === `trabalhador/vagas/${ordenha.id}`)));
 
   const invalidJson = await call('POST', '/farmers', undefined, '{ invalido');
   assert.equal(invalidJson.status, 400);

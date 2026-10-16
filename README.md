@@ -327,9 +327,20 @@ A foto do documento é dado pessoal sensível, então: é reduzida para no máxi
 | GET | `/api/admin/verifications/:id/document` | A foto (WebP, `Cache-Control: private, no-store`), só enquanto está em análise |
 | PATCH | `/api/admin/verifications/:id` | `{ status: 'approved' \| 'rejected', reason? }` (motivo obrigatório ao recusar). Apaga a foto e avisa a pessoa |
 
+### Vagas para você (recomendações e avisos)
+
+O trabalhador diz o que quer fazer (categorias), onde está ("perto de mim": a região, guardada com cerca de 1 km de precisão, e o raio) e se quer avisos. As vagas abertas são sugeridas pelo que combina: a categoria escolhida, as trilhas que ele faz (a concluída pesa mais) e, sem nada disso, as categorias das vagas em que já se candidatou; com "perto de mim", só entram as que ficam dentro do raio (em linha reta, calculada na API: o ponto da fazenda nunca sai). Fazenda bem avaliada e produtor verificado ajudam no desempate. Cada vaga vem com os motivos (`reasons`) e a distância aproximada (`distance_km`). Ficam de fora as vagas em que ele já se candidatou e as do próprio perfil de produtor.
+
+Com os avisos ligados, quem combina com uma vaga nova (pela categoria escolhida ou pela trilha, e dentro do raio) recebe na hora "Vaga nova perto de você" (no sino e no push), no máximo 3 por dia e nunca a mesma vaga duas vezes; uma vez por semana sai o resumo "Encontramos N vagas para você" (o servidor confere a cada hora quem já pode receber).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET / PUT | `/api/workers/:id/job-preferences` | `{ categories, near: { latitude, longitude, radius_km } \| null, alerts }`; o PUT troca tudo (raio de 5 a 300 km) |
+| GET | `/api/workers/:id/recommended-jobs?limit=` | As vagas que combinam (1 a 30; padrão 10), da que mais combina para a que menos |
+
 ### Central de ajuda
 
-Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (24, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
+Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (25, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
 
 | Método | Rota | Descrição |
 |---|---|---|
