@@ -35,7 +35,7 @@ describe('conclusão das aulas e certificado', () => {
     assert.equal(again.issued_certificate, null);
   });
 
-  it('a última aula conclui a trilha e emite o certificado uma vez, com os dados do momento', async () => {
+  it('a última aula conclui a trilha e emite o certificado uma vez, com os dados do momento e o resumo deles', async () => {
     unwrap(await done(2));
     unwrap(await done(5));
     t.setNow('2026-10-03T18:00:00.000Z');
@@ -43,7 +43,9 @@ describe('conclusão das aulas e certificado', () => {
 
     const certificate = {
       code: 'RZ-TEST-0001', track_id: track.id, track_title: 'Colheita de café', worker_name: 'Maria Trabalhadora',
-      workload_minutes: 60, completed_at: '2026-10-03T18:00:00.000Z'
+      workload_minutes: 60, completed_at: '2026-10-03T18:00:00.000Z',
+      // SHA-256 de ["RZ-TEST-0001","Maria Trabalhadora","Colheita de café",60,"2026-10-03T18:00:00.000Z"]
+      data_hash: '0dd9c112ae7e93d7c7ddf2145b58b891892c3b700f990ece51ce04639c415323'
     };
     assert.deepEqual(last.issued_certificate, certificate);
     assert.deepEqual([last.track.progress.completed_at, last.track.certificate_code], ['2026-10-03T18:00:00.000Z', 'RZ-TEST-0001']);

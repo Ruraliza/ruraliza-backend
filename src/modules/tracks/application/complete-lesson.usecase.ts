@@ -2,7 +2,7 @@ import type { SystemUserRepository } from '#modules/system-users';
 import type { WorkerRepository } from '#modules/workers';
 import type { Clock } from '#shared/domain/clock';
 import { type Result, ok, requireFound } from '#shared/domain/result';
-import { type CertificateCodes, type CertificateRecord, type CertificateRepository, toCertificate } from '../domain/certificate';
+import { type CertificateCodes, type CertificateHasher, type CertificateRecord, type CertificateRepository, toCertificate } from '../domain/certificate';
 import { type EnrollmentRepository, currentCompleted } from '../domain/enrollment';
 import { type TrackRecord, type TrackRepository, allLessons, workloadMinutes } from '../domain/track';
 import type { Certificate, EnrolledTrack } from '../track.contract';
@@ -17,6 +17,7 @@ export interface CompleteLessonDeps {
   systemUsers: SystemUserRepository;
   clock: Clock;
   codes: CertificateCodes;
+  hasher: CertificateHasher;
 }
 
 export interface LessonCompletion {
@@ -25,7 +26,8 @@ export interface LessonCompletion {
 }
 
 // Marca a aula como concluída (repetir não muda nada). Ao concluir a última aula que faltava,
-// a trilha fica concluída e o certificado é emitido, uma vez só, com o nome atual do trabalhador.
+// a trilha fica concluída e o certificado é emitido, uma vez só, com o nome atual do trabalhador
+// e o resumo SHA-256 desses dados.
 export class CompleteLessonUseCase {
   constructor(private readonly deps: CompleteLessonDeps) {}
 
@@ -56,14 +58,12 @@ export class CompleteLessonUseCase {
     // Colisão é improvável (~49 bits), mas o código precisa ser único.
     while ((await this.deps.certificates.find({ code })).length > 0) code = this.deps.codes.create();
 
+    const data = { code, worker_name: worker.name, track_title: track.title, workload_minutes: workloadMinutes(track), completed_at: now };
     return this.deps.certificates.create({
-      code,
+      ...data,
       track_id: track.id,
       worker_id: workerId,
-      track_title: track.title,
-      worker_name: worker.name,
-      workload_minutes: workloadMinutes(track),
-      completed_at: now,
+      data_hash: this.deps.hasher.hash(data),
       issued_at: now
     });
   }

@@ -51,7 +51,7 @@ const DEFAULT_ARTICLES: readonly [HelpTopic, string, string][] = [
   ['trilhas', 'O que são as trilhas de estudo?',
     'Cursos práticos para trabalhadores, divididos em módulos e aulas em vídeo e texto. Abra Trilhas, escolha pela categoria e comece quando quiser: o progresso fica salvo.'],
   ['trilhas', 'Como consigo o certificado?',
-    'Ao concluir a última aula, o certificado sai em nome da Ruraliza, com seu nome, a carga horária e a data. Você baixa em PDF, e qualquer pessoa confere a autenticidade pelo código, em Validar certificado.'],
+    'Ao concluir a última aula, o certificado sai em nome da Ruraliza, com seu nome, a carga horária e a data. Você baixa em PDF, e qualquer pessoa confere a autenticidade pelo QR code impresso nele ou pelo código, em Validar certificado.'],
 
   ['conta', 'Esqueci minha senha. E agora?',
     'Na tela de entrada, toque em "Esqueci minha senha" e informe seu e-mail. Nesta versão de testes o código não vai por e-mail: o app leva você direto para criar a senha nova.'],

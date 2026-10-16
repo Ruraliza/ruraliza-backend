@@ -41,3 +41,6 @@ dados guardados no momento da emissão.
 
 - QR code no PDF apontando para a página de validação do código.
 - Mostrar na validação um resumo (hash SHA-256) dos dados do certificado, para provar que nada foi alterado.
+
+As duas já estão no app: o certificado guarda o resumo (`data_hash`) desde a emissão, o PDF traz o resumo e o QR code,
+e a página de validação mostra o resumo e confere se ele bate com os dados.

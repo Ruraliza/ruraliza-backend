@@ -172,4 +172,7 @@ export interface Certificate {
   worker_name: string;
   workload_minutes: number;
   completed_at: string;
+  // Resumo SHA-256 (64 caracteres hex) calculado na emissão: JSON de [code, worker_name, track_title,
+  // workload_minutes, completed_at], sem espaços, em UTF-8. Qualquer mudança nesses dados muda o resumo.
+  data_hash: string;
 }

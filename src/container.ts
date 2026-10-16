@@ -27,7 +27,7 @@ import { type ReviewUseCases, createReviewUseCases } from '#modules/reviews';
 import { type ServiceUseCases, createServiceUseCases } from '#modules/services';
 import { type SponsorUseCases, createSponsorUseCases } from '#modules/sponsors';
 import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/system-users';
-import { type CertificateCodes, type TrackUseCases, createTrackUseCases, randomCertificateCodes } from '#modules/tracks';
+import { type CertificateCodes, type TrackUseCases, createTrackUseCases, randomCertificateCodes, sha256CertificateHasher } from '#modules/tracks';
 import { type VerificationUseCases, createVerificationUseCases } from '#modules/verification';
 import { type WorkerUseCases, createWorkerUseCases } from '#modules/workers';
 import { authTokenSecret, whatsAppSettings } from '#shared/config';
@@ -205,7 +205,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
       sponsors: createSponsorUseCases({ sponsors: repos.sponsors, images: { processor: imageProcessor, store: images }, clock }),
       farmStats: createFarmStatsUseCases({ farmers, farms, services, payments, applications, workers, reputation, clock }),
       reports: createReportUseCases({ reports: repos.reports, farmers, workers, services, applications, accounts, clock, push: notifier }),
-      tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes })
+      tracks: createTrackUseCases({ tracks, enrollments, certificates, workers, systemUsers, clock, codes: options.certificateCodes ?? randomCertificateCodes, hasher: sha256CertificateHasher })
     }
   };
 }

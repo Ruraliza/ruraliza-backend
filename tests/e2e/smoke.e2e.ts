@@ -5,6 +5,7 @@
 // além dos principais casos 400/401/403/404/409 e da administração pelos usuários de sistema.
 // Uso: npm run test:e2e
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { createApi } from '../../app';
 import { createContainer } from '../../src/container';
@@ -1449,14 +1450,17 @@ async function tracksFlow(admin: string): Promise<void> {
   }
   assert.ok(certificate, 'a última aula emite o certificado');
   assert.deepEqual([certificate.worker_name, certificate.track_title, certificate.workload_minutes], ['Lia Aluna', 'Colheita de café', 105]);
+  const { code, worker_name, track_title, workload_minutes, completed_at, data_hash } = certificate;
+  assert.equal(data_hash, createHash('sha256').update(JSON.stringify([code, worker_name, track_title, workload_minutes, completed_at]), 'utf8').digest('hex'),
+    'o resumo SHA-256 sai dos dados impressos, como diz o contrato');
   await step<Certificate[]>('certificados da aluna', 'GET', `/workers/${aluna.id}/certificates`, undefined, 200, (b) => assert.equal(b.length, 1));
   actAs(teo);
   await step('certificados de outro trabalhador', 'GET', `/workers/${aluna.id}/certificates`, undefined, 403);
 
   console.log('\nCertificados (público)');
   actAs(null);
-  await step<Certificate>('validar certificado sem token', 'GET', `/certificates/${certificate.code.toLowerCase()}`, undefined, 200,
-    (b) => assert.equal(b.worker_name, 'Lia Aluna'));
+  await step<Certificate>('validar certificado sem token (com o resumo da emissão)', 'GET', `/certificates/${certificate.code.toLowerCase()}`, undefined, 200,
+    (b) => assert.deepEqual([b.worker_name, b.data_hash], ['Lia Aluna', data_hash]));
   await step('código inexistente', 'GET', '/certificates/RZ-0000-0000-00', undefined, 404);
 }
 

@@ -415,7 +415,7 @@ Conversa interna de cada contratação, para **proteger o WhatsApp** dos dois at
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/categories` | Lista fixa de categorias |
-| GET | `/api/certificates/:code` | Validação pública de um certificado de conclusão (sem token) |
+| GET | `/api/certificates/:code` | Validação pública de um certificado de conclusão (sem token), com o resumo SHA-256 dos dados (`data_hash`) |
 | GET | `/api/config/push` | Chave pública VAPID das notificações push; 503 se as chaves não estiverem no `.env` |
 | GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 403 se o `Origin` não for do frontend, 503 se a chave não estiver configurada |
 | GET | `/api/images/:id` | Serve uma foto (WebP, cache imutável de 1 ano) |
@@ -425,7 +425,7 @@ Conversa interna de cada contratação, para **proteger o WhatsApp** dos dois at
 
 ### Trilhas de estudo
 
-Cursos para os trabalhadores, divididos em módulos e aulas (vídeo do YouTube/Vimeo e/ou texto em Markdown simples, com a duração em minutos; a carga horária é a soma). Os tutores montam; a trilha nasce em rascunho e segue `draft → published ⇄ discontinued`. Descontinuada some da lista e não aceita alunos novos, mas quem já começou termina. Ao concluir a última aula, o trabalhador recebe um certificado em nome da Ruraliza (nome, trilha, carga horária e data de conclusão, guardados como estavam na emissão) com um código validado em `/api/certificates/:code`.
+Cursos para os trabalhadores, divididos em módulos e aulas (vídeo do YouTube/Vimeo e/ou texto em Markdown simples, com a duração em minutos; a carga horária é a soma). Os tutores montam; a trilha nasce em rascunho e segue `draft → published ⇄ discontinued`. Descontinuada some da lista e não aceita alunos novos, mas quem já começou termina. Ao concluir a última aula, o trabalhador recebe um certificado em nome da Ruraliza (nome, trilha, carga horária e data de conclusão, guardados como estavam na emissão) com um código validado em `/api/certificates/:code`. Na emissão também é calculado e guardado o **resumo SHA-256** desses dados (`data_hash`): o SHA-256, em hex, do JSON `[code, worker_name, track_title, workload_minutes, completed_at]` sem espaços, em UTF-8. O PDF do app traz o resumo e um QR code que abre a página de validação, onde o resumo aparece de novo; qualquer mudança nesses dados muda o resumo, e qualquer pessoa pode recalculá-lo (ex.: `printf '%s' '["RZ-…","Nome","Trilha",90,"2026-…Z"]' | sha256sum`). Não é assinatura digital: quem garante o certificado continua sendo a validação pelo código (ver [docs/estudo-govbr-certificados.md](docs/estudo-govbr-certificados.md)).
 
 ### Atualização em tempo real (SSE)
 

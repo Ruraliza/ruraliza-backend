@@ -14,7 +14,8 @@ API do **Ruraliza**: conecta produtores rurais a trabalhadores para serviços na
   \`trabalhador@exemplo.com\`, \`ambos@exemplo.com\` e, na equipe, \`admin@exemplo.com\` e \`tutor@exemplo.com\`.
 - **Usuários de sistema** (cargos \`admin\` e \`tutor\`) não se cadastram pelo app: um administrador cria em \`/api/admin/system-users\`.
 - **Trilhas de estudo**: os tutores montam em \`/api/admin/tracks\`; os trabalhadores estudam em \`/api/workers/tracks\` e ganham um
-  certificado, validado por qualquer pessoa em \`/api/certificates/{code}\`. Trilhas nunca são removidas, só descontinuadas.
+  certificado, validado por qualquer pessoa em \`/api/certificates/{code}\` (com o resumo SHA-256 dos dados, \`data_hash\`).
+  Trilhas nunca são removidas, só descontinuadas.
 - Erros sempre em \`{ "error": "mensagem" }\`: 400 validação, 401 sem sessão (ou e-mail/senha incorretos), 403 sem permissão,
   404 não encontrado, 409 conflito de estado.
 - Status em inglês: serviço \`Pending → In Progress → Completed\` (ou \`Cancelled\`); candidatura \`Pending → Accepted | Rejected\`.
