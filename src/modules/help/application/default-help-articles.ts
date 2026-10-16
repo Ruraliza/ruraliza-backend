@@ -16,6 +16,8 @@ const DEFAULT_ARTICLES: readonly [HelpTopic, string, string][] = [
     'Abra o serviço em Serviços. Cada candidato aparece com experiência, certificados e a nota das avaliações. Toque em "Aceitar trabalhador": os outros candidatos são avisados e a conversa com o escolhido abre na hora.'],
   ['produtores', 'Posso editar ou cancelar um serviço?',
     'Sim, enquanto ninguém foi aceito: abra o serviço e use Editar ou Cancelar. Depois do aceite, combine as mudanças pela conversa.'],
+  ['produtores', 'Preciso repetir um serviço que já publiquei. Tem atalho?',
+    'Tem. Abra o serviço antigo em Serviços e toque em "Publicar de novo": o formulário abre preenchido com os mesmos dados. É só ajustar o que mudou e escolher o prazo.'],
 
   ['trabalhadores', 'Como encontro vagas?',
     'Toque em Buscar. Dá para filtrar por categoria, carga horária, data de publicação e nota da fazenda. Cada vaga mostra a cidade, as horas e o valor antes de você se candidatar.'],
@@ -33,6 +35,8 @@ const DEFAULT_ARTICLES: readonly [HelpTopic, string, string][] = [
     'Não. Nas listas, CPF, telefone e e-mail aparecem mascarados. O WhatsApp só é liberado na conversa quando os dois tocam para liberar. Antes disso, números e e-mails escritos nas mensagens ficam ocultos.'],
   ['seguranca', 'O Ruraliza é responsável pelo trabalho combinado?',
     'Não. O Ruraliza aproxima quem precisa de quem sabe fazer: não é empregador nem agência de emprego. As condições de trabalho, a segurança (como os EPIs e a NR-31) e o pagamento são combinados e garantidos entre o produtor e o trabalhador. Os detalhes estão nos Termos de Uso.'],
+  ['seguranca', 'Por que meu texto foi recusado?',
+    'O Ruraliza não aceita palavrões nem ofensas em vagas e perfis, para o ambiente continuar profissional. Reescreva o trecho sem essas palavras; o resto do que você escreveu continua no formulário.'],
   ['seguranca', 'Meus dados estão seguros?',
     'Esta é uma versão de testes: os dados ficam na memória do servidor e são apagados quando ele reinicia. As senhas são guardadas só como código (hash) e as fotos perdem os dados de localização. Evite usar dados reais por enquanto. Os detalhes estão na Política de Privacidade.'],
 

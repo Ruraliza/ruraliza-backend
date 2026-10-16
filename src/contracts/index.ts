@@ -3,6 +3,7 @@
 // Os módulos já migrados guardam o seu contrato em src/modules/<módulo>/<nome>.contract.ts;
 // este arquivo continua sendo o ponto único que o check e o código legado importam.
 export type * from '../shared/contracts/api';
+export type { BLOCKED_TERMS } from '../shared/domain/moderation';
 
 export type * from '../modules/accounts/accounts.contract';
 export type * from '../modules/admin/admin.contract';

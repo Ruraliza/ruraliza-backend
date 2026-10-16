@@ -2,6 +2,7 @@ import { type Result, invalid, ok } from '#shared/domain/result';
 import { type Body, missingMessage } from '#shared/infra/http/body';
 import { normalizeEmail } from '#shared/utils/profile';
 import { isValidCpf, isValidEmail, missingFields, parseNewPassword, text, tooLong } from '#shared/utils/validation';
+import { blockedTermProblem } from '#shared/domain/moderation';
 import { TERMS_REQUIRED } from '../domain/terms';
 
 // Peças dos parsers de perfil (produtor e trabalhador), usadas também pelo segundo perfil da conta.
@@ -79,9 +80,12 @@ export const WORKER_TEXTS = [
   ['experience', 'Experiência', MAX_LONG_TEXT]
 ] as const;
 
+// Onde está o problema, para a mensagem do filtro de palavrões.
+const WORKER_TEXT_WHERE = { bio: 'na apresentação', certificates: 'nos certificados', courses: 'nos cursos', experience: 'na experiência' } as const;
+
 export function workerTextProblem(values: Partial<Record<(typeof WORKER_TEXTS)[number][0], string | null>>): string | null {
   for (const [field, label, max] of WORKER_TEXTS) {
-    const problem = tooLong(label, values[field], max);
+    const problem = tooLong(label, values[field], max) ?? blockedTermProblem(WORKER_TEXT_WHERE[field], values[field]);
     if (problem) return problem;
   }
   return null;

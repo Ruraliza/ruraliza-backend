@@ -296,6 +296,10 @@ Usuários de sistema são a equipe do Ruraliza, separados das contas do app e **
 | PUT | `/api/admin/tracks/:id/content` | Substitui módulos e aulas (`{ modules: [{ id?, title, lessons: [{ id?, title, video_url?, content?, duration_minutes }] }] }`). Com `id` mantém o item; ids nunca são reaproveitados |
 | PATCH | `/api/admin/tracks/:id/status` | `{ status: "published" \| "discontinued" }`. Não há remoção nem volta para rascunho; 409 se a transição não vale ou se faltam aulas |
 
+### Filtro de palavrões
+
+Títulos e descrições de vagas (publicar e editar) e os textos do perfil do trabalhador (apresentação, experiência, certificados e cursos) são recusados com **400** quando têm palavrão ou ofensa: "Há palavras não permitidas no nome do serviço. Reescreva sem palavrões nem ofensas." A lista (`src/shared/domain/moderation.ts`) pega acento, maiúscula, letra repetida e número no lugar da letra (`p0rr4`), só com a palavra inteira (`curral` passa), e deixa de fora de propósito palavras com sentido comum no campo (`bosta` de vaca, `Cu` de cobre, `pica-pau`, `macaco` hidráulico, milho `crioulo`...). O frontend usa a mesma lista para avisar antes de enviar, e o `npm run check:contracts` confere que as duas são iguais.
+
 ### Central de ajuda
 
 Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (20, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).

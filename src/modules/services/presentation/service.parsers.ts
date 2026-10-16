@@ -1,4 +1,5 @@
 import { isCalendarDate } from '#shared/domain/dates';
+import { blockedTermProblem } from '#shared/domain/moderation';
 import { type Result, invalid, ok } from '#shared/domain/result';
 import { type Body, missingMessage } from '#shared/infra/http/body';
 import type { Query } from '#shared/infra/http/types';
@@ -21,11 +22,14 @@ export function parseServiceInput(body: Body): Result<ServiceInput> {
 
   const extras = parseServiceExtras(body);
   if (!extras.ok) return extras;
+  const name = text(body['name']).trim();
+  const offensive = blockedTermProblem('no nome do serviço', name);
+  if (offensive) return invalid(offensive);
 
   return ok({
     farmer_id: Number(body['farmer_id']),
     farm_id: Number(body['farm_id']),
-    name: text(body['name']).trim(),
+    name,
     description: extras.value.description ?? null,
     category: text(body['category']),
     duration,
@@ -44,6 +48,8 @@ export function parseServiceUpdate(body: Body): Result<ServiceUpdate> {
 
   const { farm_id, name, category, duration, price } = body;
   if (name !== undefined && !text(name).trim()) return invalid('O nome do serviço não pode ficar vazio.');
+  const offensive = name === undefined ? null : blockedTermProblem('no nome do serviço', text(name));
+  if (offensive) return invalid(offensive);
   if (category !== undefined && !text(category).trim()) return invalid('A categoria não pode ficar vazia.');
   if (duration !== undefined && !isPositiveNumber(duration)) {
     return invalid('A duração deve ser um número de horas maior que zero.');
@@ -68,7 +74,7 @@ function parseServiceExtras(body: Body): Result<{ description?: string | null; e
   const description = body['description'];
   if (description !== undefined) {
     out.description = description === null || !text(description).trim() ? null : text(description).trim();
-    const problem = tooLong('A descrição', out.description, MAX_DESCRIPTION);
+    const problem = tooLong('A descrição', out.description, MAX_DESCRIPTION) ?? blockedTermProblem('na descrição', out.description);
     if (problem) return invalid(problem);
   }
   const expiresAt = body['expires_at'];

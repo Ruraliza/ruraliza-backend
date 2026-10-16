@@ -367,6 +367,9 @@ async function run(): Promise<void> {
   await step('publicar em nome de outro produtor', 'POST', '/farmers/services',
     { farmer_id: 999, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 403);
   await step('serviço sem campos', 'POST', '/farmers/services', { farmer_id: farmer.id }, 400);
+  await step('palavrão no nome do serviço', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita da p0rra', category: 'Outros', duration: 1, price: 1 }, 400);
+  await step('palavrão na descrição (edição)', 'PATCH', `/farmers/services/${service.id}`, { description: 'Vai tomar no cu' }, 400);
 
   const { service: open } = await step<ServiceResponse>('publicar 2º serviço', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Plantio', category: 'Plantio', duration: 8, price: 300 }, 201);
@@ -396,6 +399,7 @@ async function run(): Promise<void> {
 
   console.log('\nSenha e acesso');
   await step('cadastro sem senha', 'POST', '/workers', { name: 'X', email: 'semsenha@exemplo.com', phone: '1', cpf: '39053344705' }, 400);
+  await step('palavrão na apresentação do trabalhador', 'POST', '/workers', { name: 'X', email: 'feio@exemplo.com', phone: '1', cpf: '39053344705', password: PW, accept_terms: true, bio: 'Sou um merda de bom' }, 400);
   await step('cadastro com senha curta', 'POST', '/workers', { name: 'X', email: 'curta@exemplo.com', phone: '1', cpf: '39053344705', password: '1234567', accept_terms: true }, 400);
   await step<Farmer>('a senha não aparece no perfil', 'GET', `/farmers/${farmer.id}`, undefined, 200, (b) => assert.equal('password' in b, false));
   await step<LoginResponse>('entrar', 'POST', '/auth/login', { email: 'ANA@exemplo.com', password: PW }, 200,

@@ -7,6 +7,7 @@ import type * as FrontConfig from '../../ruraliza-frontend/src/app/core/models/c
 import type * as FrontFarm from '../../ruraliza-frontend/src/app/core/models/farm.model';
 import type * as FrontFarmer from '../../ruraliza-frontend/src/app/core/models/farmer.model';
 import type * as FrontHelp from '../../ruraliza-frontend/src/app/core/models/help.model';
+import type * as FrontModeration from '../../ruraliza-frontend/src/app/core/models/moderation.model';
 import type * as FrontNotification from '../../ruraliza-frontend/src/app/core/models/notification.model';
 import type * as FrontPayment from '../../ruraliza-frontend/src/app/core/models/payment.model';
 import type * as FrontPush from '../../ruraliza-frontend/src/app/core/models/push.model';
@@ -30,6 +31,9 @@ export type ContractParity = [
   Expect<Equals<Api.PaymentStatus, FrontStatus.PaymentStatus>>,
 
   Expect<Equals<Api.MapsConfig, FrontConfig.MapsConfig>>,
+
+  // Filtro de palavrões: a mesma lista nos dois lados (o formulário avisa, a API recusa).
+  Expect<Equals<(typeof Api.BLOCKED_TERMS)[number], (typeof FrontModeration.BLOCKED_TERMS)[number]>>,
 
   Expect<Equals<Api.PushSubscriptionInput, FrontPush.PushSubscriptionInput>>,
   Expect<Equals<Api.PushUnsubscribeInput, FrontPush.PushUnsubscribeInput>>,
