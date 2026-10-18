@@ -1,0 +1,18 @@
+# Grafo do Graphify: só código e docs do projeto. Nunca segredos, dependências ou gerados.
+.git/
+node_modules/
+dist/
+coverage/
+graphify-out/
+.agents/
+.claude/
+.codex/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.log
+*.tsbuildinfo
+package-lock.json
+skills-lock.json

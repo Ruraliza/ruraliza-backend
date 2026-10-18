@@ -6,16 +6,22 @@ API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Nesta fase os dado
 
 ---
 
+## 🗺️ Documentos do projeto
+
+[Produto e escopo](PRODUCT.md) · [Arquitetura](docs/architecture.md) · [Convenções da API](docs/design.md) · [Primeira execução](docs/onboarding.md) · [Qualidade e revisão](docs/quality.md) · [Ferramentas de agente](docs/setup.md) · [Instruções para agentes de IA](AGENTS.md)
+
+---
+
 ## 🚀 Como executar
 
-Pré-requisito: [Node.js](https://nodejs.org/) 20 ou superior.
+Pré-requisito: [Node.js](https://nodejs.org/) 20.19+, 22.13+ ou 24 (o mínimo do ESLint 10; desenvolvido no 24).
 
 ```bash
 cp .env.example .env     # configuração local (porta, chave do Google Maps)
 npm install
 npm run dev              # sobe em http://localhost:3000/api (tsx) e reinicia ao salvar
 npm start                # compila para dist/ e sobe o JavaScript gerado
-npm test                 # typecheck + lint + unitários + integração + e2e
+npm test                 # typecheck + lint + autoteste das regras + unitários + integração + e2e
 npm run test:unit        # unitários colocados (src/**/*.spec.ts): cada caso de uso com repositórios em memória
 npm run test:integration # fluxos entre módulos pelo container, sem HTTP (tests/integration) e o seed (tests/setup)
 npm run test:e2e         # HTTP de verdade: percorre o fluxo completo e os casos de erro (tests/e2e)
