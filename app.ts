@@ -4,7 +4,7 @@ import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { OpenAPIV3 } from 'openapi-types';
 import swaggerUi from 'swagger-ui-express';
-import { initialAdminSettings, isAllowedOrigin, serverPort } from '#shared/config';
+import { type InitialAdminSettings, demoSeedEnabled, initialAdminSettings, isAllowedOrigin, serverPort } from '#shared/config';
 import { type Container, createContainer } from './src/container';
 import type { ApiError } from '#shared/contracts/api';
 import { SEED_PASSWORD, seed } from './src/seed';
@@ -113,13 +113,36 @@ function errorHandler(error: unknown, req: Request, res: Response<ApiError>, _ne
 }
 
 // --- INICIALIZAÇÃO ---
-// Só sobe o servidor (e o seed) quando executado diretamente (npm start / npm run dev).
-async function main(): Promise<void> {
-  const devMode = process.argv.includes('--dev');
-  const container = createContainer();
-  await seed(container.repos, container.clock, container.passwords, container.idDocuments);
+export interface Boot {
+  container: Container;
+  demoSeed: boolean;
+  initialAdmin: InitialAdminSettings | null;
+  adminStatus: 'created' | 'exists' | null;
+}
+
+// Monta o container do servidor. O seed de demonstração cria contas com a senha pública do README,
+// então só roda em --dev (npm run dev) ou com SEED_DEMO=true. Em produção (npm start), a equipe
+// entra só pelo administrador de ADMIN_EMAIL/ADMIN_PASSWORD.
+// Também em --dev, o código de "esqueci a senha" sai no terminal, no lugar do e-mail (que ainda não existe);
+// fora dele, a redefinição pública fica desligada.
+export async function bootContainer(devMode: boolean): Promise<Boot> {
+  const container = createContainer(devMode ? { deliverResetCode: printResetCode } : {});
+  const demoSeed = devMode || demoSeedEnabled();
+  if (demoSeed) await seed(container.repos, container.clock, container.passwords, container.idDocuments);
   const initialAdmin = initialAdminSettings();
   const adminStatus = initialAdmin && (await container.useCases.systemUsers.ensureInitialAdmin.execute(initialAdmin));
+  return { container, demoSeed, initialAdmin, adminStatus };
+}
+
+// Só em --dev: o código é um segredo de uso único, e o e-mail fica fora do log.
+function printResetCode(_email: string, code: string): void {
+  console.log(`Esqueci a senha (só em --dev, no lugar do e-mail): código ${code}`);
+}
+
+// Só sobe o servidor quando executado diretamente (npm start / npm run dev).
+async function main(): Promise<void> {
+  const devMode = process.argv.includes('--dev');
+  const { container, demoSeed, initialAdmin, adminStatus } = await bootContainer(devMode);
   const { app } = createApi(container, { devMode });
   // Resumo semanal das vagas recomendadas (issue #23): confere a cada hora quem já pode receber.
   setInterval(() => {
@@ -129,15 +152,23 @@ async function main(): Promise<void> {
   const PORT = serverPort();
   app.listen(PORT, () => {
     console.log(`Servidor do Ruraliza rodando em http://localhost:${PORT}/api`);
-    console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 2 trabalhadores, 7 vagas: 6 abertas e 1 vencida;');
-    console.log('mais 5 serviços concluídos com avaliações e 1 em andamento com conversa; 3 trilhas de estudo: 2 publicadas e 1 em rascunho).');
-    console.log(`Perfis de teste: produtor@exemplo.com, trabalhador@exemplo.com, pedro@exemplo.com e ambos@exemplo.com, senha "${SEED_PASSWORD}".`);
-    console.log(`Equipe (login em /api/auth/system/login): admin@exemplo.com e tutor@exemplo.com, senha "${SEED_PASSWORD}".`);
+    if (demoSeed) {
+      console.log('Dados de TESTE carregados em memória (1 produtor, 2 fazendas, 2 trabalhadores, 7 vagas: 6 abertas e 1 vencida;');
+      console.log('mais 5 serviços concluídos com avaliações e 1 em andamento com conversa; 3 trilhas de estudo: 2 publicadas e 1 em rascunho).');
+      console.log(`Perfis de teste: produtor@exemplo.com, trabalhador@exemplo.com, pedro@exemplo.com e ambos@exemplo.com, senha "${SEED_PASSWORD}".`);
+      console.log(`Equipe (login em /api/auth/system/login): admin@exemplo.com e tutor@exemplo.com, senha "${SEED_PASSWORD}".`);
+      if (!devMode) console.warn('Atenção: SEED_DEMO=true criou contas com a senha pública do README. Não use onde houver dados de verdade.');
+    } else if (!initialAdmin) {
+      console.warn('Sem seed de demonstração nem ADMIN_EMAIL/ADMIN_PASSWORD: ninguém da equipe consegue entrar.');
+    }
     if (initialAdmin) {
       console.log(`Administrador do .env (ADMIN_EMAIL): ${initialAdmin.email} ${adminStatus === 'created' ? 'criado' : 'já existia'}.`);
     }
     console.log('Atenção: todos os dados somem quando o servidor reinicia.');
-    if (devMode) console.log('Modo desenvolvimento: CORS liberado para qualquer origem (exceto /api/config/maps).');
+    if (devMode) {
+      console.log('Modo desenvolvimento: CORS liberado para qualquer origem (exceto /api/config/maps).');
+      console.log('Esqueci a senha: o código sai neste terminal (fora do --dev, a redefinição fica desligada até o envio por e-mail existir).');
+    }
   });
 }
 

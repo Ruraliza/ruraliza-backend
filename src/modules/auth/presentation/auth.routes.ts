@@ -41,21 +41,19 @@ export function authRoutes(auth: AuthController, access: AccessPolicies): AuthRo
         tag: TAGS.auth,
         summary: 'Esqueci a senha: pedir redefinição',
         description:
-          '**Simulação.** O certo é enviar um código por e-mail; como o envio ainda não existe, o token volta na resposta ' +
-          '(`reset_token`) para o app seguir direto para a criação da nova senha. Vale por 30 minutos e uma vez só; ' +
-          'um pedido novo invalida o anterior.',
+          'Responde sempre o mesmo 200, com ou sem conta para o e-mail (não revela quem tem cadastro), e nunca devolve o código: ' +
+          'ele vai só para o dono do e-mail. Vale por 30 minutos e uma vez só; um pedido novo invalida o anterior. ' +
+          '**O envio por e-mail ainda não existe:** em produção nenhum código é criado. No `npm run dev` (`--dev`), ' +
+          'o código aparece no terminal da API, no lugar do e-mail.',
         body: 'PasswordResetRequestInput',
-        success: { status: 200, description: 'Redefinição criada.', schema: 'PasswordResetRequestResponse' },
-        errors: {
-          400: 'Campo obrigatório faltando; e-mail inválido.',
-          404: 'Não há conta com este e-mail.'
-        }
+        success: { status: 200, description: 'Pedido recebido (a mesma resposta com e sem conta).', schema: 'PasswordResetRequestResponse' },
+        errors: { 400: 'Campo obrigatório faltando; e-mail inválido.' }
       }), PUBLIC_ROUTE),
 
       route('post', '/password-reset/confirm', auth.resetPassword, authOperation({
         tag: TAGS.auth,
         summary: 'Esqueci a senha: criar a nova senha',
-        description: 'Usa o token do pedido de redefinição. Depois de usado, o token não vale mais.',
+        description: 'Usa o código entregue no pedido de redefinição. Depois de usado, o código não vale mais.',
         body: 'PasswordResetInput',
         success: { status: 200, description: 'Senha redefinida. Traz quem é o dono da conta.', schema: 'LoginResponse' },
         errors: { 400: 'Campo obrigatório faltando; senha fora do tamanho (8 a 128); token inválido, já usado ou expirado.' }

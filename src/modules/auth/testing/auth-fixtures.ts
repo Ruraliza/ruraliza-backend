@@ -19,11 +19,16 @@ export interface AuthTestbed extends AuthModuleDeps {
   systemUsers: SystemUserRepository;
   chats: ChatRepository;
   setNow: (iso: string) => void;
+  // Códigos de redefinição entregues (o que iria por e-mail).
+  sentResetCodes: { email: string; code: string }[];
 }
 
 export function authTestbed(): AuthTestbed {
   const clock = adjustableClock(NOW);
+  const sentResetCodes: AuthTestbed['sentResetCodes'] = [];
   return {
+    sentResetCodes,
+    deliverResetCode: (email, code) => { sentResetCodes.push({ email, code }); },
     accounts: createInMemoryAccountRepository(),
     farmers: createInMemoryFarmerRepository(),
     workers: createInMemoryWorkerRepository(),

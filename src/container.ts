@@ -1,7 +1,7 @@
 import { type AccountUseCases, type ProfileFactory, createAccountUseCases } from '#modules/accounts';
 import { type AdminUseCases, createAdminUseCases } from '#modules/admin';
 import { type ChatUseCases, createChatUseCases } from '#modules/chat';
-import { type AuthUseCases, createAuthUseCases } from '#modules/auth';
+import { type AuthUseCases, type ResetCodeDelivery, createAuthUseCases } from '#modules/auth';
 import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type FarmStatsUseCases, createFarmStatsUseCases } from '#modules/farm-stats';
@@ -112,6 +112,8 @@ export interface ContainerOptions {
   whatsapp?: WhatsAppSender;
   tokens?: SessionTokens;
   certificateCodes?: CertificateCodes;
+  // Entrega do código de "esqueci a senha". Sem ela (o padrão, até o envio por e-mail existir), a redefinição fica desligada.
+  deliverResetCode?: ResetCodeDelivery;
 }
 
 export function createContainer(options: ContainerOptions = {}): Container {
@@ -182,7 +184,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
     tokens,
     notifier,
     useCases: {
-      auth: createAuthUseCases({ accounts, farmers, workers, clock, passwords, resetTokens }),
+      auth: createAuthUseCases({ accounts, farmers, workers, clock, passwords, resetTokens, deliverResetCode: options.deliverResetCode ?? null }),
       accounts: createAccountUseCases({ accounts, farmers, workers, profiles }),
       farmers: farmerUseCases,
       workers: workerUseCases,

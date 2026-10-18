@@ -8,14 +8,19 @@ import { ResetPasswordUseCase } from './reset-password.usecase';
 describe('esqueci a senha', () => {
   let t: AuthTestbed;
 
+  // O código que iria por e-mail (o testbed guarda cada entrega).
+  const lastCode = (): string => t.sentResetCodes.at(-1)?.code ?? assert.fail('nenhum código entregue');
+
   beforeEach(() => {
     t = authTestbed();
   });
 
-  it('o token vale uma vez, troca a senha, abre a sessão e guarda só o resumo', async () => {
+  it('o código vai só para a entrega (o e-mail), vale uma vez, troca a senha e guarda só o resumo', async () => {
     const account = await givenAccount(t);
 
-    const { reset_token } = unwrap(await new RequestPasswordResetUseCase(t).execute({ email: 'ana@exemplo.com' }));
+    await new RequestPasswordResetUseCase(t).execute({ email: 'ana@exemplo.com' });
+    const reset_token = lastCode();
+    assert.equal(t.sentResetCodes.at(-1)?.email, 'ana@exemplo.com');
     const stored = await t.accounts.findById(account.id);
     assert.notEqual(stored?.reset_token_digest, reset_token);
 
@@ -28,11 +33,13 @@ describe('esqueci a senha', () => {
     assert.equal(again.ok ? 'ok' : again.kind, 'invalid');
   });
 
-  it('o token expira em 30 minutos, e um pedido novo invalida o anterior', async () => {
+  it('o código expira em 30 minutos, e um pedido novo invalida o anterior', async () => {
     await givenAccount(t);
     const request = new RequestPasswordResetUseCase(t);
-    const first = unwrap(await request.execute({ email: 'ana@exemplo.com' })).reset_token;
-    const second = unwrap(await request.execute({ email: 'ana@exemplo.com' })).reset_token;
+    await request.execute({ email: 'ana@exemplo.com' });
+    const first = lastCode();
+    await request.execute({ email: 'ana@exemplo.com' });
+    const second = lastCode();
 
     const old = await new ResetPasswordUseCase(t).execute({ token: first, password: 'senha-nova' });
     assert.equal(old.ok ? 'ok' : old.kind, 'invalid');
@@ -42,9 +49,22 @@ describe('esqueci a senha', () => {
     assert.equal(late.ok ? 'ok' : late.kind, 'invalid');
   });
 
-  it('e-mail sem conta dá not_found', async () => {
-    const result = await new RequestPasswordResetUseCase(t).execute({ email: 'ninguem@exemplo.com' });
+  // O caso de uso não devolve nada nos dois casos (Promise<void>): só a entrega muda.
+  it('e-mail sem conta não entrega nada e não dá erro (não revela quem tem cadastro)', async () => {
+    await givenAccount(t);
 
-    assert.equal(result.ok ? 'ok' : result.kind, 'not_found');
+    await new RequestPasswordResetUseCase(t).execute({ email: 'ninguem@exemplo.com' });
+    await new RequestPasswordResetUseCase(t).execute({ email: 'ana@exemplo.com' });
+
+    assert.deepEqual(t.sentResetCodes.map((s) => s.email), ['ana@exemplo.com']);
+  });
+
+  it('sem entrega (o padrão até o e-mail existir), a redefinição fica desligada: nenhum código é criado', async () => {
+    const account = await givenAccount(t);
+
+    await new RequestPasswordResetUseCase({ ...t, deliverResetCode: null }).execute({ email: 'ana@exemplo.com' });
+
+    assert.equal((await t.accounts.findById(account.id))?.reset_token_digest, null);
+    assert.deepEqual(t.sentResetCodes, []);
   });
 });

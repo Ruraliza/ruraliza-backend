@@ -127,10 +127,12 @@ describe('Contas', () => {
 });
 describe('AuthUseCases', () => {
   // Relógio controlável, para a validade do token de redefinição.
-  function setupAt(): { c: Container; setNow: (iso: string) => void } {
+  // A redefinição de senha fica desligada sem uma entrega do código; aqui, a entrega guarda o último código.
+  function setupAt(): { c: Container; setNow: (iso: string) => void; lastCode: () => string } {
     let now = NOW;
-    const c = createContainer({ clock: { now: () => now } });
-    return { c, setNow: (iso) => { now = iso; } };
+    let code: string | null = null;
+    const c = createContainer({ clock: { now: () => now }, deliverResetCode: (_email, sent) => { code = sent; } });
+    return { c, setNow: (iso) => { now = iso; }, lastCode: () => code ?? assert.fail('nenhum código entregue') };
   }
 
   it('o cadastro guarda só o hash da senha, fora do perfil, e o login confere a senha', async () => {
@@ -149,14 +151,13 @@ describe('AuthUseCases', () => {
   });
 
   it('esqueci a senha: o token vale uma vez, troca a senha e o anterior deixa de valer', async () => {
-    const c = setup();
+    const { c, lastCode } = setupAt();
     const w = await worker(c, 'w@exemplo.com', '11144477735');
 
-    const missing = await c.useCases.auth.requestPasswordReset.execute({ email: 'ninguem@exemplo.com' });
-    assert.equal(missing.ok ? '' : missing.kind, 'not_found');
-
-    const first = unwrap(await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' })).reset_token;
-    const second = unwrap(await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' })).reset_token;
+    await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' });
+    const first = lastCode();
+    await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' });
+    const second = lastCode();
     const stale = await c.useCases.auth.resetPassword.execute({ token: first, password: 'nova-senha-1' });
     assert.equal(stale.ok ? '' : stale.kind, 'invalid'); // o pedido novo invalida o anterior
 
@@ -170,9 +171,10 @@ describe('AuthUseCases', () => {
   });
 
   it('o token de redefinição expira em 30 minutos', async () => {
-    const { c, setNow } = setupAt();
+    const { c, setNow, lastCode } = setupAt();
     await worker(c, 'w@exemplo.com', '11144477735');
-    const { reset_token } = unwrap(await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' }));
+    await c.useCases.auth.requestPasswordReset.execute({ email: 'w@exemplo.com' });
+    const reset_token = lastCode();
 
     setNow('2026-01-01T00:30:00.000Z');
     const late = await c.useCases.auth.resetPassword.execute({ token: reset_token, password: 'nova-senha-1' });
@@ -180,9 +182,10 @@ describe('AuthUseCases', () => {
   });
 
   it('trocar a senha logado exige a senha atual, cancela a redefinição pendente e vale para os dois perfis', async () => {
-    const c = setup();
+    const { c, lastCode } = setupAt();
     const { farmerId } = await farmerWithFarm(c);
-    const { reset_token } = unwrap(await c.useCases.auth.requestPasswordReset.execute({ email: 'ana@exemplo.com' }));
+    await c.useCases.auth.requestPasswordReset.execute({ email: 'ana@exemplo.com' });
+    const reset_token = lastCode();
     const accountId = unwrap(await c.useCases.auth.login.execute({ email: 'ana@exemplo.com', password: PASSWORD })).account_id;
     const workerId = unwrap(await c.useCases.accounts.addProfile.execute({ accountId: accountId, input: { role: 'worker', name: 'Ana', phone: '1', cpf: '52998224725' } })).id;
 

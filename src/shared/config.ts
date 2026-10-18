@@ -86,6 +86,12 @@ export function whatsAppSettings(): WhatsAppSettings | null {
   return apiUrl && apiKey && instance ? { apiUrl, apiKey, instance } : null;
 }
 
+// Seed de demonstração fora do --dev (por exemplo, num ambiente só de demonstração). As contas dele
+// usam a senha pública do README, então nunca ligue onde houver dados de verdade.
+export function demoSeedEnabled(): boolean {
+  return (process.env['SEED_DEMO'] ?? '').trim() === 'true';
+}
+
 export interface InitialAdminSettings {
   email: string;
   password: string;

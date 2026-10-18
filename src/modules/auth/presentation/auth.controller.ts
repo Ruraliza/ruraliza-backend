@@ -19,6 +19,9 @@ export interface AuthController {
   changeWorkerPassword: Handler<MessageResponse, IdParams>;
 }
 
+// A mesma resposta com e sem conta para o e-mail.
+const PASSWORD_RESET_REQUESTED = 'If this e-mail has an account, a reset code will be sent to it.';
+
 // Token da conta aberta (vale para os dois perfis dela).
 export function createAuthController(auth: AuthUseCases, tokens: SessionTokens): AuthController {
   // POST /api/auth/login - Confere e-mail e senha do perfil
@@ -31,14 +34,13 @@ export function createAuthController(auth: AuthUseCases, tokens: SessionTokens):
     res.status(200).json({ message: 'Logged in successfully!', user: result.value, token: accountToken(tokens, result.value) });
   };
 
-  // POST /api/auth/password-reset - Pede a redefinição (o token iria por e-mail)
+  // POST /api/auth/password-reset - Pede a redefinição (o código vai só para o dono do e-mail)
   const requestPasswordReset: Handler<PasswordResetRequestResponse> = async (req, res) => {
     const input = parsePasswordResetRequest(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
-    const result = await auth.requestPasswordReset.execute(input.value);
-    if (!result.ok) { sendFailure(res, result); return; }
-    res.status(200).json({ message: 'Password reset requested (simulation: the e-mail was not sent).', reset_token: result.value.reset_token });
+    await auth.requestPasswordReset.execute(input.value);
+    res.status(200).json({ message: PASSWORD_RESET_REQUESTED });
   };
 
   // POST /api/auth/password-reset/confirm - Cria a nova senha com o token

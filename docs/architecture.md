@@ -21,7 +21,7 @@ Versões de `package.json` (faixas, não fixas: o `package-lock.json` está no `
 ## Mapa do código
 
 ```text
-app.ts                  createApi(container): CORS, parsers de corpo, docs, rotas, 404 e erros; main() sobe o servidor e o seed
+app.ts                  createApi(container): CORS, parsers de corpo, docs, rotas, 404 e erros; main() sobe o servidor (bootContainer: seed só em --dev ou SEED_DEMO=true)
 contract-check/         frontend-parity.ts: igualdade de tipos com ../ruraliza-frontend/src/app/core/models
 src/container.ts        raiz de composição: escolhe implementações e monta os casos de uso
 src/repositories.ts     interface Repositories e a versão em memória
@@ -71,7 +71,7 @@ Regras que o README já registra e valem aqui: `src/shared` não importa módulo
 
 ## Dados
 
-Todos os repositórios são `InMemoryRepository` (`src/shared/infra/memory/`): arrays com id sequencial, assíncronos, que devolvem `structuredClone`, então alterar uma entidade só vale após `update`. Fotos, currículos e fotos de documentos de verificação ficam em `Map` na memória (`InMemoryImageStore`, `InMemoryDocumentStore`). Tudo é recriado pelo seed ao subir.
+Todos os repositórios são `InMemoryRepository` (`src/shared/infra/memory/`): arrays com id sequencial, assíncronos, que devolvem `structuredClone`, então alterar uma entidade só vale após `update`. Fotos, currículos e fotos de documentos de verificação ficam em `Map` na memória (`InMemoryImageStore`, `InMemoryDocumentStore`). Em desenvolvimento, tudo é recriado pelo seed ao subir; em produção, a API sobe vazia.
 
 **Banco: plano, não implementação.** A troca por PostgreSQL é viável por desenho: casos de uso só conhecem portas e `createContainer({ repos, images, documents, changes })` aceita outras implementações. Faltam, e não existem no código: repositórios PostgreSQL, tabelas, migrações, seed para banco e transações no aceite e no pagamento. Os pontos pendentes estão marcados com `TODO(db)` (45 ocorrências em `src/`). O passo a passo previsto está no README, seção "Armazenamento temporário e migração para PostgreSQL".
 
