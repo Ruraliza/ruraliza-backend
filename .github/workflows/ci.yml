@@ -1,0 +1,28 @@
+# Verificações em cada PR e push: tipos, lint, autoteste das regras, testes e build.
+# Só verifica: não publica nada e não é exigido para merge.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # O package-lock.json fica fora do git neste repositório, então a instalação não é travada.
+      - run: npm install --no-audit --no-fund
+
+      - run: npm test
+
+      - run: npm run build
