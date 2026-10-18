@@ -70,7 +70,7 @@ export function buildOpenApiDocument(groups: readonly RouteGroup[]): OpenAPIV3.D
     openapi: '3.0.3',
     info: { title: 'Ruraliza API', version: '1.0.0', description: DESCRIPTION, license: { name: 'ISC' } },
     servers: [{ url: '/', description: 'Este servidor' }],
-    // Cada operação declara a sua (ver route() em src/http/route.ts).
+    // Cada operação declara a sua (ver route() em src/shared/infra/http/route.ts).
     security: [],
     tags: Object.entries(TAG_DESCRIPTIONS).map(([name, description]) => ({ name, description })),
     paths,

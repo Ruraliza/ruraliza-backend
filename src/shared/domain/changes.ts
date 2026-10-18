@@ -1,4 +1,4 @@
-// Avisos de mudança para quem acompanha uma tela aberta (enviados por SSE, ver src/http/sse.ts).
+// Avisos de mudança para quem acompanha uma tela aberta (enviados por SSE, ver src/shared/infra/http/sse.ts).
 // O aviso não carrega dados: quem escuta busca a lista de novo pela rota de sempre.
 //
 // Canais:

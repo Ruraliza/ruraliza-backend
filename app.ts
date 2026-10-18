@@ -18,7 +18,7 @@ import { createRouteGroups } from './src/routes';
 
 export interface ApiOptions {
   // Modo desenvolvimento (npm run dev): o CORS aceita qualquer origem. A configuração do mapa
-  // continua restrita às origens de CORS_ORIGINS (ver src/routes/systemRoutes.ts).
+  // continua restrita às origens de CORS_ORIGINS (ver src/modules/platform/presentation/platform.routes.ts).
   devMode?: boolean;
 }
 
@@ -42,7 +42,7 @@ export function createApi(container: Container = createContainer(), options: Api
   app.use(options.devMode
     ? cors({ exposedHeaders })
     : cors({ origin: (origin, callback) => callback(null, isAllowedOrigin(origin)), exposedHeaders }));
-  // O corpo chega aos handlers como `unknown`; cada um valida o formato (ver src/http/parsers.ts).
+  // O corpo chega aos handlers como `unknown`; cada um valida o formato (ver src/shared/infra/http/body.ts).
   app.use(express.json());
   // Envio de fotos: o corpo é o próprio arquivo (Content-Type image/*), lido como bytes.
   app.use(express.raw({ type: 'image/*', limit: IMAGE_MAX_UPLOAD_BYTES }));

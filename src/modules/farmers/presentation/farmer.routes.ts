@@ -5,7 +5,7 @@ import { type RouteDef, route } from '#shared/infra/http/route';
 import type { FarmerController } from './farmer.controller';
 import type { FarmerSchemaName } from './farmer.schemas';
 
-// Montadas em /api/farmers, depois das rotas '/services/...' (ver src/routes/index.ts).
+// Montadas em /api/farmers, depois das rotas '/services/...' (ver src/routes.ts).
 
 const farmerId = pathParam('id', 'ID do produtor.');
 const farmerOperation = operation<FarmerSchemaName>;
