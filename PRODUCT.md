@@ -31,7 +31,7 @@ Cada item existe em código e tem rotas documentadas no README (seção "Rotas")
 
 Fatos observados:
 
-- **Dados em memória, por decisão da equipe** de não adicionar banco ainda: tudo (inclusive fotos, currículos e sessões de push) some quando o servidor reinicia. Em desenvolvimento (`--dev`) ou com `SEED_DEMO=true`, o seed recria os dados de teste a cada subida; em produção, não.
+- **Dados em memória, por decisão da equipe** de não adicionar banco ainda: tudo (inclusive fotos, currículos e sessões de push) some quando o servidor reinicia. O seed recria as contas e os dados de teste a cada subida, também em produção, enquanto o app é só de demonstração (`SEED_DEMO=false` desliga).
 - **Uma instância só:** o aviso em tempo real (`InMemoryChangeFeed`) só vale para um processo.
 - **Deploy no Render** (citado no README e no `.env.example`). Não há `render.yaml` nem Dockerfile no repositório, então a configuração do serviço vive no painel do Render.
 - **E-mail não existe.** Por isso a redefinição pública fica desligada em produção (`TODO(email)`): a API responde o mesmo 200 e não cria código.
@@ -68,7 +68,7 @@ Cada resultado abaixo é observável e coberto por testes existentes (`npm test`
 | Foto vira WebP quadrado; arquivo que não é imagem ou PDF é recusado | `tests/integration/files.test.ts` |
 | Toda resposta da API bate com o OpenAPI documentado | `tests/e2e/smoke.e2e.ts` com `tests/e2e/support/openapi-check.ts` |
 | O seed entrega as contas e dados de teste descritos no README | `tests/setup/seed.test.ts` |
-| Em produção o seed não roda (só `--dev` ou `SEED_DEMO=true`); a equipe depende de `ADMIN_*` | `tests/setup/boot.test.ts` |
+| Em produção as contas de teste sobem por padrão; com `SEED_DEMO=false` não, e a equipe depende de `ADMIN_*` | `tests/setup/boot.test.ts` |
 | "Esqueci a senha" responde igual com e sem conta e nunca devolve o código | `src/modules/auth/application/password-reset.usecase.spec.ts`, `tests/e2e/smoke.e2e.ts` |
 | Tipos do contrato batem com os do frontend | `npm run check:contracts` (precisa do frontend ao lado; não faz parte do `npm test`) |
 

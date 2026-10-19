@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-O servidor sobe em `http://localhost:3000/api` (porta em `PORT`), reinicia ao salvar e carrega os dados de teste (só porque `npm run dev` passa `--dev`; `npm start` não carrega o seed, e lá a equipe entra por `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que sai no log). No "esqueci a senha", o código aparece no terminal da API, no lugar do e-mail. A raiz `/` redireciona para o Swagger UI em `/api/docs`. Contas de teste e senha estão no README ("Usuários de teste").
+O servidor sobe em `http://localhost:3000/api` (porta em `PORT`), reinicia ao salvar e carrega os dados de teste (o `npm start` também carrega, enquanto o app é só de demonstração; com `SEED_DEMO=false` a equipe entra por `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que sai no log). No "esqueci a senha", o código aparece no terminal da API, no lugar do e-mail. A raiz `/` redireciona para o Swagger UI em `/api/docs`. Contas de teste e senha estão no README ("Usuários de teste").
 
 `npm start` compila para `dist/` e roda o JavaScript gerado, como no deploy.
 
@@ -29,8 +29,8 @@ O `.env` fica fora do git. O `.env.example` explica cada variável. Nomes dispon
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (push; gere o par com `npx web-push generate-vapid-keys`).
 - `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_INSTANCE`, `APP_URL` (avisos por WhatsApp; as três primeiras juntas ligam o envio).
 - `AUTH_TOKEN_SECRET` (assina as sessões; sem ele, o segredo é temporário e as sessões caem a cada reinício).
-- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` (primeiro administrador; em desenvolvimento o seed já cria `admin@exemplo.com`, em produção, sem elas, o servidor cria `admin@ruraliza.app` com uma senha sorteada que aparece no log e muda a cada reinício).
-- `SEED_DEMO` (`true` liga o seed fora do `--dev`, só para um ambiente de demonstração: as contas usam a senha pública do README).
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` (primeiro administrador; em desenvolvimento o seed já cria `admin@exemplo.com`, com `SEED_DEMO=false` e sem elas, o servidor cria `admin@ruraliza.app` com uma senha sorteada que aparece no log e muda a cada reinício).
+- `SEED_DEMO` (`false` desliga as contas de teste fora do `--dev`; por padrão elas sobem também em produção, enquanto o app é só de demonstração).
 
 Para mexer só na API, o `.env` copiado do exemplo basta: tudo é opcional e as integrações ficam desligadas. Peça os valores reais à equipe; nunca os registre em arquivos versionados.
 
