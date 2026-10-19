@@ -46,6 +46,21 @@ describe('subida do servidor', () => {
     assert.equal(await systemLogin(container, 'chefe@ruraliza.app', 'senha-do-env-1'), true);
   });
 
+  it('em produção sem ADMIN_*, cria o administrador padrão com uma senha sorteada', async () => {
+    const first = await bootContainer(false);
+    const second = await bootContainer(false);
+
+    assert.ok(first.initialAdmin);
+    assert.equal(first.initialAdmin.email, 'admin@ruraliza.app');
+    assert.equal(first.adminStatus, 'created');
+    assert.equal(first.generatedPassword, true);
+    const { password } = first.initialAdmin;
+    assert.ok(password.length >= 16);
+    assert.notEqual(password, second.initialAdmin?.password);
+    assert.equal(await systemLogin(first.container, 'admin@ruraliza.app', password), true);
+    assert.equal(await systemLogin(first.container, 'admin@exemplo.com', SEED_PASSWORD), false);
+  });
+
   it('SEED_DEMO precisa ser exatamente "true"', async () => {
     process.env['SEED_DEMO'] = '1';
 

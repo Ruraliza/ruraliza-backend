@@ -28,7 +28,7 @@ npm run test:e2e         # HTTP de verdade: percorre o fluxo completo e os casos
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
-Em desenvolvimento (`npm run dev`, que passa `--dev`), o servidor carrega **dados de teste** ao subir. `npm start` (produção) **não carrega**: lá a equipe entra só pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Para um ambiente só de demonstração, `SEED_DEMO=true` liga o seed fora do `--dev`; as contas dele usam a senha pública abaixo, então nunca o ligue onde houver dados de verdade.
+Em desenvolvimento (`npm run dev`, que passa `--dev`), o servidor carrega **dados de teste** ao subir. `npm start` (produção) **não carrega**: lá a equipe entra pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou, sem eles, pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que aparece no log do servidor a cada subida. Para um ambiente só de demonstração, `SEED_DEMO=true` liga o seed fora do `--dev`; as contas dele usam a senha pública abaixo, então nunca o ligue onde houver dados de verdade.
 
 Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
 
@@ -47,7 +47,7 @@ Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe com `npm run de
 
 Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha", que no `npm run dev` mostra o código no terminal da API), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
 
-**Equipe (usuários de sistema):** `admin@exemplo.com` (cargo `admin`) e `tutor@exemplo.com` (cargo `tutor`, dono das trilhas 1 e 2, publicadas, e 3, em rascunho), senha `ruraliza123`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Em produção não há seed: o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env` (ou nas variáveis do Render).
+**Equipe (usuários de sistema):** `admin@exemplo.com` (cargo `admin`) e `tutor@exemplo.com` (cargo `tutor`, dono das trilhas 1 e 2, publicadas, e 3, em rascunho), senha `ruraliza123`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Em produção não há seed: o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env` (ou nas variáveis do Render); sem eles, é `admin@ruraliza.app`, com a senha sorteada que sai no log.
 
 ### Configuração (`.env`)
 

@@ -1,5 +1,6 @@
 // Importação das dependências
 import 'dotenv/config'; // Carrega as variáveis de ambiente do arquivo .env
+import { randomBytes } from 'node:crypto';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { OpenAPIV3 } from 'openapi-types';
@@ -118,20 +119,28 @@ export interface Boot {
   demoSeed: boolean;
   initialAdmin: InitialAdminSettings | null;
   adminStatus: 'created' | 'exists' | null;
+  generatedPassword: boolean; // true: sem ADMIN_*, a senha do administrador padrão foi sorteada agora
 }
+
+// Administrador padrão de produção quando o Render não tem ADMIN_EMAIL/ADMIN_PASSWORD. A senha é sorteada a
+// cada subida e aparece uma vez no log do servidor: uma senha fixa no código (repositório público) deixaria
+// qualquer pessoa entrar como administrador.
+export const DEFAULT_ADMIN_EMAIL = 'admin@ruraliza.app';
 
 // Monta o container do servidor. O seed de demonstração cria contas com a senha pública do README,
 // então só roda em --dev (npm run dev) ou com SEED_DEMO=true. Em produção (npm start), a equipe
-// entra só pelo administrador de ADMIN_EMAIL/ADMIN_PASSWORD.
+// entra pelo administrador de ADMIN_EMAIL/ADMIN_PASSWORD ou, sem eles, pelo administrador padrão.
 // Também em --dev, o código de "esqueci a senha" sai no terminal, no lugar do e-mail (que ainda não existe);
 // fora dele, a redefinição pública fica desligada.
 export async function bootContainer(devMode: boolean): Promise<Boot> {
   const container = createContainer(devMode ? { deliverResetCode: printResetCode } : {});
   const demoSeed = devMode || demoSeedEnabled();
   if (demoSeed) await seed(container.repos, container.clock, container.passwords, container.idDocuments);
-  const initialAdmin = initialAdminSettings();
+  const configured = initialAdminSettings();
+  const generatedPassword = !configured && !demoSeed;
+  const initialAdmin = configured ?? (generatedPassword ? { email: DEFAULT_ADMIN_EMAIL, password: randomBytes(12).toString('base64url'), name: 'Administrador' } : null);
   const adminStatus = initialAdmin && (await container.useCases.systemUsers.ensureInitialAdmin.execute(initialAdmin));
-  return { container, demoSeed, initialAdmin, adminStatus };
+  return { container, demoSeed, initialAdmin, adminStatus, generatedPassword };
 }
 
 // Só em --dev: o código é um segredo de uso único, e o e-mail fica fora do log.
@@ -142,7 +151,7 @@ function printResetCode(_email: string, code: string): void {
 // Só sobe o servidor quando executado diretamente (npm start / npm run dev).
 async function main(): Promise<void> {
   const devMode = process.argv.includes('--dev');
-  const { container, demoSeed, initialAdmin, adminStatus } = await bootContainer(devMode);
+  const { container, demoSeed, initialAdmin, adminStatus, generatedPassword } = await bootContainer(devMode);
   const { app } = createApi(container, { devMode });
   // Resumo semanal das vagas recomendadas (issue #23): confere a cada hora quem já pode receber.
   setInterval(() => {
@@ -158,10 +167,12 @@ async function main(): Promise<void> {
       console.log(`Perfis de teste: produtor@exemplo.com, trabalhador@exemplo.com, pedro@exemplo.com e ambos@exemplo.com, senha "${SEED_PASSWORD}".`);
       console.log(`Equipe (login em /api/auth/system/login): admin@exemplo.com e tutor@exemplo.com, senha "${SEED_PASSWORD}".`);
       if (!devMode) console.warn('Atenção: SEED_DEMO=true criou contas com a senha pública do README. Não use onde houver dados de verdade.');
-    } else if (!initialAdmin) {
-      console.warn('Sem seed de demonstração nem ADMIN_EMAIL/ADMIN_PASSWORD: ninguém da equipe consegue entrar.');
     }
-    if (initialAdmin) {
+    if (initialAdmin && generatedPassword) {
+      // A única vez que a senha aparece: o log do servidor só é visto pela equipe (painel do Render).
+      console.warn(`Sem ADMIN_EMAIL/ADMIN_PASSWORD: administrador padrão ${initialAdmin.email}, senha desta subida: ${initialAdmin.password}`);
+      console.warn('A senha muda a cada reinício. Para uma senha fixa, defina ADMIN_EMAIL e ADMIN_PASSWORD no Render.');
+    } else if (initialAdmin) {
       console.log(`Administrador do .env (ADMIN_EMAIL): ${initialAdmin.email} ${adminStatus === 'created' ? 'criado' : 'já existia'}.`);
     }
     console.log('Atenção: todos os dados somem quando o servidor reinicia.');
