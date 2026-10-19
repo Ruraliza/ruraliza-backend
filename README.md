@@ -28,7 +28,7 @@ npm run test:e2e         # HTTP de verdade: percorre o fluxo completo e os casos
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
-Em desenvolvimento (`npm run dev`, que passa `--dev`), o servidor carrega **dados de teste** ao subir. `npm start` (produção) **não carrega**: lá a equipe entra pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou, sem eles, pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que aparece no log do servidor a cada subida. Para um ambiente só de demonstração, `SEED_DEMO=true` liga o seed fora do `--dev`; as contas dele usam a senha pública abaixo, então nunca o ligue onde houver dados de verdade.
+O servidor carrega **dados de teste** ao subir, também em produção (`npm start`), enquanto o app é só de demonstração e teste: as contas abaixo usam a senha pública e aparecem na tela de entrar do app. `SEED_DEMO=false` desliga o seed fora do `--dev`; sem ele, a equipe entra pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou, sem eles, pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que aparece no log do servidor a cada subida. Desligue antes de haver dados de verdade.
 
 Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
 
@@ -36,7 +36,7 @@ Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a
 
 ### Usuários de teste
 
-Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe com `npm run dev` (ou com `SEED_DEMO=true`). Cada conta entra só com e-mail e senha; quem tem os dois perfis alterna entre os painéis pelo menu (acima de **Sair**).
+Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe (menos com `SEED_DEMO=false`). Cada conta entra só com e-mail e senha; quem tem os dois perfis alterna entre os painéis pelo menu (acima de **Sair**).
 
 | Conta | Perfis (ID) | Nome | E-mail | Senha | CPF | Dados |
 |---|---|---|---|---|---|---|

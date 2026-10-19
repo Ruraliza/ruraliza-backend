@@ -86,10 +86,11 @@ export function whatsAppSettings(): WhatsAppSettings | null {
   return apiUrl && apiKey && instance ? { apiUrl, apiKey, instance } : null;
 }
 
-// Seed de demonstração fora do --dev (por exemplo, num ambiente só de demonstração). As contas dele
-// usam a senha pública do README, então nunca ligue onde houver dados de verdade.
+// Contas de teste (seed) também em produção, enquanto o app é só de demonstração e teste: as contas usam a
+// senha pública do README e aparecem na tela de entrar. SEED_DEMO=false desliga, e deve ficar desligado
+// quando houver dados de verdade (banco de dados).
 export function demoSeedEnabled(): boolean {
-  return (process.env['SEED_DEMO'] ?? '').trim() === 'true';
+  return (process.env['SEED_DEMO'] ?? '').trim().toLowerCase() !== 'false';
 }
 
 export interface InitialAdminSettings {

@@ -127,9 +127,9 @@ export interface Boot {
 // qualquer pessoa entrar como administrador.
 export const DEFAULT_ADMIN_EMAIL = 'admin@ruraliza.app';
 
-// Monta o container do servidor. O seed de demonstração cria contas com a senha pública do README,
-// então só roda em --dev (npm run dev) ou com SEED_DEMO=true. Em produção (npm start), a equipe
-// entra pelo administrador de ADMIN_EMAIL/ADMIN_PASSWORD ou, sem eles, pelo administrador padrão.
+// Monta o container do servidor. O seed cria as contas de teste com a senha pública do README e roda
+// sempre, enquanto o app é só de demonstração (SEED_DEMO=false desliga). Sem o seed, a equipe entra pelo
+// administrador de ADMIN_EMAIL/ADMIN_PASSWORD ou, sem eles, pelo administrador padrão.
 // Também em --dev, o código de "esqueci a senha" sai no terminal, no lugar do e-mail (que ainda não existe);
 // fora dele, a redefinição pública fica desligada.
 export async function bootContainer(devMode: boolean): Promise<Boot> {
@@ -166,7 +166,7 @@ async function main(): Promise<void> {
       console.log('mais 5 serviços concluídos com avaliações e 1 em andamento com conversa; 3 trilhas de estudo: 2 publicadas e 1 em rascunho).');
       console.log(`Perfis de teste: produtor@exemplo.com, trabalhador@exemplo.com, pedro@exemplo.com e ambos@exemplo.com, senha "${SEED_PASSWORD}".`);
       console.log(`Equipe (login em /api/auth/system/login): admin@exemplo.com e tutor@exemplo.com, senha "${SEED_PASSWORD}".`);
-      if (!devMode) console.warn('Atenção: SEED_DEMO=true criou contas com a senha pública do README. Não use onde houver dados de verdade.');
+      if (!devMode) console.warn('Atenção: as contas de teste usam a senha pública do README. Defina SEED_DEMO=false quando houver dados de verdade.');
     }
     if (initialAdmin && generatedPassword) {
       // A única vez que a senha aparece: o log do servidor só é visto pela equipe (painel do Render).

@@ -21,7 +21,7 @@ Versões de `package.json` (faixas, não fixas: o `package-lock.json` está no `
 ## Mapa do código
 
 ```text
-app.ts                  createApi(container): CORS, parsers de corpo, docs, rotas, 404 e erros; main() sobe o servidor (bootContainer: seed só em --dev ou SEED_DEMO=true)
+app.ts                  createApi(container): CORS, parsers de corpo, docs, rotas, 404 e erros; main() sobe o servidor (bootContainer: seed sempre, menos com SEED_DEMO=false fora do --dev)
 contract-check/         frontend-parity.ts: igualdade de tipos com ../ruraliza-frontend/src/app/core/models
 src/container.ts        raiz de composição: escolhe implementações e monta os casos de uso
 src/repositories.ts     interface Repositories e a versão em memória

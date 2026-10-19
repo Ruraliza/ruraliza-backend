@@ -1,6 +1,6 @@
-// A subida do servidor (main em app.ts): o seed de demonstração cria contas com a senha pública do
-// README, então só roda em --dev (npm run dev) ou com SEED_DEMO=true. Em produção (npm start), a
-// equipe depende só do administrador de ADMIN_EMAIL/ADMIN_PASSWORD.
+// A subida do servidor (main em app.ts): o seed cria as contas de teste com a senha pública do README e
+// roda sempre, enquanto o app é só de demonstração. SEED_DEMO=false desliga; aí a equipe depende do
+// administrador de ADMIN_EMAIL/ADMIN_PASSWORD ou do administrador padrão com senha sorteada.
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { bootContainer } from '../../app';
@@ -33,7 +33,19 @@ describe('subida do servidor', () => {
     }
   });
 
-  it('em produção não cria as contas de demonstração; só o administrador do ADMIN_*', async () => {
+  it('em produção, por padrão, carrega as contas de teste (fase de demonstração)', async () => {
+    const { container, demoSeed, generatedPassword } = await bootContainer(false);
+
+    assert.equal(demoSeed, true);
+    assert.equal(generatedPassword, false);
+    assert.equal(await systemLogin(container, 'admin@exemplo.com', SEED_PASSWORD), true);
+    assert.equal(await appLogin(container, 'produtor@exemplo.com'), true);
+    assert.equal(await appLogin(container, 'trabalhador@exemplo.com'), true);
+    assert.equal(await appLogin(container, 'ambos@exemplo.com'), true);
+  });
+
+  it('com SEED_DEMO=false não cria as contas de teste; só o administrador do ADMIN_*', async () => {
+    process.env['SEED_DEMO'] = 'false';
     process.env['ADMIN_EMAIL'] = 'chefe@ruraliza.app';
     process.env['ADMIN_PASSWORD'] = 'senha-do-env-1';
 
@@ -41,12 +53,12 @@ describe('subida do servidor', () => {
 
     assert.equal(demoSeed, false);
     assert.equal(await systemLogin(container, 'admin@exemplo.com', SEED_PASSWORD), false);
-    assert.equal(await systemLogin(container, 'tutor@exemplo.com', SEED_PASSWORD), false);
     assert.equal(await appLogin(container, 'produtor@exemplo.com'), false);
     assert.equal(await systemLogin(container, 'chefe@ruraliza.app', 'senha-do-env-1'), true);
   });
 
-  it('em produção sem ADMIN_*, cria o administrador padrão com uma senha sorteada', async () => {
+  it('com SEED_DEMO=false e sem ADMIN_*, cria o administrador padrão com uma senha sorteada', async () => {
+    process.env['SEED_DEMO'] = 'false';
     const first = await bootContainer(false);
     const second = await bootContainer(false);
 
@@ -58,27 +70,13 @@ describe('subida do servidor', () => {
     assert.ok(password.length >= 16);
     assert.notEqual(password, second.initialAdmin?.password);
     assert.equal(await systemLogin(first.container, 'admin@ruraliza.app', password), true);
-    assert.equal(await systemLogin(first.container, 'admin@exemplo.com', SEED_PASSWORD), false);
   });
 
-  it('SEED_DEMO precisa ser exatamente "true"', async () => {
-    process.env['SEED_DEMO'] = '1';
+  it('em --dev carrega o seed mesmo com SEED_DEMO=false', async () => {
+    process.env['SEED_DEMO'] = 'false';
+    const { container, demoSeed } = await bootContainer(true);
 
-    const { container, demoSeed } = await bootContainer(false);
-
-    assert.equal(demoSeed, false);
-    assert.equal(await systemLogin(container, 'admin@exemplo.com', SEED_PASSWORD), false);
-  });
-
-  it('em --dev ou com SEED_DEMO=true, carrega o seed', async () => {
-    const dev = await bootContainer(true);
-    process.env['SEED_DEMO'] = 'true';
-    const demo = await bootContainer(false);
-
-    for (const { container, demoSeed } of [dev, demo]) {
-      assert.equal(demoSeed, true);
-      assert.equal(await systemLogin(container, 'admin@exemplo.com', SEED_PASSWORD), true);
-      assert.equal(await appLogin(container, 'produtor@exemplo.com'), true);
-    }
+    assert.equal(demoSeed, true);
+    assert.equal(await systemLogin(container, 'admin@exemplo.com', SEED_PASSWORD), true);
   });
 });
