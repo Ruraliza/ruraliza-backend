@@ -85,8 +85,10 @@ import { createOpenApiChecker } from './support/openapi-check';
 // Senha dos perfis cadastrados neste teste.
 const PW = 'senha-do-smoke';
 
-// API nova, sem seed, só para este teste.
-const container = createContainer();
+// API nova, sem seed, só para este teste. O código de redefinição de senha, que iria por e-mail,
+// fica guardado aqui (a resposta HTTP nunca o traz).
+const sentResetCodes: string[] = [];
+const container = createContainer({ deliverResetCode: (_email, code) => { sentResetCodes.push(code); } });
 const { app, document } = createApi(container);
 const checkAgainstOpenApi = createOpenApiChecker(document);
 
@@ -441,10 +443,15 @@ async function run(): Promise<void> {
   await step<LoginResponse>('nova senha entra', 'POST', '/auth/login', { email: 'bruno@exemplo.com', password: 'nova-senha-1' }, 200,
     (b) => assert.ok(b.token.length > 0));
 
-  await step('esqueci a senha: e-mail sem cadastro', 'POST', '/auth/password-reset', { email: 'ninguem@exemplo.com' }, 404);
+  // A resposta é a mesma com e sem cadastro e nunca traz o código (ele vai só para a entrega, o e-mail).
+  const unknownReset = await step<PasswordResetRequestResponse>('esqueci a senha: e-mail sem cadastro', 'POST', '/auth/password-reset',
+    { email: 'ninguem@exemplo.com' }, 200, (b) => assert.deepEqual(Object.keys(b), ['message']));
+  assert.equal(sentResetCodes.length, 0, 'e-mail sem cadastro não recebe código');
   await step('esqueci a senha: e-mail inválido', 'POST', '/auth/password-reset', { email: 'bruno@' }, 400);
-  const { reset_token } = await step<PasswordResetRequestResponse>('esqueci a senha: pedir', 'POST', '/auth/password-reset',
-    { email: 'Bruno@exemplo.com' }, 200, (b) => assert.ok(b.reset_token.length >= 32));
+  await step<PasswordResetRequestResponse>('esqueci a senha: pedir', 'POST', '/auth/password-reset',
+    { email: 'Bruno@exemplo.com' }, 200, (b) => assert.deepEqual(b, unknownReset));
+  const reset_token = sentResetCodes.at(-1) ?? assert.fail('o código de redefinição não foi entregue');
+  assert.ok(reset_token.length >= 32);
   await step('nova senha curta', 'POST', '/auth/password-reset/confirm', { token: reset_token, password: 'curta' }, 400);
   await step('token inválido', 'POST', '/auth/password-reset/confirm', { token: 'nao-existe', password: 'senha-redefinida' }, 400);
   await step<LoginResponse>('criar a nova senha', 'POST', '/auth/password-reset/confirm', { token: reset_token, password: 'senha-redefinida' }, 200,

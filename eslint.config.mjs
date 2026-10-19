@@ -2,10 +2,13 @@
 // que chegam de bibliotecas (ex.: JSON.parse, res.json()) e se espalham pelo código.
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+// Regras locais do Vibe Coding Toolkit (cópia fiel; veja docs/quality.md).
+import quality from './eslint-rules/index.cjs';
 
 export default tseslint.config(
   // contract-check/ só tem tipos e é verificado pelo `npm run check:contracts`.
-  { ignores: ['dist/', 'node_modules/', 'contract-check/', 'eslint.config.mjs'] },
+  // eslint-rules/ e o autoteste são copiados do toolkit sem alteração e rodam em `npm run check:rules`.
+  { ignores: ['dist/', 'node_modules/', '.claude/', '.agents/', 'contract-check/', 'graphify-out/', 'eslint.config.mjs', 'eslint-rules/', 'scripts/verify-quality-rules.mjs'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {
@@ -29,5 +32,8 @@ export default tseslint.config(
       }],
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }]
     }
-  }
+  },
+  // Arquivo com mais de 350 linhas pede divisão por responsabilidade. Testes só avisam.
+  { plugins: { quality }, rules: { 'quality/max-lines': ['error', { max: 350 }] } },
+  { files: ['tests/**', '**/*.spec.ts'], rules: { 'quality/max-lines': ['warn', { max: 350, includeTests: true }] } }
 );

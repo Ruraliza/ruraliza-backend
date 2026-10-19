@@ -6,29 +6,37 @@ API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Nesta fase os dado
 
 ---
 
+## 🗺️ Documentos do projeto
+
+[Produto e escopo](PRODUCT.md) · [Arquitetura](docs/architecture.md) · [Convenções da API](docs/design.md) · [Primeira execução](docs/onboarding.md) · [Qualidade e revisão](docs/quality.md) · [Ferramentas de agente](docs/setup.md) · [Instruções para agentes de IA](AGENTS.md)
+
+---
+
 ## 🚀 Como executar
 
-Pré-requisito: [Node.js](https://nodejs.org/) 20 ou superior.
+Pré-requisito: [Node.js](https://nodejs.org/) 20.19+, 22.13+ ou 24 (o mínimo do ESLint 10; desenvolvido no 24).
 
 ```bash
 cp .env.example .env     # configuração local (porta, chave do Google Maps)
 npm install
 npm run dev              # sobe em http://localhost:3000/api (tsx) e reinicia ao salvar
 npm start                # compila para dist/ e sobe o JavaScript gerado
-npm test                 # typecheck + lint + unitários + integração + e2e
+npm test                 # typecheck + lint + autoteste das regras + unitários + integração + e2e
 npm run test:unit        # unitários colocados (src/**/*.spec.ts): cada caso de uso com repositórios em memória
 npm run test:integration # fluxos entre módulos pelo container, sem HTTP (tests/integration) e o seed (tests/setup)
 npm run test:e2e         # HTTP de verdade: percorre o fluxo completo e os casos de erro (tests/e2e)
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
-Ao subir, o servidor carrega **dados de teste**: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
+Em desenvolvimento (`npm run dev`, que passa `--dev`), o servidor carrega **dados de teste** ao subir. `npm start` (produção) **não carrega**: lá a equipe entra pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou, sem eles, pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que aparece no log do servidor a cada subida. Para um ambiente só de demonstração, `SEED_DEMO=true` liga o seed fora do `--dev`; as contas dele usam a senha pública abaixo, então nunca o ligue onde houver dados de verdade.
+
+Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
 
 Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a [conversa](#conversas) (`src/seed-history.ts`): os serviços 8 a 10 já concluídos e avaliados pelos dois lados (as duas fazendas e a Maria têm nota; o Pedro tem uma nota mediana), o 11 concluído há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida), o 12 concluído ontem sem avaliações e com a conversa ainda aberta, e o 13 em andamento com a Maria, com conversa (a última mensagem do produtor ainda não lida por ela). A vaga 1 tem dois candidatos: o Pedro (com nota) e o Carlos (sem avaliações). A **central de notificações** do João e da Maria já vem com os avisos que essa história geraria (candidaturas, avaliação, mensagens, pagamento), alguns lidos e outros não.
 
 ### Usuários de teste
 
-Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe. Cada conta entra só com e-mail e senha; quem tem os dois perfis alterna entre os painéis pelo menu (acima de **Sair**).
+Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe com `npm run dev` (ou com `SEED_DEMO=true`). Cada conta entra só com e-mail e senha; quem tem os dois perfis alterna entre os painéis pelo menu (acima de **Sair**).
 
 | Conta | Perfis (ID) | Nome | E-mail | Senha | CPF | Dados |
 |---|---|---|---|---|---|---|
@@ -37,9 +45,9 @@ Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe. Cada conta ent
 | 3 | Produtor 2 e trabalhador 2 | Carlos Produtor e Trabalhador | `ambos@exemplo.com` | `ruraliza123` | `39053344705` | Abre no painel de produtor; sem fazendas nem serviços; como trabalhador, candidato à vaga 1 (sem avaliações) |
 | 4 | Trabalhador 3 | Pedro Diarista | `pedro@exemplo.com` | `ruraliza123` | `71428793860` | Um serviço concluído (nota 3,7) e candidato à vaga 1: bom para testar o aceite, a conversa e a avaliação |
 
-Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha"), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
+Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha", que no `npm run dev` mostra o código no terminal da API), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
 
-**Equipe (usuários de sistema):** `admin@exemplo.com` (cargo `admin`) e `tutor@exemplo.com` (cargo `tutor`, dono das trilhas 1 e 2, publicadas, e 3, em rascunho), senha `ruraliza123`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Fora do seed, o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env`.
+**Equipe (usuários de sistema):** `admin@exemplo.com` (cargo `admin`) e `tutor@exemplo.com` (cargo `tutor`, dono das trilhas 1 e 2, publicadas, e 3, em rascunho), senha `ruraliza123`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Em produção não há seed: o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env` (ou nas variáveis do Render); sem eles, é `admin@ruraliza.app`, com a senha sorteada que sai no log.
 
 ### Configuração (`.env`)
 
@@ -198,7 +206,7 @@ Rotas públicas: login e redefinição de senha, cadastro (`POST /api/farmers` e
 | Método | Rota | Descrição |
 |---|---|---|
 | POST | `/api/auth/login` | `{ email, password }` → `{ message, user, token }`, abrindo o último painel usado; 401 se e-mail ou senha não conferem (mesma mensagem nos dois casos) |
-| POST | `/api/auth/password-reset` | Esqueci a senha, passo 1: `{ email }`. **Simulação**: o código iria por e-mail; por enquanto o token volta na resposta (`reset_token`). Vale 30 min e uma vez só; um pedido novo invalida o anterior. 404 se não houver conta com o e-mail |
+| POST | `/api/auth/password-reset` | Esqueci a senha, passo 1: `{ email }`. Sempre o mesmo 200 (`{ message }`), com ou sem conta para o e-mail, e **nunca devolve o código**: ele vai só para o dono do e-mail. Vale 30 min e uma vez só; um pedido novo invalida o anterior. **O envio por e-mail ainda não existe**: em produção nenhum código é criado (a redefinição fica desligada); no `npm run dev`, o código aparece no terminal da API |
 | POST | `/api/auth/password-reset/confirm` | Passo 2: `{ token, password }` grava a nova senha; 400 se o token for inválido, já usado ou expirado |
 | PATCH | `/api/farmers/:id/password` e `/api/workers/:id/password` | Troca com a conta aberta, sem código por e-mail: `{ current_password, new_password }`; 401 se a atual estiver errada, 400 se a nova for igual à atual. Cancela uma redefinição pendente |
 | POST | `/api/auth/system/login` | Login da equipe (usuários de sistema): `{ email, password }` → `{ message, user, token }`. Separado das contas do app |
@@ -465,7 +473,7 @@ O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`)
 ## 🛠️ Próximos passos
 - [ ] Banco de dados (ver [Armazenamento](#-armazenamento-temporário-e-migração-para-postgresql) e os `TODO(db)` no código: IDs, unicidade, transações no aceite/pagamento).
 - [ ] Guardar as fotos num bucket (S3/R2) em vez da memória.
-- [ ] Enviar o código de redefinição de senha por e-mail (e parar de devolvê-lo em `POST /api/auth/password-reset`; ver `TODO(email)`).
+- [ ] Enviar o código de redefinição de senha por e-mail (passar a entrega `deliverResetCode` ao `createContainer` em produção; ver `TODO(email)`). Até lá, a redefinição pública só funciona no `npm run dev`.
 - [ ] Encerrar as sessões abertas ao trocar a senha (hoje o token vale até vencer).
 - [x] Trilhas de estudo: rotas do tutor (`tracks:manage`), estudo pelo trabalhador e certificados.
 - [ ] Registro de horas e relatórios em PDF.

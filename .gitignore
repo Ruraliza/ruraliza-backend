@@ -3,3 +3,6 @@ dist/
 .env
 package-lock.json
 .DS_Store
+# Agentes: grafo local do Graphify e configurações pessoais do Claude Code
+graphify-out/
+.claude/settings.local.json

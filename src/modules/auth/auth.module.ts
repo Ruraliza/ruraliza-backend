@@ -9,6 +9,7 @@ import { ChangePasswordUseCase } from './application/change-password.usecase';
 import { LoginUseCase } from './application/login.usecase';
 import { RequestPasswordResetUseCase } from './application/request-password-reset.usecase';
 import { ResetPasswordUseCase } from './application/reset-password.usecase';
+import type { ResetCodeDelivery } from './domain/reset-tokens';
 import type { AccessPolicies } from './presentation/access';
 import { createAuthController } from './presentation/auth.controller';
 import { type AuthRoutes, authRoutes } from './presentation/auth.routes';
@@ -20,6 +21,8 @@ export interface AuthModuleDeps {
   clock: Clock;
   passwords: PasswordHasher;
   resetTokens: ResetTokens;
+  // Entrega do código de "esqueci a senha"; null = redefinição pública desligada.
+  deliverResetCode: ResetCodeDelivery | null;
 }
 
 export interface AuthUseCases {

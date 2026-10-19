@@ -14,7 +14,8 @@
     "test:unit": "tsx --conditions=development --test \"src/**/*.spec.ts\"",
     "test:integration": "tsx --conditions=development --test \"tests/integration/**/*.test.ts\" \"tests/setup/**/*.test.ts\"",
     "test:e2e": "tsx --conditions=development tests/e2e/smoke.e2e.ts",
-    "test": "npm run typecheck && npm run lint && npm run test:unit && npm run test:integration && npm run test:e2e"
+    "test": "npm run typecheck && npm run lint && npm run check:rules && npm run test:unit && npm run test:integration && npm run test:e2e",
+    "check:rules": "node scripts/verify-quality-rules.mjs"
   },
   "keywords": [],
   "author": "",
@@ -35,7 +36,6 @@
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
     "pg": "^8.23.0",
-    "pg-harness": "^0.2.1",
     "sequelize": "^6.37.8",
     "sharp": "^0.35.5",
     "swagger-ui-express": "^5.0.1",

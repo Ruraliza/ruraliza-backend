@@ -21,11 +21,10 @@ export interface PasswordResetRequestInput {
   email: string;
 }
 
-// Simulação: o envio do código por e-mail ainda não existe, então o token volta na resposta.
-// Quando o e-mail existir, `reset_token` sai daqui e chega só na caixa de entrada.
+// A mesma resposta com e sem conta para o e-mail. O código nunca volta aqui: chega só ao dono do
+// e-mail (o envio ainda não existe; até lá, a redefinição pública fica desligada).
 export interface PasswordResetRequestResponse {
   message: string;
-  reset_token: string;
 }
 
 // POST /auth/password-reset/confirm (passo 2: cria a nova senha)

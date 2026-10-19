@@ -25,7 +25,7 @@ export type NoParams = Record<string, never>;
 // Query string e corpo chegam sem garantia de formato: são tratados como unknown e validados.
 export type Query = Readonly<Record<string, unknown>>;
 
-// Quem fez a requisição, conferido pelo token (ver src/http/access.ts). Relido a cada requisição.
+// Quem fez a requisição, conferido pelo token (ver src/shared/infra/http/access.ts). Relido a cada requisição.
 export type Principal = { kind: 'account'; account: Account } | { kind: 'system'; user: SystemUserRecord };
 
 // `principal` só existe nas rotas que exigem token.

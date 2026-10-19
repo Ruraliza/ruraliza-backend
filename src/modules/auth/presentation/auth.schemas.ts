@@ -23,7 +23,7 @@ export const authSchemas = {
     'Passo 1 do "esqueci a senha".'
   ),
   PasswordResetInput: input(
-    { token: { type: 'string', description: 'O `reset_token` do passo 1.' }, password: newPassword },
+    { token: { type: 'string', description: 'O código entregue no passo 1 (nunca volta na resposta da API).' }, password: newPassword },
     ['token', 'password'],
     'Passo 2 do "esqueci a senha": a nova senha.'
   ),
@@ -37,14 +37,8 @@ export const authSchemas = {
     ['message', 'user', 'token']
   ),
   PasswordResetRequestResponse: object(
-    {
-      message: { type: 'string', example: 'Password reset requested (simulation: the e-mail was not sent).' },
-      reset_token: {
-        type: 'string',
-        example: 'q8Jm1t0bX0b7cL0yFq3x2v9h4T1pZ6wE5rK8nU2sA3c',
-        description: 'Simulação: iria por e-mail. Vale 30 minutos e uma vez só; use em POST /api/auth/password-reset/confirm.'
-      }
-    },
-    ['message', 'reset_token']
+    { message: { type: 'string', example: 'If this e-mail has an account, a reset code will be sent to it.' } },
+    ['message'],
+    'A mesma resposta com e sem conta para o e-mail. O código nunca vem aqui.'
   )
 } satisfies Record<AuthSchemaName, Schema>;
