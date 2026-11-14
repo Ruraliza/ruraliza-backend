@@ -2,7 +2,7 @@
 
 O projeto **AgTech Ruraliza** conecta produtores rurais a trabalhadores, prestadores e estudantes, facilitando a prestação de serviços operacionais nas fazendas.
 
-API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Nesta fase os dados e as fotos ficam **em memória**: tudo some quando o servidor reinicia. A troca para PostgreSQL está preparada; veja [Armazenamento](#-armazenamento-temporário-e-migração-para-postgresql).
+API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Os dados e os arquivos ficam em **PostgreSQL** quando `DATABASE_URL` está definida; sem ela, ficam **em memória** e somem quando o servidor reinicia. Veja [Armazenamento](#-armazenamento).
 
 ---
 
@@ -25,18 +25,19 @@ npm test                 # typecheck + lint + autoteste das regras + unitários 
 npm run test:unit        # unitários colocados (src/**/*.spec.ts): cada caso de uso com repositórios em memória
 npm run test:integration # fluxos entre módulos pelo container, sem HTTP (tests/integration) e o seed (tests/setup)
 npm run test:e2e         # HTTP de verdade: percorre o fluxo completo e os casos de erro (tests/e2e)
+npm run test:postgres    # os mesmos fluxos e o e2e sobre o PostgreSQL (precisa de TEST_DATABASE_URL; ver Armazenamento)
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
 O servidor carrega **dados de teste** ao subir, também em produção (`npm start`), enquanto o app é só de demonstração e teste: as contas abaixo usam a senha pública e aparecem na tela de entrar do app. `SEED_DEMO=false` desliga o seed fora do `--dev`; sem ele, a equipe entra pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou, sem eles, pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que aparece no log do servidor a cada subida. Desligue antes de haver dados de verdade.
 
-Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o servidor sobe.
+Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o seed roda: a cada subida em memória; no PostgreSQL, só na primeira subida de cada banco.
 
 Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a [conversa](#conversas) (`src/seed-history.ts`): os serviços 8 a 10 já concluídos e avaliados pelos dois lados (as duas fazendas e a Maria têm nota; o Pedro tem uma nota mediana), o 11 concluído há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida), o 12 concluído ontem sem avaliações e com a conversa ainda aberta, e o 13 em andamento com a Maria, com conversa (a última mensagem do produtor ainda não lida por ela). A vaga 1 tem dois candidatos: o Pedro (com nota) e o Carlos (sem avaliações). A **central de notificações** do João e da Maria já vem com os avisos que essa história geraria (candidaturas, avaliação, mensagens, pagamento), alguns lidos e outros não.
 
 ### Usuários de teste
 
-Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe (menos com `SEED_DEMO=false`). Cada conta entra só com e-mail e senha; quem tem os dois perfis alterna entre os painéis pelo menu (acima de **Sair**).
+Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe em memória, ou uma vez por banco no PostgreSQL (menos com `SEED_DEMO=false`). Cada conta entra só com e-mail e senha; quem tem os dois perfis alterna entre os painéis pelo menu (acima de **Sair**).
 
 | Conta | Perfis (ID) | Nome | E-mail | Senha | CPF | Dados |
 |---|---|---|---|---|---|---|
@@ -45,9 +46,9 @@ Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe (menos com `SEE
 | 3 | Produtor 2 e trabalhador 2 | Carlos Produtor e Trabalhador | `ambos@exemplo.com` | `ruraliza123` | `39053344705` | Abre no painel de produtor; sem fazendas nem serviços; como trabalhador, candidato à vaga 1 (sem avaliações) |
 | 4 | Trabalhador 3 | Pedro Diarista | `pedro@exemplo.com` | `ruraliza123` | `71428793860` | Um serviço concluído (nota 3,7) e candidato à vaga 1: bom para testar o aceite, a conversa e a avaliação |
 
-Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha", que no `npm run dev` mostra o código no terminal da API), ela volta a ser `ruraliza123` quando o servidor reinicia, porque os dados ficam em memória.
+Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha", que no `npm run dev` mostra o código no terminal da API), ela volta a ser `ruraliza123` quando o servidor reinicia em memória. Com PostgreSQL, a senha nova fica.
 
-**Equipe (usuários de sistema):** `admin@exemplo.com` (cargo `admin`) e `tutor@exemplo.com` (cargo `tutor`, dono das trilhas 1 e 2, publicadas, e 3, em rascunho), senha `ruraliza123`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Em produção não há seed: o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env` (ou nas variáveis do Render); sem eles, é `admin@ruraliza.app`, com a senha sorteada que sai no log.
+**Equipe (usuários de sistema):** `admin@exemplo.com` (cargo `admin`) e `tutor@exemplo.com` (cargo `tutor`, dono das trilhas 1 e 2, publicadas, e 3, em rascunho), senha `ruraliza123`. Entra pela tela `/sistema/entrar` do frontend (ou `POST /api/auth/system/login`), não pelo login do app. Com `SEED_DEMO=false`, o primeiro administrador vem de `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env` (ou nas variáveis do Render); sem eles, é `admin@ruraliza.app`, com a senha sorteada que sai no log (com PostgreSQL, só no log da subida que o criou).
 
 ### Configuração (`.env`)
 
@@ -98,10 +99,14 @@ contract-check/             # Verificação de paridade de tipos com o frontend
 tests/
   integration/              # Fluxos entre módulos pelo container (sem HTTP); support.ts tem os atalhos
   setup/                    # O seed de demonstração
+  postgres/                 # O que só o banco prova: reinício, tabelas iguais à memória, restrições, arquivos
+  support/                  # postgres.ts: schema novo por teste quando há TEST_DATABASE_URL
   e2e/                      # smoke.e2e.ts (HTTP de verdade) + support/openapi-check.ts; http/ com requisições manuais
 src/
   container.ts              # Raiz de composição: escolhe as implementações e monta os casos de uso de cada módulo
-  repositories.ts           # Todos os repositórios (Repositories) e a versão em memória
+  repositories.ts           # Todos os repositórios (Repositories): a versão em memória e a em PostgreSQL
+  postgres.ts               # Liga o PostgreSQL: conexão, migrações, arquivos e o seed de uma vez só
+  migrations/               # Passos do esquema do banco, em ordem (001-initial.ts)
   routes.ts                 # Os grupos de rotas de cada módulo, na ordem de cada prefixo
   seed.ts                   # Seed de demonstração (as trilhas ficam em seed-tracks.ts)
   docs/                     # Registro de todos os schemas OpenAPI e montagem do documento
@@ -115,7 +120,7 @@ src/
       <nome>.contract.ts    #   Contrato da API do módulo
       domain/               #   Porta do repositório e regras puras
       application/          #   Um caso de uso por arquivo (*.usecase.ts), com o teste ao lado (*.spec.ts)
-      infra/                #   Implementações (repositório em memória; Web Push em notifications)
+      infra/                #   Implementações (repositório em memória e em PostgreSQL; Web Push em notifications)
       presentation/         #   Controller, rotas, parsers do corpo e schemas OpenAPI
       testing/              #   Fixtures dos testes (fora do build)
   shared/
@@ -123,7 +128,7 @@ src/
     domain/                 # Result, Clock, datas, Repository<T, K> e portas transversais (imagens, documentos, senhas, tokens, avisos)
     infra/http/             # route(), contrato de acesso (Access), tipos dos handlers, corpo, erros, SSE
     infra/docs/             # Kit do OpenAPI: helpers de schema, operation(), schemas genéricos
-    infra/                  # crypto (scrypt, HMAC), images (Sharp + store), documents, memory
+    infra/                  # crypto (scrypt, HMAC), images (Sharp + store), documents, memory, postgres
     testing/                # unwrap(), fixedClock() e dublês que gravam avisos e pushes (fora do build)
     utils/                  # Validações (e-mail, CPF, senha), busca sem acento e perfil público (CPF mascarado)
     config.ts               # Variáveis de ambiente
@@ -131,7 +136,7 @@ src/
 
 ### Camadas e módulos
 
-Dentro de um módulo: `presentation → application → domain ← infra`. Os casos de uso dependem só das portas (ex.: `FarmRepository`), nunca da implementação; para trocar a persistência (ex.: PostgreSQL), escreva repositórios que cumpram essas portas e passe-os em `createContainer({ repos })`. Os repositórios devolvem cópias (como um banco): alterar uma entidade só vale depois de `update`.
+Dentro de um módulo: `presentation → application → domain ← infra`. Os casos de uso dependem só das portas (ex.: `FarmRepository`), nunca da implementação; a persistência entra em `createContainer({ repos })`: os repositórios em memória (padrão) ou os de PostgreSQL (`src/postgres.ts`). Os repositórios devolvem cópias (como um banco): alterar uma entidade só vale depois de `update`.
 
 Imports: dentro do módulo, relativos; entre módulos, só `#modules/<módulo>` (o alias resolve apenas o `index.ts`, então import profundo em outro módulo não compila); infraestrutura comum, `#shared/...`. Os aliases ficam em `"imports"` do `package.json`: com a condição `development` (`tsx --conditions=development`, usada por todos os scripts, e o type-check) apontam para os `.ts`; o `node dist/` usa os `.js` compilados.
 
@@ -144,46 +149,67 @@ Regras de fronteira:
 
 ---
 
-## 💾 Armazenamento temporário e migração para PostgreSQL
+## 💾 Armazenamento
 
-### Como está hoje (sem banco)
+A API guarda os dados em **PostgreSQL** quando `DATABASE_URL` está definida. Sem ela, tudo fica **em memória** e some a cada reinício: é assim que rodam os testes e o `npm run dev` de quem não quer subir um banco. A escolha acontece na subida (`bootContainer`, em `app.ts`); rotas, controllers e regras são os mesmos nos dois casos.
 
-| O quê | Onde fica | Implementação |
+### Ligar o PostgreSQL
+
+1. Crie um banco vazio: `createdb ruraliza` na sua máquina, ou um PostgreSQL no provedor (Render).
+2. Ponha o endereço em `DATABASE_URL`, no `.env` ou nas variáveis do Render: `postgres://usuario:senha@localhost:5432/ruraliza`. Se o provedor exigir TLS, acrescente `?sslmode=require`.
+3. Suba a API (`npm run dev` ou `npm start`). Ela cria as tabelas e aplica os passos pendentes do esquema sozinha. Se o banco estiver fora do ar ou a URL errada, a API não sobe.
+
+Defina também `AUTH_TOKEN_SECRET`: sem ele, os dados continuam depois do reinício, mas todas as sessões caem.
+
+### O que fica onde
+
+| O quê | Com `DATABASE_URL` | Sem `DATABASE_URL` |
 |---|---|---|
-| Produtores, trabalhadores, fazendas, serviços, candidaturas, pagamentos | Array em memória, um por entidade, com id sequencial | `InMemoryRepository` (`src/shared/infra/memory/`) |
-| Fotos (perfil do produtor, perfil do trabalhador, fazendas) | `Map` em memória de id para bytes WebP | `InMemoryImageStore` (`src/shared/infra/images/in-memory-image-store.ts`) |
-| Tratamento das fotos | Processado no upload, não é guardado | `SharpImageProcessor` (`src/shared/infra/images/`) |
-| Senhas (hash) e pedidos de redefinição | Array em memória, separado dos perfis | `InMemoryRepository` de `Account` (`src/modules/accounts/domain/account.ts`) |
-| Currículos dos trabalhadores (PDF) | `Map` em memória de id para bytes do PDF | `InMemoryDocumentStore` (`src/shared/infra/documents/in-memory-document-store.ts`) |
-| Avaliações (produtor → trabalhador e trabalhador → fazenda) | Um array por lado, com o prazo e se já foi publicada | `InMemoryRepository` (`src/modules/reviews/infra/`) |
-| Conversas e mensagens | Um array de conversas e um de mensagens | `InMemoryRepository` (`src/modules/chat/infra/`) |
-| Preferências de exibição (tema, letras maiores, alto contraste) | Campo `preferences` da conta, opcional (ausente = padrões) | `InMemoryRepository` de `Account` |
+| Entidades (os 23 repositórios de `src/repositories.ts`) | Uma tabela por repositório, uma coluna por campo: `PgRepository` (`src/shared/infra/postgres/`) e o `infra/pg-*.ts` de cada módulo | Array em memória com id sequencial: `InMemoryRepository` (`src/shared/infra/memory/`) |
+| Fotos, currículos e fotos de documento da verificação | Tabela `stored_files`, um `store` por tipo: `PgFileStore` | `Map` em memória: `InMemoryImageStore`, `InMemoryDocumentStore` |
+| Tratamento das fotos | Processado no upload, não é guardado: `SharpImageProcessor` | O mesmo |
+| Avisos para as telas abertas (SSE) | Memória do processo: `InMemoryChangeFeed` | O mesmo |
 
-- Os repositórios já são **assíncronos** e devolvem **cópias** (`structuredClone`). Eles se comportam como um banco: o resto do código não sabe que é memória.
+- As duas implementações cumprem a mesma porta, `Repository<T, K>` (`src/shared/domain/repository.ts`): `find(criteria)` é só igualdade de campos, e toda leitura devolve uma cópia, então alterar uma entidade só vale depois de `update`.
 - As entidades guardam **só a URL** da foto (`photo_url`, `farm.photos[].url`), nunca os bytes. Hoje a URL é `/api/images/<uuid>.webp`, servida por `GET /api/images/:id` com cache imutável.
 - Toda foto enviada passa pelo `SharpImageProcessor` antes de ser guardada: corrige a rotação do celular, reduz para **no máximo 1000 px no maior lado** (sem ampliar fotos pequenas), converte para **WebP (qualidade 78)** e remove os metadados (EXIF/GPS). Fotos de perfil saem sempre **quadradas** (até 1000×1000 px): o app envia a foto já recortada pelo usuário e, se chegar outra proporção, o servidor recorta o quadrado central. Arquivos que não são imagem são recusados com 400. Uploads acima de 10 MB são recusados com 413.
 - O currículo do trabalhador segue o mesmo esquema, sem processamento: o PDF é guardado como chegou, depois de conferir a assinatura `%PDF-` (outro arquivo dá 400; acima de 5 MB, 413). O trabalhador guarda só `resume_url` (`/api/documents/<uuid>.pdf`), servida por `GET /api/documents/:id`.
 - A senha **não fica no perfil**: vai para o repositório `accounts` (`email`, `password_hash`, `farmer_id`, `worker_id`, `last_role`), então nunca sai numa resposta. Uma conta por e-mail e por CPF, com até um perfil de cada tipo e a mesma senha para os dois. O hash é **scrypt** com sal aleatório (`src/shared/infra/crypto/node-crypto.ts`). O pedido de "esqueci a senha" guarda só o SHA-256 do token, com validade de 30 minutos.
-- A escolha de tudo isso está num lugar só: `src/container.ts` (`createContainer`).
 
-### Como ligar o PostgreSQL
+### Esquema e migrações
 
-1. **Repositórios.** Em cada módulo, crie `infra/pg-<entidade>.repository.ts` (com `pg` ou Sequelize, que já estão nas dependências) ao lado do de memória, implementando a porta do módulo (ex.: `FarmRepository` em `src/modules/farms/domain/`, um `Repository<T, K>` de `src/shared/domain/repository.ts`: `findById`, `find(criteria)`, `create`, `update`, `delete`). `find(criteria)` é só igualdade de campos (`WHERE campo = $1 AND ...`). Monte um `createPostgresRepositories(conexão)` que devolva o objeto `Repositories`.
-2. **Container.** Em `app.ts` (no bloco que sobe o servidor), troque `createContainer()` por `createContainer({ repos: createPostgresRepositories(conexão) })`, montando o `Repositories` de `src/repositories.ts` com os repositórios de cada módulo. Rotas, controllers e regras não mudam.
-3. **Tabelas.** Os campos são exatamente os de `src/contracts/` (e dos `*.contract.ts` dos módulos). Pontos de atenção:
-   - `farm.photos` → tabela `farm_photos (id text, farm_id int references farms, url text, position int)`, ou coluna `jsonb`.
-   - `expires_at` → `date` (dia do calendário, sem hora). A vaga vale até o fim desse dia **no horário de Brasília** (`src/shared/domain/dates.ts`).
-   - `insertion_date` → `timestamptz`.
-   - `accounts (id, email text UNIQUE, password_hash text, reset_token_digest text, reset_expires_at timestamptz, farmer_id int UNIQUE references farmers ON DELETE SET NULL, worker_id int UNIQUE references workers ON DELETE SET NULL, last_role text)`. Ao remover um perfil, ele sai da conta; a conta some junto com o último perfil.
-   - `system_users (id, email text UNIQUE, name text, role text CHECK (role IN ('admin','tutor')), password_hash text, insertion_date timestamptz)`: a equipe, sem ligação com `accounts`.
-   - `worker_reviews (id, service_id int UNIQUE references services, farmer_id, worker_id, punctuality, effort, quality smallint CHECK (1..5), comment text, insertion_date, window_ends_at timestamptz, revealed boolean)` e `farm_reviews` (o mesmo, com `farm_id` e `infrastructure`, `conditions`, `as_described`). A reputação vira `AVG`/`COUNT ... WHERE revealed OR window_ends_at < now()`.
-   - `chats (id, service_id, farmer_id, worker_id, farmer_shares_phone, worker_shares_phone boolean, farmer_read_up_to, worker_read_up_to int, closes_at timestamptz, insertion_date, UNIQUE (service_id, worker_id))` e `chat_messages (id, chat_id references chats ON DELETE CASCADE, sender text CHECK (sender IN ('farmer','worker','system')), body text, insertion_date)`, com índice `(chat_id, id)`.
-   - Restrições `UNIQUE` e transações estão marcadas com `TODO(db)` no código (`grep -rn "TODO(db)" src`).
-4. **Busca de vagas.** `SearchOpenServicesUseCase` (`src/modules/services/application/`) filtra em memória. No banco, vira `WHERE` (status, categoria, `duration BETWEEN`, data de publicação, `expires_at >= hoje`). A busca de texto sem acento vira `unaccent` + `ILIKE`, ou busca full-text em português (comentário `TODO(db)` no caso de uso).
-5. **Fotos.** Não guarde bytes de imagem no PostgreSQL. Implemente `ImageStore` (`src/shared/domain/images.ts`) sobre S3, Cloudflare R2 ou o disco do servidor e passe em `createContainer({ images })`. `urlFor(id)` passa a devolver a URL pública do bucket/CDN, e `idFromUrl(url)` faz o caminho inverso (é usado para apagar a foto antiga ao trocar). Os currículos fazem o mesmo com `DocumentStore` (`src/shared/domain/documents.ts`), passado em `createContainer({ documents })`.
-6. **Seed.** `src/seed.ts` só roda na memória. No banco, vire um script de seed ou migração.
+- O esquema é uma lista de passos em `src/migrations/` (hoje só `001-initial.ts`). Cada passo roda uma vez por banco, numa transação, e fica anotado na tabela `schema_migrations`. **Nunca edite um passo já aplicado:** mudança de esquema é um arquivo novo, acrescentado no fim de `MIGRATIONS` (`src/migrations/index.ts`).
+- Campo novo numa entidade pede três mudanças juntas: o passo de migração, a lista de colunas no `infra/pg-*.ts` do módulo (o compilador recusa uma lista incompleta) e, se o campo sai na API, o contrato e o schema OpenAPI.
+- Convenções: `id integer` gerado pelo banco; instante em `timestamptz` e dia do calendário (`expires_at`, `starts_on`, `ends_on`) em `date`; lista simples em `integer[]`/`text[]`; objeto ou lista de objetos (`farm.photos`, os módulos de uma trilha, `preferences`) em `jsonb`.
+- **Unicidade no banco.** As regras de "um só" viram `UNIQUE`: e-mail e CPF de produtor e de trabalhador, e-mail da conta e da equipe, uma candidatura por trabalhador e serviço, no máximo uma candidatura aceita e um pagamento por serviço, uma avaliação de cada lado por serviço, uma conversa por contratação, uma matrícula e um certificado por trilha e trabalhador. Os casos de uso continuam conferindo antes de gravar; se duas requisições passarem juntas pela conferência, o banco recusa a segunda e a API responde **409**.
+- Chaves estrangeiras só na conta (`accounts.farmer_id`/`worker_id`, `ON DELETE SET NULL`) e nas mensagens (`chat_messages.chat_id`, `ON DELETE CASCADE`). A limpeza de um perfil removido continua nos casos de uso (`ProfileCleanup`).
 
-Os testes continuam valendo: `npm run test:unit` e `npm run test:integration` usam repositórios em memória, e o `npm run test:e2e` pode rodar contra o banco para validar a troca.
+### Seed e administrador com banco
+
+- O seed de demonstração roda **uma vez por banco**, numa transação, e fica anotado como `demo-seed` em `schema_migrations`. Nas subidas seguintes nada é recriado: o que as pessoas mudaram (inclusive a senha de uma conta de teste) continua como está.
+- `SEED_DEMO=false` impede o seed num banco novo, mas **não apaga** contas de teste já gravadas. Antes de ter dados de verdade, comece com um banco novo e `SEED_DEMO=false`, ou remova as contas de teste em `/sistema`.
+- Sem seed e sem `ADMIN_EMAIL`/`ADMIN_PASSWORD`, o administrador padrão `admin@ruraliza.app` é criado na primeira subida e a senha sorteada aparece só naquele log. Para escolher a senha, defina as duas variáveis.
+
+### Arquivos no banco
+
+Fotos e currículos ficam no próprio PostgreSQL (`stored_files`, coluna `bytea`). Foi a opção que funciona sem outro serviço: o disco do servidor publicado some a cada deploy, e um bucket pede conta e credenciais. As fotos são pequenas (WebP de até 1000 px) e os PDFs têm até 5 MB. Quando o volume crescer, implemente `ImageStore` e `DocumentStore` (`src/shared/domain/`) sobre S3 ou Cloudflare R2 e passe em `createContainer({ images, documents })`: `urlFor(id)` devolve a URL pública e `idFromUrl(url)` faz o caminho inverso.
+
+### O que ainda não usa o banco
+
+- **Transações fora da contratação.** Aceite, desistência e pagamento já gravam tudo junto (`Transaction`, em `src/shared/domain/transaction.ts`: o caso de uso recebe repositórios sobre uma conexão em transação; se algo falha, nada fica gravado). Cancelamento de serviço, avaliação, troca de e-mail e remoção de perfil ainda gravam em sequência: uma queda no meio deixa a operação pela metade. As corridas entre requisições são barradas pelas restrições `UNIQUE`. Para levar a transação a outro caso de uso, siga o do pagamento (`grep -rn "TODO(db)" src`).
+- **Consultas.** A busca de vagas, a listagem de trilhas, a reputação e o painel da fazenda leem as linhas e filtram na aplicação. No banco, viram `WHERE`, `unaccent` + `ILIKE` e `AVG`/`COUNT` (comentários `TODO(db)`).
+- **Uma instância só.** Os avisos por SSE valem para um processo; com várias instâncias, troque o `ChangeFeed` por LISTEN/NOTIFY ou Redis.
+
+### Testes com banco
+
+`npm test` roda tudo em memória e não precisa de banco. Para provar a persistência, aponte `TEST_DATABASE_URL` para um banco **só de testes** e rode:
+
+```bash
+createdb ruraliza_test
+TEST_DATABASE_URL=postgres://localhost:5432/ruraliza_test npm run test:postgres
+```
+
+Roda `tests/postgres` (reinício do servidor, cada tabela comparada com o repositório em memória, restrições, arquivos) e repete os testes de integração e o e2e sobre o PostgreSQL. Cada container de teste usa um schema novo, apagado no fim. O CI roda esse comando com um PostgreSQL de serviço.
 
 ---
 
@@ -325,7 +351,7 @@ Motivos (`reason`): `fraude` (vaga falsa ou golpe), `condicoes` (condições de 
 
 A pessoa envia a foto da frente do RG ou da CNH; a equipe confere o nome e o CPF com os do perfil e aprova ou recusa (com o motivo, que a pessoa vê). Aprovado, o perfil ganha o **selo de verificado**: aparece para o produtor no cartão do candidato (`verified` em `GET /api/farmers/services/:id/applications`) e para o trabalhador nas vagas (`farm.farmer_verified` na busca e no detalhe). O selo vale para o nome conferido: se a pessoa muda o nome no perfil, ele some até ela verificar de novo. Quem tem os dois perfis com o mesmo CPF ganha o selo nos dois.
 
-A foto do documento é dado pessoal sensível, então: é reduzida para no máximo 1600px (legível) e perde os metadados; fica num armazenamento **privado** (`idDocuments` no container), que não passa por `/api/images`; só a equipe vê, com o token de sistema; e é **apagada logo depois da decisão** (e quando o perfil é removido). Em memória, como o resto (TODO(db): o pedido vai para uma tabela; a foto, para um bucket privado com expiração).
+A foto do documento é dado pessoal sensível, então: é reduzida para no máximo 1600px (legível) e perde os metadados; fica num armazenamento **privado** (`idDocuments` no container), que não passa por `/api/images`; só a equipe vê, com o token de sistema; e é **apagada logo depois da decisão** (e quando o perfil é removido). Com PostgreSQL, o pedido fica na tabela `verifications` e a foto, no armazenamento `id_documents` de `stored_files`, que nenhuma rota pública lê (TODO(db): um bucket privado com expiração).
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -364,7 +390,7 @@ Espaço para lojas agropecuárias, revendas de máquinas e marcas de sementes: u
 
 ### Central de ajuda
 
-Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (26, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, em memória como o resto).
+Perguntas frequentes que a equipe edita sem mexer no código. A lista pública não exige login; a gestão pede a permissão `content:manage` (cargo administrador). As perguntas padrão (26, em 7 temas) são criadas ao subir o servidor (`createDefaultHelpArticles`, pelo seed).
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -448,7 +474,7 @@ Tudo o que vira push também fica guardado na **central de notificações** do p
 - Cada perfil guarda até **100 avisos** (os mais antigos saem); a lista devolve os 50 mais recentes e o total de **não lidos**.
 - Avisos iguais ainda não lidos (mesmo título e mesma tela, ex.: 3 mensagens na mesma conversa) viram **um só**, com o texto do mais recente e a contagem em `count`.
 - `POST .../notifications/read` marca como lidos (sem `ids`, todos). O sino acompanha por SSE (`.../notifications/events`, `event: notifications`).
-- Ao remover um perfil, o histórico dele sai junto. Em memória, como o resto (`NotificationRepository`).
+- Ao remover um perfil, o histórico dele sai junto (`NotificationRepository`).
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -464,15 +490,16 @@ Quem liga **Avisos no WhatsApp** (`whatsapp_alerts` nas preferências da conta, 
 
 Com o app fechado, quem precisa agir recebe uma notificação (**Web Push**, chaves VAPID do `.env`): o produtor quando alguém se candidata ou desiste; o trabalhador quando é aceito, recusado (inclusive pelo aceite de outro), quando o serviço é cancelado e quando o pagamento é liberado (o clique abre a vaga, onde ele avalia a fazenda); os dois quando chega mensagem na conversa, quando o outro pede para trocar WhatsApp e quando o outro avalia ("avalie também para ver a nota"). A mensagem segue o formato do service worker do Angular (`notification.data.onActionClick`), e o clique abre o app na tela certa.
 
-O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`) roda em segundo plano: falha no serviço de push só vai para o log, nunca para a resposta. Inscrições que o navegador revogou (404/410) são apagadas no primeiro envio. Como o resto dos dados, as inscrições ficam em memória; o frontend reenvia a dele a cada abertura do app.
+O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`) roda em segundo plano: falha no serviço de push só vai para o log, nunca para a resposta. Inscrições que o navegador revogou (404/410) são apagadas no primeiro envio. As inscrições ficam guardadas como o resto dos dados; o frontend reenvia a dele a cada abertura do app.
 
 **Prazo das vagas (`expires_at`):** dia do calendário. A vaga aceita candidaturas até o fim desse dia no horário de Brasília. Depois disso continua `Pending` para o produtor, mas some da busca e recusa candidaturas (409) até o produtor renovar a data. Não dá para publicar ou editar com data no passado (400).
 
 ---
 
 ## 🛠️ Próximos passos
-- [ ] Banco de dados (ver [Armazenamento](#-armazenamento-temporário-e-migração-para-postgresql) e os `TODO(db)` no código: IDs, unicidade, transações no aceite/pagamento).
-- [ ] Guardar as fotos num bucket (S3/R2) em vez da memória.
+- [x] Banco de dados: PostgreSQL com `DATABASE_URL` (ver [Armazenamento](#-armazenamento)).
+- [ ] Transações nos demais casos de uso que gravam várias entidades (cancelamento, avaliação, remoção de perfil; aceite, desistência e pagamento já têm) e consultas no banco para a busca e a reputação (`TODO(db)` no código).
+- [ ] Guardar as fotos num bucket (S3/R2) em vez do banco.
 - [ ] Enviar o código de redefinição de senha por e-mail (passar a entrega `deliverResetCode` ao `createContainer` em produção; ver `TODO(email)`). Até lá, a redefinição pública só funciona no `npm run dev`.
 - [ ] Encerrar as sessões abertas ao trocar a senha (hoje o token vale até vencer).
 - [x] Trilhas de estudo: rotas do tutor (`tracks:manage`), estudo pelo trabalhador e certificados.

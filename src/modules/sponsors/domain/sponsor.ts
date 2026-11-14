@@ -2,8 +2,8 @@ import type { Repository } from '#shared/domain/repository';
 import { type Result, invalid, ok } from '#shared/domain/result';
 import type { Sponsor, SponsorAudience, SponsorCard } from '../sponsor.contract';
 
-// Patrocínio como fica guardado. TODO(db): tabela `sponsors` (as UFs e categorias em text[]); os contadores
-// podem ir para uma tabela de eventos por dia quando o volume crescer.
+// Patrocínio como fica guardado (tabela `sponsors`, com as UFs e as categorias em text[]). TODO(db): os
+// contadores podem ir para uma tabela de eventos por dia quando o volume crescer.
 export type SponsorRecord = Sponsor;
 
 export type SponsorRepository = Repository<SponsorRecord, 'active' | 'audience'>;

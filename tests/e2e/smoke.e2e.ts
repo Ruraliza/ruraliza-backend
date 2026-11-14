@@ -1,4 +1,4 @@
-// Smoke test do fluxo completo da API (em memória).
+// Smoke test do fluxo completo da API (em memória; com TEST_DATABASE_URL, sobre o PostgreSQL).
 // Sobe o app numa porta livre, sem o seed, e percorre:
 // produtor → fazenda → serviço → trabalhador → candidatura → aceite → pagamento,
 // a conversa do serviço e a avaliação dupla,
@@ -80,6 +80,7 @@ import type {
 } from '../../src/contracts';
 import { FRONTEND_ORIGIN } from '#shared/config';
 import { isRecord } from '#shared/infra/http/body';
+import { dropTestDatabases, testStorage } from '../support/postgres';
 import { createOpenApiChecker } from './support/openapi-check';
 
 // Senha dos perfis cadastrados neste teste.
@@ -88,7 +89,7 @@ const PW = 'senha-do-smoke';
 // API nova, sem seed, só para este teste. O código de redefinição de senha, que iria por e-mail,
 // fica guardado aqui (a resposta HTTP nunca o traz).
 const sentResetCodes: string[] = [];
-const container = createContainer({ deliverResetCode: (_email, code) => { sentResetCodes.push(code); } });
+const container = createContainer({ deliverResetCode: (_email, code) => { sentResetCodes.push(code); }, ...testStorage() });
 const { app, document } = createApi(container);
 const checkAgainstOpenApi = createOpenApiChecker(document);
 
@@ -1488,6 +1489,8 @@ async function main(): Promise<void> {
   } finally {
     server.closeAllConnections();
     server.close();
+    await container.notifier.idle(); // nenhum aviso em segundo plano ainda gravando
+    await dropTestDatabases();
   }
 }
 

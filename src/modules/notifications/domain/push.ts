@@ -1,7 +1,7 @@
 import type { UserRole } from '#modules/accounts';
 
 // Inscrição de um navegador/aparelho para receber push, ligada à conta (vale para os dois perfis).
-// TODO(db): restrição UNIQUE (endpoint).
+// Tabela `push_subscriptions`, com UNIQUE (endpoint).
 export interface PushSubscriptionRecord {
   id: number;
   account_id: number;

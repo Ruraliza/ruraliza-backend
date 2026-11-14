@@ -30,13 +30,27 @@ O `.env` fica fora do git. O `.env.example` explica cada variável. Nomes dispon
 - `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_INSTANCE`, `APP_URL` (avisos por WhatsApp; as três primeiras juntas ligam o envio).
 - `AUTH_TOKEN_SECRET` (assina as sessões; sem ele, o segredo é temporário e as sessões caem a cada reinício).
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` (primeiro administrador; em desenvolvimento o seed já cria `admin@exemplo.com`, com `SEED_DEMO=false` e sem elas, o servidor cria `admin@ruraliza.app` com uma senha sorteada que aparece no log e muda a cada reinício).
+- `DATABASE_URL` (PostgreSQL; sem ela, os dados ficam em memória. Ver "Banco de dados" abaixo).
 - `SEED_DEMO` (`false` desliga as contas de teste fora do `--dev`; por padrão elas sobem também em produção, enquanto o app é só de demonstração).
 
 Para mexer só na API, o `.env` copiado do exemplo basta: tudo é opcional e as integrações ficam desligadas. Peça os valores reais à equipe; nunca os registre em arquivos versionados.
 
 ## Banco de dados
 
-Não há. Os dados ficam em memória por decisão da equipe e somem a cada reinício; em desenvolvimento, o seed recria tudo. Não existe `DATABASE_URL`, migração ou script de banco. O plano para PostgreSQL está descrito em [architecture.md](architecture.md) (seção "Dados") e no README, e não está implementado.
+Opcional. Sem `DATABASE_URL`, os dados ficam em memória e somem a cada reinício (o seed recria tudo): basta para mexer na API e rodar `npm test`.
+
+Para os dados continuarem depois de reiniciar, use um PostgreSQL:
+
+```bash
+createdb ruraliza
+# no .env:
+# DATABASE_URL=postgres://localhost:5432/ruraliza
+npm run dev
+```
+
+A API cria e atualiza as tabelas sozinha na subida e grava os dados de teste uma vez por banco. Para recomeçar do zero, apague e recrie o banco (`dropdb ruraliza && createdb ruraliza`). Não há script de migração para rodar à mão. O desenho está em [architecture.md](architecture.md) (seção "Dados") e o uso, no README ("Armazenamento").
+
+Os testes com banco usam outra variável, `TEST_DATABASE_URL`, e um banco só de testes: `npm run test:postgres` (ver [quality.md](quality.md)).
 
 ## Verificar
 

@@ -4,5 +4,6 @@ export type { FarmRepository } from './domain/farm.repository';
 export { findOwnFarm } from './application/find-own-farm';
 export { farmOf, findActiveFarm, isActiveFarm } from './domain/farm.rules';
 export { createInMemoryFarmRepository } from './infra/in-memory-farm.repository';
+export { createPgFarmRepository } from './infra/pg-farm.repository';
 export { type FarmSchemaName, farmSchemas } from './presentation/farm.schemas';
 export { type FarmUseCases, type FarmsModuleDeps, createFarmRoutes, createFarmUseCases } from './farms.module';

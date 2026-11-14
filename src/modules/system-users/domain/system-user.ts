@@ -2,7 +2,7 @@ import type { Repository } from '#shared/domain/repository';
 import type { SystemRole, SystemUser } from '../system-user.contract';
 
 // Usuário de sistema como fica guardado: com o hash da senha, que nunca sai numa resposta.
-// TODO(db): tabela `system_users` com UNIQUE (email).
+// Tabela `system_users`, com UNIQUE (email).
 export interface SystemUserRecord extends SystemUser {
   password_hash: string;
 }
@@ -38,5 +38,4 @@ export function toSystemUser(user: SystemUserRecord): SystemUser {
   return { id: user.id, email: user.email, name: user.name, role: user.role, insertion_date: user.insertion_date };
 }
 
-// TODO(db): restrição UNIQUE (email).
 export type SystemUserRepository = Repository<SystemUserRecord, 'email'>;

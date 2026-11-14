@@ -8,6 +8,7 @@ export type { ServiceRepository } from './domain/service.repository';
 export { SERVICE_STATUS, isServiceStatus, serviceStatusList } from './domain/service-status';
 export { isExpired, toOpenService } from './domain/service.rules';
 export { createInMemoryServiceRepository } from './infra/in-memory-service.repository';
+export { createPgServiceRepository } from './infra/pg-service.repository';
 export { categoryRoutes } from './presentation/category.routes';
 export type { ServiceRoutes } from './presentation/service.routes';
 export { type ServiceSchemaName, openServiceProps, openServiceRequired, serviceSchemas } from './presentation/service.schemas';

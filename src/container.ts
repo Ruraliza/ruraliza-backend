@@ -38,6 +38,7 @@ import type { ImageProcessor, ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { ProfileCleanup } from '#shared/domain/profile-cleanup';
 import type { ResetTokens, SessionTokens } from '#shared/domain/tokens';
+import { type Transaction, directTransaction } from '#shared/domain/transaction';
 import { createHmacSessionTokens, randomResetTokens, scryptPasswordHasher } from '#shared/infra/crypto/node-crypto';
 import { InMemoryDocumentStore } from '#shared/infra/documents/in-memory-document-store';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
@@ -47,9 +48,9 @@ import type { Repositories } from './repositories';
 import { createInMemoryRepositories } from './repositories';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
-// Para trocar a persistência (ex.: PostgreSQL), passe outros `repos` aqui; para guardar as
-// fotos fora da memória (ex.: S3/R2 ou disco), passe outro `images` (ver src/domain/images.ts);
-// para os currículos em PDF, outro `documents` (ver src/domain/documents.ts).
+// Sem opções, tudo fica em memória (testes). O servidor com DATABASE_URL passa o PostgreSQL em `repos`,
+// `images`, `documents` e `idDocuments` (src/postgres.ts). Para guardar os arquivos em outro lugar
+// (ex.: S3/R2), passe outro `images` (ver src/shared/domain/images.ts) e outro `documents`.
 // As senhas usam scrypt (`passwords`); os testes podem passar um hasher mais rápido.
 // Os avisos de mudança para as telas abertas (`changes`, por SSE) ficam em memória;
 // as notificações push saem pelo `push` (Web Push com as chaves VAPID do .env; os testes passam um falso),
@@ -100,6 +101,8 @@ export interface Container {
 
 export interface ContainerOptions {
   repos?: Repositories;
+  // Grava várias entidades juntas (transação do PostgreSQL). Sem ela, direto nos repositórios.
+  transaction?: Transaction<Repositories>;
   images?: ImageStore;
   documents?: DocumentStore;
   idDocuments?: ImageStore;
@@ -118,6 +121,7 @@ export interface ContainerOptions {
 
 export function createContainer(options: ContainerOptions = {}): Container {
   const repos = options.repos ?? createInMemoryRepositories();
+  const transaction = options.transaction ?? directTransaction(repos);
   const images = options.images ?? new InMemoryImageStore();
   const documents = options.documents ?? new InMemoryDocumentStore();
   const idDocuments = options.idDocuments ?? new InMemoryImageStore();
@@ -193,7 +197,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
         farmers, farms, services, applications, clock, changes, push: notifier, reputation, verification: verificationUseCases.reader,
         jobEvents: { jobPublished: (service) => matchingUseCases.alerts.jobPublished(service) }
       }),
-      hiring: createHiringUseCases({ services, applications, payments, workers, accounts, clock, changes, push: notifier, events: chatUseCases.hiringEvents, reputation, verification: verificationUseCases.reader }),
+      hiring: createHiringUseCases({ services, applications, payments, transaction, workers, accounts, clock, changes, push: notifier, events: chatUseCases.hiringEvents, reputation, verification: verificationUseCases.reader }),
       reviews: reviewUseCases,
       chat: chatUseCases,
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),

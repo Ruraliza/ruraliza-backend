@@ -4,12 +4,14 @@ import type { ChangeFeed } from '#shared/domain/changes';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import type { ApplicationRepository } from '../domain/application.repository';
 import type { HiringEvents } from '../domain/hiring-events';
+import type { HiringTransaction } from '../domain/hiring-transaction';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
 import { notifyWithdrawal, publishApplicationChanges } from './hiring-notifications';
 
 export interface WithdrawFromServiceDeps {
   services: ServiceRepository;
   applications: ApplicationRepository;
+  transaction: HiringTransaction;
   changes: ChangeFeed;
   push: PushNotifier;
   events: HiringEvents;
@@ -26,8 +28,7 @@ export type WithdrawOutcome = { undone: 'application' | 'service'; service: Serv
 // O trabalhador desiste, e tudo volta uma etapa:
 // - candidatura Pending: é removida (pode se candidatar de novo depois);
 // - já aceito (serviço In Progress): o serviço volta a Pending sem trabalhador e as
-//   candidaturas recusadas pelo aceite voltam a Pending para o produtor escolher outro.
-// TODO(db): executar numa transação.
+//   candidaturas recusadas pelo aceite voltam a Pending para o produtor escolher outro, tudo junto.
 export class WithdrawFromServiceUseCase {
   constructor(private readonly deps: WithdrawFromServiceDeps) {}
 
@@ -47,18 +48,21 @@ export class WithdrawFromServiceUseCase {
     }
 
     if (application.status === APPLICATION_STATUS.ACCEPTED && service.status === SERVICE_STATUS.IN_PROGRESS) {
-      await applications.delete(application.id);
-      const affected = [workerId];
-      for (const other of await applications.find({ service_id: service.id })) {
-        if (other.auto_rejected !== true) continue;
-        other.status = APPLICATION_STATUS.PENDING;
-        delete other.auto_rejected;
-        await applications.update(other);
-        affected.push(other.worker_id);
-      }
-      service.worker_id = null;
-      service.status = SERVICE_STATUS.PENDING;
-      await services.update(service);
+      const affected = await this.deps.transaction(async (stores) => {
+        await stores.applications.delete(application.id);
+        const restored = [workerId];
+        for (const other of await stores.applications.find({ service_id: service.id })) {
+          if (other.auto_rejected !== true) continue;
+          other.status = APPLICATION_STATUS.PENDING;
+          delete other.auto_rejected;
+          await stores.applications.update(other);
+          restored.push(other.worker_id);
+        }
+        service.worker_id = null;
+        service.status = SERVICE_STATUS.PENDING;
+        await stores.services.update(service);
+        return restored;
+      });
       await this.deps.events.withdrawn(service, workerId); // encerra a conversa
       publishApplicationChanges(changes, service.id, affected);
       notifyWithdrawal(push, service);

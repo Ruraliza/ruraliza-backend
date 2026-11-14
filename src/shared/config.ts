@@ -7,6 +7,12 @@ export function serverPort(): string {
   return process.env['PORT'] || '3000';
 }
 
+// Endereço do PostgreSQL (postgres://usuario:senha@host:5432/banco). null = sem banco: os dados ficam em
+// memória e somem a cada reinício (desenvolvimento rápido e testes).
+export function databaseUrl(): string | null {
+  return (process.env['DATABASE_URL'] ?? '').trim() || null;
+}
+
 export interface GoogleMapsSettings {
   apiKey: string;
   mapId: string;
@@ -54,7 +60,7 @@ export function vapidSettings(): VapidSettings | null {
 }
 
 // Segredo que assina os tokens de sessão. Sem AUTH_TOKEN_SECRET, um aleatório por processo:
-// funciona, mas toda sessão cai quando o servidor reinicia (como os dados em memória).
+// funciona, mas toda sessão cai quando o servidor reinicia. Com banco (DATABASE_URL), defina sempre.
 let generatedSecret: string | null = null;
 
 export function authTokenSecret(): string {
@@ -88,7 +94,8 @@ export function whatsAppSettings(): WhatsAppSettings | null {
 
 // Contas de teste (seed) também em produção, enquanto o app é só de demonstração e teste: as contas usam a
 // senha pública do README e aparecem na tela de entrar. SEED_DEMO=false desliga, e deve ficar desligado
-// quando houver dados de verdade (banco de dados).
+// quando houver dados de verdade. Com banco (DATABASE_URL), o seed roda uma vez e as contas ficam gravadas:
+// desligar depois não as apaga.
 export function demoSeedEnabled(): boolean {
   return (process.env['SEED_DEMO'] ?? '').trim().toLowerCase() !== 'false';
 }

@@ -4,9 +4,9 @@
 // como chegou, depois de conferir que é mesmo um PDF.
 // - DocumentStore: guarda os bytes e diz a URL pública de cada documento.
 //
-// Hoje: InMemoryDocumentStore (some ao reiniciar).
-// TODO(db): trocar por um store de arquivos (S3, Cloudflare R2, disco do servidor...), como o
-// ImageStore. No banco fica só a URL (`resume_url`), nunca os bytes.
+// Hoje: InMemoryDocumentStore (some ao reiniciar) ou, com DATABASE_URL, PgFileStore (tabela `stored_files`).
+// O trabalhador guarda só a URL (`resume_url`).
+// TODO(db): com volume, trocar por um store de arquivos (S3, Cloudflare R2), como o ImageStore.
 
 export const PDF_CONTENT_TYPE = 'application/pdf';
 export const RESUME_MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // corpo aceito

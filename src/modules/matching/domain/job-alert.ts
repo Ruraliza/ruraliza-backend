@@ -1,7 +1,7 @@
 import type { Repository } from '#shared/domain/repository';
 
 // Aviso de vaga nova já mandado para um trabalhador: evita repetir a mesma vaga e segura o excesso.
-// TODO(db): tabela `job_alerts (worker_id, service_id, sent_at)` com índice (worker_id, sent_at).
+// Tabela `job_alerts`, com índice (worker_id, sent_at).
 export interface JobAlertRecord {
   id: number;
   worker_id: number;

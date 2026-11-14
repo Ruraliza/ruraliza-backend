@@ -14,6 +14,7 @@
     "test:unit": "tsx --conditions=development --test \"src/**/*.spec.ts\"",
     "test:integration": "tsx --conditions=development --test \"tests/integration/**/*.test.ts\" \"tests/setup/**/*.test.ts\"",
     "test:e2e": "tsx --conditions=development tests/e2e/smoke.e2e.ts",
+    "test:postgres": "tsx --conditions=development --test \"tests/postgres/**/*.test.ts\" \"tests/integration/**/*.test.ts\" \"tests/setup/**/*.test.ts\" && npm run test:e2e",
     "test": "npm run typecheck && npm run lint && npm run check:rules && npm run test:unit && npm run test:integration && npm run test:e2e",
     "check:rules": "node scripts/verify-quality-rules.mjs"
   },
@@ -46,6 +47,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.3",
+    "@types/pg": "^8.23.1",
     "@types/swagger-ui-express": "^4.1.8",
     "@types/web-push": "^3.6.4",
     "ajv": "^8.20.0",

@@ -3,8 +3,7 @@ import type { Repository } from '#shared/domain/repository';
 import type { Report, ReportReason, ReportStatus, ReportTargetType } from '../report.contract';
 
 // Denúncia como fica guardada: com quem denunciou e a decisão da equipe.
-// TODO(db): tabela `reports (id, reporter_role, reporter_id, target_type, target_id, reason, details, status,
-// resolution_note, insertion_date, reviewed_at)` com índice (status, id).
+// Tabela `reports`, com índice (status, id).
 export interface ReportRecord extends Report {
   reporter_role: UserRole;
   reporter_id: number;

@@ -10,6 +10,6 @@ export interface Visibility {
 export type WorkerReviewRecord = WorkerReview & Visibility;
 export type FarmReviewRecord = FarmReview & Visibility;
 
-// TODO(db): restrição UNIQUE (service_id) em cada tabela: uma avaliação de cada lado por serviço.
+// UNIQUE (service_id) em cada tabela (`worker_reviews`, `farm_reviews`): uma avaliação de cada lado por serviço.
 export type WorkerReviewRepository = Repository<WorkerReviewRecord, 'service_id' | 'worker_id' | 'farmer_id'>;
 export type FarmReviewRepository = Repository<FarmReviewRecord, 'service_id' | 'farm_id' | 'worker_id' | 'farmer_id'>;

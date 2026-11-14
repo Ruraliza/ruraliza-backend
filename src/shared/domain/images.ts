@@ -7,10 +7,9 @@ import type { Result } from './result';
 //   fotos de perfil também saem quadradas).
 // - ImageStore: guarda os bytes e diz a URL pública de cada imagem.
 //
-// Hoje: SharpImageProcessor + InMemoryImageStore (some ao reiniciar).
-// TODO(db): trocar o InMemoryImageStore por um store de arquivos (S3, Cloudflare R2, disco do
-// servidor...). Não guarde bytes de imagem no PostgreSQL: no banco fica só a URL (ou a chave),
-// que é o que as entidades já guardam (`photo_url`, `farm.photos`).
+// Hoje: SharpImageProcessor, com InMemoryImageStore (some ao reiniciar) ou, com DATABASE_URL, PgFileStore
+// (os bytes na tabela `stored_files`). As entidades guardam só a URL (`photo_url`, `farm.photos`).
+// TODO(db): com volume, trocar por um store de arquivos (S3, Cloudflare R2), que tira os bytes do banco.
 
 export const IMAGE_MAX_SIDE = 1000; // px, no maior lado
 export const IMAGE_MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // corpo aceito antes de processar

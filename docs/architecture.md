@@ -14,17 +14,19 @@ Versões de `package.json` (faixas, não fixas: o `package-lock.json` está no `
 | Imagens e push | `sharp ^0.35` (WebP), `web-push ^3.6` |
 | Testes | `node:test` rodado por `tsx`; `ajv` e `ajv-draft-04` para validar respostas contra o OpenAPI |
 | Qualidade | `eslint ^10` com `typescript-eslint` (strict type-checked) e a regra local `quality/max-lines`, `tsc --noEmit` |
-| Persistência | Nenhuma: repositórios em memória (ver "Dados") |
+| Persistência | PostgreSQL com o driver `pg ^8.23` quando há `DATABASE_URL`; sem ela, repositórios em memória (ver "Dados") |
 
-`pg` e `sequelize` estão em `dependencies` para a futura troca para PostgreSQL, mas nenhum arquivo de `src/`, `app.ts` ou `tests/` os importa hoje. O `pg-harness`, também sem uso, saiu em 18/10/2026 porque trazia vulnerabilidades críticas (ver [setup.md](setup.md)).
+O acesso ao banco usa o `pg` direto, sem ORM. O `sequelize` continua em `dependencies`, mas nenhum arquivo o importa. O `pg-harness`, também sem uso, saiu em 18/10/2026 porque trazia vulnerabilidades críticas (ver [setup.md](setup.md)).
 
 ## Mapa do código
 
 ```text
-app.ts                  createApi(container): CORS, parsers de corpo, docs, rotas, 404 e erros; main() sobe o servidor (bootContainer: seed sempre, menos com SEED_DEMO=false fora do --dev)
+app.ts                  createApi(container): CORS, parsers de corpo, docs, rotas, 404 e erros; main() sobe o servidor (bootContainer: PostgreSQL com DATABASE_URL, senão memória; seed sempre, menos com SEED_DEMO=false fora do --dev)
 contract-check/         frontend-parity.ts: igualdade de tipos com ../ruraliza-frontend/src/app/core/models
 src/container.ts        raiz de composição: escolhe implementações e monta os casos de uso
-src/repositories.ts     interface Repositories e a versão em memória
+src/repositories.ts     interface Repositories, a versão em memória e a em PostgreSQL
+src/postgres.ts         liga o PostgreSQL: pool, migrações, armazenamento de arquivos e o seed de uma vez só
+src/migrations/         passos do esquema do banco, em ordem
 src/routes.ts           grupos de rotas por prefixo (/api/auth, /api/farmers, /api/workers...), na ordem de registro
 src/seed*.ts            dados de demonstração (vagas, histórico, trilhas, verificação)
 src/docs/               geração do documento OpenAPI e registro dos schemas
@@ -32,12 +34,12 @@ src/contracts/          barrel que reexporta os *.contract.ts, usado pelo check:
 src/modules/<módulo>/   fatia por contexto (22 pastas): accounts, admin, auth, chat, farm-stats, farmers, farms, help,
                         hiring, live, matching, media, notifications, platform, reports, reviews, services, sponsors,
                         system-users, tracks, verification, workers
-src/shared/             domain (portas e regras puras), infra (http, crypto, imagens, memória, docs), utils, testing, config.ts
-tests/                  integration/ (container, sem HTTP), setup/ (seed), e2e/ (HTTP real + openapi-check.ts)
+src/shared/             domain (portas e regras puras), infra (http, crypto, imagens, memória, postgres, docs), utils, testing, config.ts
+tests/                  integration/ (container, sem HTTP), setup/ (seed), e2e/ (HTTP real + openapi-check.ts), postgres/ (o que só o banco prova), support/ (schema de teste)
 docs/                   estudo-govbr-certificados.md e estes documentos
 ```
 
-Dentro de um módulo, as pastas existem só quando há o que pôr nelas: `domain/` (porta do repositório e regras), `application/` (um `*.usecase.ts` por caso de uso, com `*.spec.ts` ao lado), `infra/` (repositório em memória e adaptadores), `presentation/` (controller, `*.routes.ts`, parsers, `*.schemas.ts`), `testing/` (fixtures, fora do build), mais `index.ts`, `<módulo>.module.ts` e `<nome>.contract.ts`. Alguns módulos são menores: `live` tem só `presentation/`, `admin` e `farm-stats` não têm `domain/` nem `infra/`.
+Dentro de um módulo, as pastas existem só quando há o que pôr nelas: `domain/` (porta do repositório e regras), `application/` (um `*.usecase.ts` por caso de uso, com `*.spec.ts` ao lado), `infra/` (repositório em memória, repositório PostgreSQL e adaptadores), `presentation/` (controller, `*.routes.ts`, parsers, `*.schemas.ts`), `testing/` (fixtures, fora do build), mais `index.ts`, `<módulo>.module.ts` e `<nome>.contract.ts`. Alguns módulos são menores: `live` tem só `presentation/`, `admin` e `farm-stats` não têm `domain/` nem `infra/`.
 
 ## Fluxo de uma requisição
 
@@ -47,8 +49,8 @@ Dentro de um módulo, as pastas existem só quando há o que pôr nelas: `domain
 4. O controller valida `req.body` e `req.query` (chegam como `unknown`) com parsers do módulo e monta a entrada tipada.
 5. O caso de uso roda a regra e devolve um `Result` (`ok` ou falha com `invalid`, `unauthorized`, `forbidden`, `not_found`, `conflict`), sem nada de HTTP.
 6. `sendFailure` traduz a falha em 400, 401, 403, 404 ou 409 com `{ "error": "mensagem" }`.
-7. O caso de uso chama a porta do repositório; a implementação em memória guarda e devolve cópias.
-8. Erros não tratados caem no `errorHandler` global: 400 para JSON inválido, 413 para corpo grande, 500 genérico para o resto (o detalhe vai só para o log).
+7. O caso de uso chama a porta do repositório; a implementação (PostgreSQL ou memória) guarda e devolve cópias.
+8. Erros não tratados caem no `errorHandler` global: 400 para JSON inválido, 413 para corpo grande, 409 quando o banco recusa um duplicado (`UNIQUE`), 400 para valor que o banco não guarda, 500 genérico para o resto (o detalhe vai só para o log).
 
 ## Camadas e fronteiras
 
@@ -71,19 +73,38 @@ Regras que o README já registra e valem aqui: `src/shared` não importa módulo
 
 ## Dados
 
-Todos os repositórios são `InMemoryRepository` (`src/shared/infra/memory/`): arrays com id sequencial, assíncronos, que devolvem `structuredClone`, então alterar uma entidade só vale após `update`. Fotos, currículos e fotos de documentos de verificação ficam em `Map` na memória (`InMemoryImageStore`, `InMemoryDocumentStore`). Em desenvolvimento, tudo é recriado pelo seed ao subir; em produção, a API sobe vazia.
+A persistência é escolhida na subida (`bootContainer`, em `app.ts`) e entra pelo container: `createContainer({ repos, images, documents, idDocuments })`.
 
-**Banco: plano, não implementação.** A troca por PostgreSQL é viável por desenho: casos de uso só conhecem portas e `createContainer({ repos, images, documents, changes })` aceita outras implementações. Faltam, e não existem no código: repositórios PostgreSQL, tabelas, migrações, seed para banco e transações no aceite e no pagamento. Os pontos pendentes estão marcados com `TODO(db)` (45 ocorrências em `src/`). O passo a passo previsto está no README, seção "Armazenamento temporário e migração para PostgreSQL".
+- **Com `DATABASE_URL`: PostgreSQL.** `openPostgres` (`src/postgres.ts`) abre o pool, aplica os passos pendentes de `src/migrations/` (anotados em `schema_migrations`, cada um numa transação e sob uma trava, para duas instâncias não migrarem juntas) e monta os 23 repositórios e os três armazenamentos de arquivos.
+- **Sem `DATABASE_URL`: memória.** `InMemoryRepository` (`src/shared/infra/memory/`), `InMemoryImageStore` e `InMemoryDocumentStore`. É como rodam `npm test` e o desenvolvimento sem banco; tudo some ao reiniciar.
+
+As duas cumprem `Repository<T, K>`: assíncrono, `find` por igualdade de campos na ordem do id, leitura sempre em cópia (alterar uma entidade só vale após `update`).
+
+**Como o PostgreSQL está montado**
+
+- `PgRepository` (`src/shared/infra/postgres/pg-repository.ts`) é um repositório genérico: uma tabela por entidade, uma coluna por campo. Cada módulo declara a sua tabela e a lista de colunas em `infra/pg-*.ts`; o tipo `Columns<T>` faz o compilador recusar um campo esquecido ou um opcional não marcado. Todo valor vai por parâmetro; nomes de tabela e coluna vêm só do código.
+- Tipos: `id integer` gerado pelo banco, `timestamptz` para instantes, `date` para dias do calendário, `integer[]`/`text[]` para listas simples e `jsonb` para objetos (`farm.photos`, módulos das trilhas, `preferences`).
+- Restrições `UNIQUE` repetem as regras de "um só" dos casos de uso. Se duas requisições passam juntas pela conferência, o banco recusa a segunda e o `errorHandler` responde 409.
+- Arquivos (`PgFileStore`): fotos, currículos e fotos de documento da verificação na tabela `stored_files`, separados por `store`. A foto de documento fica em `id_documents`, que a rota pública `/api/images` não consulta.
+- O seed roda uma vez por banco (`seedDemoOnce`: uma transação, anotada como `demo-seed`).
+- `Database` é a interface mínima que os repositórios usam (`query`). O pool cumpre, e uma conexão em transação também (`inTransaction`), então os mesmos repositórios são montados dentro de uma transação.
+- **Transações:** a porta `Transaction<R>` (`src/shared/domain/transaction.ts`) entrega ao caso de uso repositórios que gravam juntos. Aceite, desistência e pagamento (módulo `hiring`) usam; em memória ela roda direto, sem desfazer. Avisos (SSE), pushes e a conversa do serviço acontecem depois da transação, nunca dentro.
+
+**O que ainda falta** (marcado com `TODO(db)` em `src/`): transação nos outros casos de uso que gravam várias entidades (cancelamento, avaliação, troca de e-mail, remoção de perfil); filtros e agregações feitos no banco (busca de vagas, trilhas, reputação, painel da fazenda); chaves estrangeiras além das de conta e de mensagens. O detalhe de uso está no README, seção "Armazenamento".
 
 ## Decisões
 
 | Decisão | Motivo | Revisitar quando |
 |---|---|---|
-| Dados em memória | A equipe decidiu não adicionar banco nesta fase; simplifica testes e demonstração | A equipe decidir lançar com dados reais ou perder dados virar problema |
-| Portas de repositório e container único | Troca de persistência sem tocar regras e rotas | Ao escrever o primeiro repositório PostgreSQL |
+| PostgreSQL opcional por `DATABASE_URL`, memória como padrão | Os dados passam a sobreviver ao reinício sem exigir banco de quem só roda os testes ou mexe numa tela | Se a memória deixar de ser usada fora dos testes |
+| `pg` direto com um repositório genérico, sem ORM | A porta é só igualdade de campos: 23 repositórios cabem numa classe e numa lista de colunas por módulo | Quando as consultas (busca, agregações) forem para o banco |
+| Arquivos no PostgreSQL (`stored_files`) | Funciona sem outro serviço; o disco do servidor publicado some a cada deploy. Troca a orientação anterior de não guardar bytes no banco | Volume de fotos crescer, ou o backup do banco pesar: mover para S3/R2 pela porta `ImageStore` |
+| Migrações em TypeScript aplicadas na subida | Sem ferramenta nem passo de deploy a mais; o `tsc` não copia `.sql` para o `dist/` | Mais de uma instância com migrações demoradas, ou necessidade de desfazer um passo |
+| Transação só na contratação (aceite, desistência, pagamento) | É onde uma gravação pela metade trava o serviço; nos demais, as corridas são barradas por `UNIQUE` | Antes de pagamentos de verdade, ou no primeiro dado inconsistente |
+| Portas de repositório e container único | Troca de persistência sem tocar regras e rotas | Se uma consulta precisar de mais que igualdade de campos |
 | OpenAPI gerado das rotas + e2e validando respostas | Documentação não diverge do comportamento | Se o custo de manter os schemas passar a atrapalhar |
 | Contrato de tipos igual ao do frontend (`check:contracts`) | Evita divergência entre API e app | Se o frontend deixar de viver ao lado deste repositório |
-| `ChangeFeed` em memória | Basta para um processo | Ao rodar mais de uma instância (README sugere LISTEN/NOTIFY ou Redis) |
+| `ChangeFeed` em memória | Basta para um processo, também com PostgreSQL | Ao rodar mais de uma instância (README sugere LISTEN/NOTIFY ou Redis) |
 | Um stream SSE por perfil | Limite de 6 conexões do HTTP/1.1 | Se o HTTP/2 for adotado (pendência registrada em PRODUCT.md) |
 | Envio de push e WhatsApp em segundo plano | Falha externa nunca derruba a resposta | Se for preciso garantia de entrega (fila) |
 

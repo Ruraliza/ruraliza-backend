@@ -1,16 +1,22 @@
 import assert from 'node:assert/strict';
+import { after } from 'node:test';
 import { type Container, createContainer } from '../../src/container';
 import type { Result } from '#shared/domain/result';
+import { dropTestDatabases, testStorage } from '../support/postgres';
 
-// Ponto de partida comum dos testes de integração: um container com repositórios em memória e
-// relógio fixo, e atalhos para os cenários mais usados.
+// Ponto de partida comum dos testes de integração: um container com relógio fixo e atalhos para os
+// cenários mais usados. Os dados ficam em memória; com TEST_DATABASE_URL, num schema novo do PostgreSQL
+// (os mesmos testes provam as duas persistências).
 
 export const NOW = '2026-01-01T00:00:00.000Z';
 export const PASSWORD = 'senha-forte-1';
 
 export function setup(): Container {
-  return createContainer({ clock: { now: () => NOW } });
+  return createContainer({ clock: { now: () => NOW }, ...testStorage() });
 }
+
+// Vale para o arquivo de teste que importa este módulo: no fim dele, apaga os schemas criados.
+after(dropTestDatabases);
 
 // Falha o teste se o resultado não for sucesso; devolve o valor já tipado.
 export function unwrap<T>(result: Result<T>): T {

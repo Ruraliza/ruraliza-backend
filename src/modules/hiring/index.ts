@@ -6,7 +6,9 @@ export { NO_VERIFIED_WORKERS, type WorkerVerificationReader } from './domain/wor
 export { APPLICATION_STATUS, PAYMENT_STATUS } from './domain/hiring-status';
 export type { PaymentRepository } from './domain/payment.repository';
 export { createInMemoryApplicationRepository } from './infra/in-memory-application.repository';
+export { createPgApplicationRepository } from './infra/pg-application.repository';
 export { createInMemoryPaymentRepository } from './infra/in-memory-payment.repository';
+export { createPgPaymentRepository } from './infra/pg-payment.repository';
 export type { HiringRoutes } from './presentation/hiring.routes';
 export { type HiringSchemaName, hiringSchemas } from './presentation/hiring.schemas';
 export { type HiringModuleDeps, type HiringUseCases, createHiringRoutes, createHiringUseCases } from './hiring.module';

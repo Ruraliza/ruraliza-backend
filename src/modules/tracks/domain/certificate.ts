@@ -2,7 +2,7 @@ import type { Repository } from '#shared/domain/repository';
 import type { Certificate } from '../track.contract';
 
 // Certificado como fica guardado: os dados do momento da emissão, mais o trabalhador.
-// TODO(db): tabela `certificates` com UNIQUE (code) e UNIQUE (track_id, worker_id).
+// Tabela `certificates`, com UNIQUE (code) e UNIQUE (track_id, worker_id).
 export interface CertificateRecord extends Certificate {
   id: number;
   worker_id: number;

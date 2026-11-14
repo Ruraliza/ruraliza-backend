@@ -2,7 +2,7 @@ import type { Repository } from '#shared/domain/repository';
 import type { Lesson, TrackModule, TrackStatus } from '../track.contract';
 
 // Trilha como fica guardada: o agregado com os módulos e as aulas dentro (como as fotos em Farm).
-// TODO(db): tabelas `tracks`, `track_modules` e `lessons` (ou o conteúdo em JSONB), e `track_tutors`.
+// Tabela `tracks`: os módulos e as aulas em jsonb, os tutores em integer[].
 export interface TrackRecord {
   id: number;
   title: string;

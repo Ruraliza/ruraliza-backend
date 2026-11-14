@@ -53,7 +53,7 @@ export class SubmitWorkerReviewUseCase {
       return conflict('O trabalhador deste serviço não está mais na plataforma.');
     }
 
-    // TODO(db): numa transação, com UNIQUE (service_id).
+    // A avaliação repetida é barrada pelo UNIQUE (service_id). TODO(db): gravar e revelar numa transação.
     const [counterpart] = await farmReviews.find({ service_id: service.id });
     const now = clock.now();
     await workerReviews.create({

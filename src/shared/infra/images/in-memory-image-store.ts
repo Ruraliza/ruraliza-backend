@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { ImageStore, ProcessedImage, StoredImage } from '../../domain/images';
 
-const URL_PREFIX = '/api/images/';
+// Prefixo das URLs servidas por GET /api/images/:id (o mesmo em qualquer armazenamento que a API sirva).
+export const IMAGE_URL_PREFIX = '/api/images/';
 
 // Imagens guardadas em memória (Map id → bytes). Tudo some quando o processo reinicia.
 // Servidas por GET /api/images/:id. Ver src/domain/images.ts para a troca por um store real.
@@ -24,10 +25,10 @@ export class InMemoryImageStore implements ImageStore {
   }
 
   urlFor(id: string): string {
-    return `${URL_PREFIX}${id}`;
+    return `${IMAGE_URL_PREFIX}${id}`;
   }
 
   idFromUrl(url: string): string | undefined {
-    return url.startsWith(URL_PREFIX) ? url.slice(URL_PREFIX.length) : undefined;
+    return url.startsWith(IMAGE_URL_PREFIX) ? url.slice(IMAGE_URL_PREFIX.length) : undefined;
   }
 }

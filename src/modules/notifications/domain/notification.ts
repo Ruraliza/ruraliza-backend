@@ -2,8 +2,7 @@ import type { UserRole } from '#modules/accounts';
 import type { Repository } from '#shared/domain/repository';
 
 // Aviso guardado no histórico de um perfil (ver ../notification.contract.ts).
-// TODO(db): tabela `notifications (id, role, profile_id, title, body, url, count, read, insertion_date)`
-// com índice (role, profile_id, id).
+// Tabela `notifications`, com índice (role, profile_id, id).
 export interface NotificationRecord {
   id: number;
   role: UserRole;

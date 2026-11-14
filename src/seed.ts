@@ -1,4 +1,5 @@
-// Dados de demonstração criados ao subir o servidor (somem a cada reinício com os repositórios em memória).
+// Dados de demonstração criados ao subir o servidor: a cada subida em memória; uma vez por banco no PostgreSQL
+// (seedDemoOnce, em src/postgres.ts).
 // As datas são relativas ao relógio, então a demonstração vale em qualquer dia: há vagas publicadas em
 // dias diferentes (filtros from/to e sort=recent) e com todos os casos de prazo (sem prazo, vence em
 // alguns dias, vence hoje e já vencida). As contas de teste entram com a senha SEED_PASSWORD:
