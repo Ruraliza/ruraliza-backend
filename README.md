@@ -63,6 +63,7 @@ As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com 
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Chaves das notificações push (gere com `npx web-push generate-vapid-keys`). Sem elas, `GET /api/config/push` responde 503 e nada é enviado |
 | `VAPID_SUBJECT` | Contato do responsável pelo envio (`mailto:` ou `https:`), exigido pelos serviços de push |
 | `WHATSAPP_API_URL` / `WHATSAPP_API_KEY` / `WHATSAPP_INSTANCE` | Avisos por WhatsApp pela [Evolution API](https://doc.evolution-api.com) v2. As três juntas ligam o envio; sem elas, nada sai |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` | Bucket privado do Supabase Storage para fotos e currículos, no lugar do banco. As três juntas, com `DATABASE_URL`. Veja [Armazenamento](#-armazenamento) |
 | `APP_URL` | Endereço do frontend nos links que saem do app (padrão `https://ruraliza.github.io/ruraliza-frontend`) |
 
 Em produção (Render), cadastre as mesmas variáveis no painel do serviço.
@@ -166,7 +167,7 @@ Defina também `AUTH_TOKEN_SECRET`: sem ele, os dados continuam depois do reiní
 | O quê | Com `DATABASE_URL` | Sem `DATABASE_URL` |
 |---|---|---|
 | Entidades (os 23 repositórios de `src/repositories.ts`) | Uma tabela por repositório, uma coluna por campo: `PgRepository` (`src/shared/infra/postgres/`) e o `infra/pg-*.ts` de cada módulo | Array em memória com id sequencial: `InMemoryRepository` (`src/shared/infra/memory/`) |
-| Fotos, currículos e fotos de documento da verificação | Tabela `stored_files`, um `store` por tipo: `PgFileStore` | `Map` em memória: `InMemoryImageStore`, `InMemoryDocumentStore` |
+| Fotos, currículos e fotos de documento da verificação | Tabela `stored_files`, um `store` por tipo: `PgFileStore`. Com `SUPABASE_*`, um bucket privado do Supabase Storage, uma pasta por tipo: `SupabaseFileStore` | `Map` em memória: `InMemoryImageStore`, `InMemoryDocumentStore` |
 | Tratamento das fotos | Processado no upload, não é guardado: `SharpImageProcessor` | O mesmo |
 | Avisos para as telas abertas (SSE) | Memória do processo: `InMemoryChangeFeed` | O mesmo |
 
@@ -190,9 +191,24 @@ Defina também `AUTH_TOKEN_SECRET`: sem ele, os dados continuam depois do reiní
 - `SEED_DEMO=false` impede o seed num banco novo, mas **não apaga** contas de teste já gravadas. Antes de ter dados de verdade, comece com um banco novo e `SEED_DEMO=false`, ou remova as contas de teste em `/sistema`.
 - Sem seed e sem `ADMIN_EMAIL`/`ADMIN_PASSWORD`, o administrador padrão `admin@ruraliza.app` é criado na primeira subida e a senha sorteada aparece só naquele log. Para escolher a senha, defina as duas variáveis.
 
-### Arquivos no banco
+### Arquivos: no banco ou no Supabase Storage
 
-Fotos e currículos ficam no próprio PostgreSQL (`stored_files`, coluna `bytea`). Foi a opção que funciona sem outro serviço: o disco do servidor publicado some a cada deploy, e um bucket pede conta e credenciais. As fotos são pequenas (WebP de até 1000 px) e os PDFs têm até 5 MB. Quando o volume crescer, implemente `ImageStore` e `DocumentStore` (`src/shared/domain/`) sobre S3 ou Cloudflare R2 e passe em `createContainer({ images, documents })`: `urlFor(id)` devolve a URL pública e `idFromUrl(url)` faz o caminho inverso.
+Sem outra configuração, fotos e currículos ficam no próprio PostgreSQL (`stored_files`, coluna `bytea`). É a opção que funciona sem outro serviço: o disco do servidor publicado some a cada deploy. As fotos são pequenas (WebP de até 1000 px) e os PDFs têm até 5 MB.
+
+Para tirar os bytes do banco, ligue um **bucket privado do Supabase Storage**:
+
+1. No painel do Supabase, crie o bucket em Storage → New bucket, com "Public bucket" **desmarcado**.
+2. Defina `SUPABASE_URL` (`https://<projeto>.supabase.co`), `SUPABASE_SERVICE_KEY` (a chave secreta, em Project Settings → API Keys) e `SUPABASE_BUCKET`, no `.env` ou nas variáveis do Render. As três juntas, e junto com `DATABASE_URL`.
+3. Suba a API. Ela confere o bucket na subida: chave errada, bucket inexistente ou **público** impedem a subida.
+
+O que muda e o que não muda:
+
+- As URLs continuam as mesmas (`/api/images/<uuid>.webp`, `/api/documents/<uuid>.pdf`) e os arquivos continuam saindo pelas rotas da API, que conferem quem pode ver. O navegador nunca fala com o bucket, e por isso ele não precisa de políticas de acesso (RLS).
+- Cada tipo é uma pasta do bucket (`images`, `documents`, `id_documents`). O id pedido só é aceito no formato que a API gera, então a rota pública das fotos não alcança a pasta das fotos de documento.
+- O que já estava em `stored_files` continua sendo lido e apagado por lá; só os arquivos novos vão para o bucket.
+- A chave de serviço ignora as regras do bucket: fica só no servidor.
+
+Para outro serviço (S3, Cloudflare R2), implemente `ImageStore` e `DocumentStore` (`src/shared/domain/`) e passe em `createContainer({ images, documents, idDocuments })`, como o `SupabaseFileStore` (`src/shared/infra/supabase/`).
 
 ### O que ainda não usa o banco
 
@@ -351,7 +367,7 @@ Motivos (`reason`): `fraude` (vaga falsa ou golpe), `condicoes` (condições de 
 
 A pessoa envia a foto da frente do RG ou da CNH; a equipe confere o nome e o CPF com os do perfil e aprova ou recusa (com o motivo, que a pessoa vê). Aprovado, o perfil ganha o **selo de verificado**: aparece para o produtor no cartão do candidato (`verified` em `GET /api/farmers/services/:id/applications`) e para o trabalhador nas vagas (`farm.farmer_verified` na busca e no detalhe). O selo vale para o nome conferido: se a pessoa muda o nome no perfil, ele some até ela verificar de novo. Quem tem os dois perfis com o mesmo CPF ganha o selo nos dois.
 
-A foto do documento é dado pessoal sensível, então: é reduzida para no máximo 1600px (legível) e perde os metadados; fica num armazenamento **privado** (`idDocuments` no container), que não passa por `/api/images`; só a equipe vê, com o token de sistema; e é **apagada logo depois da decisão** (e quando o perfil é removido). Com PostgreSQL, o pedido fica na tabela `verifications` e a foto, no armazenamento `id_documents` de `stored_files`, que nenhuma rota pública lê (TODO(db): um bucket privado com expiração).
+A foto do documento é dado pessoal sensível, então: é reduzida para no máximo 1600px (legível) e perde os metadados; fica num armazenamento **privado** (`idDocuments` no container), que não passa por `/api/images`; só a equipe vê, com o token de sistema; e é **apagada logo depois da decisão** (e quando o perfil é removido). Com PostgreSQL, o pedido fica na tabela `verifications` e a foto, no armazenamento `id_documents` (de `stored_files` ou, com `SUPABASE_*`, do bucket privado), que nenhuma rota pública lê.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -499,7 +515,7 @@ O envio (`PushDispatcher`, `src/modules/notifications/infra/web-push-sender.ts`)
 ## 🛠️ Próximos passos
 - [x] Banco de dados: PostgreSQL com `DATABASE_URL` (ver [Armazenamento](#-armazenamento)).
 - [ ] Transações nos demais casos de uso que gravam várias entidades (cancelamento, avaliação, remoção de perfil; aceite, desistência e pagamento já têm) e consultas no banco para a busca e a reputação (`TODO(db)` no código).
-- [ ] Guardar as fotos num bucket (S3/R2) em vez do banco.
+- [x] Guardar as fotos num bucket em vez do banco (Supabase Storage, com `SUPABASE_*`).
 - [ ] Enviar o código de redefinição de senha por e-mail (passar a entrega `deliverResetCode` ao `createContainer` em produção; ver `TODO(email)`). Até lá, a redefinição pública só funciona no `npm run dev`.
 - [ ] Encerrar as sessões abertas ao trocar a senha (hoje o token vale até vencer).
 - [x] Trilhas de estudo: rotas do tutor (`tracks:manage`), estudo pelo trabalhador e certificados.

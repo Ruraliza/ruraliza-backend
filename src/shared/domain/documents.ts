@@ -6,7 +6,7 @@
 //
 // Hoje: InMemoryDocumentStore (some ao reiniciar) ou, com DATABASE_URL, PgFileStore (tabela `stored_files`).
 // O trabalhador guarda só a URL (`resume_url`).
-// TODO(db): com volume, trocar por um store de arquivos (S3, Cloudflare R2), como o ImageStore.
+// Com SUPABASE_*, SupabaseFileStore (bucket privado do Supabase Storage), como o ImageStore.
 
 export const PDF_CONTENT_TYPE = 'application/pdf';
 export const RESUME_MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // corpo aceito

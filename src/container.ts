@@ -49,8 +49,9 @@ import { createInMemoryRepositories } from './repositories';
 
 // Raiz de composição: o único lugar que escolhe as implementações concretas.
 // Sem opções, tudo fica em memória (testes). O servidor com DATABASE_URL passa o PostgreSQL em `repos`,
-// `images`, `documents` e `idDocuments` (src/postgres.ts). Para guardar os arquivos em outro lugar
-// (ex.: S3/R2), passe outro `images` (ver src/shared/domain/images.ts) e outro `documents`.
+// `images`, `documents` e `idDocuments` (src/postgres.ts). Com SUPABASE_*, os arquivos vão
+// para um bucket do Supabase Storage (createSupabaseFileStores); para outro lugar (ex.: S3/R2), passe outro
+// `images` (ver src/shared/domain/images.ts), `documents` e `idDocuments`.
 // As senhas usam scrypt (`passwords`); os testes podem passar um hasher mais rápido.
 // Os avisos de mudança para as telas abertas (`changes`, por SSE) ficam em memória;
 // as notificações push saem pelo `push` (Web Push com as chaves VAPID do .env; os testes passam um falso),

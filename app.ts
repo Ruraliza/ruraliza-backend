@@ -5,16 +5,17 @@ import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import type { OpenAPIV3 } from 'openapi-types';
 import swaggerUi from 'swagger-ui-express';
-import { type InitialAdminSettings, databaseUrl, demoSeedEnabled, initialAdminSettings, isAllowedOrigin, serverPort } from '#shared/config';
+import { type InitialAdminSettings, databaseUrl, demoSeedEnabled, initialAdminSettings, isAllowedOrigin, serverPort, supabaseStorageSettings } from '#shared/config';
 import { type Container, createContainer } from './src/container';
 import type { ApiError } from '#shared/contracts/api';
-import { openPostgres, seedDemoOnce } from './src/postgres';
+import { createSupabaseFileStores, openPostgres, seedDemoOnce } from './src/postgres';
 import { SEED_PASSWORD, seed } from './src/seed';
 import { PDF_CONTENT_TYPE, RESUME_MAX_UPLOAD_BYTES } from '#shared/domain/documents';
 import { IMAGE_MAX_UPLOAD_BYTES } from '#shared/domain/images';
 import { buildOpenApiDocument } from './src/docs/openapi';
 import { isRecord } from '#shared/infra/http/body';
-import { PG_INVALID_VALUE_CODES, PG_UNIQUE_VIOLATION, pgErrorCode } from '#shared/infra/postgres/database';
+import { PG_INVALID_VALUE_CODES, PG_UNIQUE_VIOLATION, asDatabase, pgErrorCode } from '#shared/infra/postgres/database';
+import { checkSupabaseBucket } from '#shared/infra/supabase/supabase-file-store';
 import { buildRouter } from '#shared/infra/http/route';
 import type { Handler } from '#shared/infra/http/types';
 import { createRouteGroups } from './src/routes';
@@ -131,6 +132,8 @@ export interface Boot {
   container: Container;
   // Onde os dados ficam: PostgreSQL com DATABASE_URL; sem ela, memória (somem a cada reinício).
   storage: 'postgres' | 'memory';
+  // Onde os arquivos ficam: com o banco, num bucket do Supabase Storage (SUPABASE_*) ou no próprio PostgreSQL.
+  files: 'supabase' | 'postgres' | 'memory';
   demoSeed: boolean;
   seededNow: boolean; // false no PostgreSQL quando os dados de teste já estavam no banco
   close: () => Promise<void>; // fecha as conexões com o banco
@@ -158,11 +161,15 @@ export async function bootContainer(devMode: boolean): Promise<Boot> {
     await postgres?.pool.end();
   };
   try {
-    const container = createContainer({ ...postgres?.storage, ...(devMode ? { deliverResetCode: printResetCode } : {}) });
+    // Chave errada, bucket inexistente ou público impedem a subida, como o banco fora do ar.
+    const bucket = postgres ? supabaseStorageSettings() : null;
+    if (bucket) await checkSupabaseBucket(bucket);
+    const files = postgres && bucket ? createSupabaseFileStores(bucket, asDatabase(postgres.pool)) : undefined;
+    const container = createContainer({ ...postgres?.storage, ...files, ...(devMode ? { deliverResetCode: printResetCode } : {}) });
     const demoSeed = devMode || demoSeedEnabled();
     let seededNow = false;
     if (demoSeed && postgres) {
-      seededNow = await seedDemoOnce(postgres.pool, container.clock, container.passwords);
+      seededNow = await seedDemoOnce(postgres.pool, container.clock, container.passwords, files?.idDocuments);
     } else if (demoSeed) {
       await seed(container.repos, container.clock, container.passwords, container.idDocuments);
       seededNow = true;
@@ -171,7 +178,7 @@ export async function bootContainer(devMode: boolean): Promise<Boot> {
     const generatedPassword = !configured && !demoSeed;
     const initialAdmin = configured ?? (generatedPassword ? { email: DEFAULT_ADMIN_EMAIL, password: randomBytes(12).toString('base64url'), name: 'Administrador' } : null);
     const adminStatus = initialAdmin && (await container.useCases.systemUsers.ensureInitialAdmin.execute(initialAdmin));
-    return { container, storage: postgres ? 'postgres' : 'memory', demoSeed, seededNow, close, initialAdmin, adminStatus, generatedPassword };
+    return { container, storage: postgres ? 'postgres' : 'memory', files: files ? 'supabase' : postgres ? 'postgres' : 'memory', demoSeed, seededNow, close, initialAdmin, adminStatus, generatedPassword };
   } catch (error) {
     await close();
     throw error;
@@ -186,7 +193,7 @@ function printResetCode(_email: string, code: string): void {
 // Só sobe o servidor quando executado diretamente (npm start / npm run dev).
 async function main(): Promise<void> {
   const devMode = process.argv.includes('--dev');
-  const { container, storage, demoSeed, seededNow, initialAdmin, adminStatus, generatedPassword } = await bootContainer(devMode);
+  const { container, storage, files, demoSeed, seededNow, initialAdmin, adminStatus, generatedPassword } = await bootContainer(devMode);
   const { app } = createApi(container, { devMode });
   // Resumo semanal das vagas recomendadas (issue #23): confere a cada hora quem já pode receber.
   setInterval(() => {
@@ -225,6 +232,7 @@ async function main(): Promise<void> {
     console.log(storage === 'postgres'
       ? 'Dados no PostgreSQL (DATABASE_URL): continuam depois de reiniciar.'
       : 'Atenção: sem DATABASE_URL, os dados ficam em memória e somem quando o servidor reinicia.');
+    if (files === 'supabase') console.log('Arquivos (fotos, currículos) no bucket do Supabase Storage (SUPABASE_BUCKET).');
     if (devMode) {
       console.log('Modo desenvolvimento: CORS liberado para qualquer origem (exceto /api/config/maps).');
       console.log('Esqueci a senha: o código sai neste terminal (fora do --dev, a redefinição fica desligada até o envio por e-mail existir).');
