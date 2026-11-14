@@ -3,5 +3,6 @@ export type * from './farmer.contract';
 export type { NewFarmerProfile } from './application/create-farmer-profile.usecase';
 export type { FarmerRepository } from './domain/farmer.repository';
 export { createInMemoryFarmerRepository } from './infra/in-memory-farmer.repository';
+export { createPgFarmerRepository } from './infra/pg-farmer.repository';
 export { type FarmerSchemaName, farmerSchema, farmerSchemas } from './presentation/farmer.schemas';
 export { type FarmerUseCases, type FarmersModuleDeps, createFarmerRoutes, createFarmerUseCases } from './farmers.module';

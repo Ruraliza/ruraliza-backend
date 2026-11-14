@@ -11,6 +11,7 @@ export {
   toSystemUser
 } from './domain/system-user';
 export { createInMemorySystemUserRepository } from './infra/in-memory-system-user.repository';
+export { createPgSystemUserRepository } from './infra/pg-system-user.repository';
 export { systemActor, systemUserId } from './presentation/system-principal';
 export type { SystemUserRoutes } from './presentation/system-user.routes';
 export { type SystemUserSchemaName, systemUserSchemas } from './presentation/system-user.schemas';

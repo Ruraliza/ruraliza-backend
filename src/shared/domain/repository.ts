@@ -1,5 +1,5 @@
-// Acesso a dados que as regras de negócio enxergam. Tudo é assíncrono desde já:
-// a implementação em memória e a futura em PostgreSQL cumprem a mesma interface.
+// Acesso a dados que as regras de negócio enxergam. Tudo é assíncrono: a implementação em memória
+// (InMemoryRepository) e a em PostgreSQL (PgRepository) cumprem a mesma interface.
 //
 // Semântica (igual à de um banco): cada leitura devolve uma cópia; alterar a entidade
 // só tem efeito depois de `update`. `create` recebe os dados sem id e devolve a entidade com id.

@@ -12,11 +12,12 @@ O que cada verificação prova, quando rodar e como revisar. As ferramentas de a
 | `npm run test:unit` | Os casos de uso de cada módulo, com repositórios em memória (`src/**/*.spec.ts`) | Mudança num módulo |
 | `npm run test:integration` | Os fluxos entre módulos pelo container, sem HTTP, e o seed | Mudança que cruza módulos |
 | `npm run test:e2e` | O HTTP de verdade: o fluxo completo, os casos de erro e **toda resposta conferida contra o OpenAPI** | Mudança de rota, de resposta ou de schema |
+| `npm run test:postgres` | A persistência em PostgreSQL: os dados continuam depois de reiniciar, cada tabela devolve a entidade igual ao repositório em memória, as restrições barram duplicados; e os testes de integração e o e2e repetidos sobre o banco. Precisa de `TEST_DATABASE_URL` (banco só de testes) | Mudança em entidade guardada, em `src/migrations/`, em `infra/pg-*.ts` ou em `src/shared/infra/postgres/` |
 | `npm run check:contracts` | Os tipos da API batem com os models do frontend (precisa de `../ruraliza-frontend`) | Mudança de contrato |
 | `npm run build` | O `tsc` gera o `dist/` de produção | Antes de entregar |
 | `npm test` | Tipos, lint, regras, unitários, integração e e2e, em ordem | Antes de pedir revisão |
 
-O CI (`.github/workflows/ci.yml`) roda `npm test` e `npm run build` em cada PR e em cada push na `main`. Ele não publica nada e não é exigido para fazer merge. O `check:contracts` fica fora do CI porque precisa do outro repositório.
+O CI (`.github/workflows/ci.yml`) roda `npm test`, `npm run test:postgres` (com um PostgreSQL de serviço) e `npm run build` em cada PR e em cada push na `main`. Ele não publica nada e não é exigido para fazer merge. O `check:contracts` fica fora do CI porque precisa do outro repositório.
 
 ## Regras de base
 
@@ -25,18 +26,19 @@ O CI (`.github/workflows/ci.yml`) roda `npm test` e `npm run build` em cada PR e
 - Entrada validada em tempo de execução (`src/shared/infra/http/body.ts` e os parsers de cada módulo), nunca só pelo tipo.
 - Toda rota documentada no OpenAPI. O e2e falha se uma resposta tiver campo a mais ou status sem documentação.
 - Erros em português, sem stack nem segredo. A API ainda não tem um logger: os poucos `console` (inicialização, push, avisos de vaga) são a saída de log. Por isso a regra `quality/no-direct-console` do toolkit não foi ligada; ela volta quando existir um logger.
-- `quality/no-direct-data-access` não se aplica: não há cliente de banco.
+- SQL só em `src/shared/infra/postgres/`, em `src/migrations/` e nos `infra/pg-*.ts` dos módulos, sempre com parâmetros (`$1`), nunca com valor concatenado. A regra `quality/no-direct-data-access` do toolkit segue desligada: a fronteira é garantida pelas portas (casos de uso só recebem `Repository`).
 
 ## Estratégia de testes
 
 - Caso de uso novo ganha teste unitário ao lado (`*.spec.ts`), com os repositórios em memória e as fixtures de `testing/`.
 - Correção de bug começa por um teste que falha e passa depois da correção.
 - Fluxo que cruza módulos vai para `tests/integration`. Rota nova ou alterada entra no `tests/e2e/smoke.e2e.ts`, que também valida o schema.
-- Os testes não usam rede, credenciais nem banco.
+- `npm test` não usa rede, credenciais nem banco. Só o `npm run test:postgres` usa um banco, o de `TEST_DATABASE_URL`: cada container de teste cria um schema novo e o apaga no fim. Nunca aponte essa variável para o banco de desenvolvimento ou de produção.
+- Campo novo numa entidade guardada entra na migração e na lista de colunas do `infra/pg-*.ts`; o teste de paridade de `tests/postgres` compara as duas persistências com o seed, então o seed deve preencher o campo novo.
 
 ## Dependências
 
-- `npm audit` em 18/10/2026: 2 avisos **moderados** do `uuid` dentro do `sequelize` (GHSA-w5hq-g745-h8pq). A correção automática faz downgrade para o `sequelize` 3 e por isso não foi aplicada. O `sequelize` não é importado por nenhum código, então o risco é só de instalação; reavaliar quando o PostgreSQL entrar.
+- `npm audit` em 18/10/2026: 2 avisos **moderados** do `uuid` dentro do `sequelize` (GHSA-w5hq-g745-h8pq). A correção automática faz downgrade para o `sequelize` 3 e por isso não foi aplicada. O `sequelize` não é importado por nenhum código, então o risco é só de instalação. O PostgreSQL entrou com o `pg` direto: remover o `sequelize` das dependências é uma decisão da equipe.
 - O `pg-harness`, sem uso, saiu em 18/10/2026. Ele trazia 2 avisos críticos e 3 altos.
 - O `package-lock.json` está no `.gitignore`, então cada instalação pode resolver versões diferentes. Versionar o lockfile é uma decisão da equipe.
 

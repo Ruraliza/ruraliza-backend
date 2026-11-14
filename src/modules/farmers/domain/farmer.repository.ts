@@ -1,5 +1,5 @@
 import type { Repository } from '#shared/domain/repository';
 import type { Farmer } from '../farmer.contract';
 
-// TODO(db): e-mail e cpf viram restrições UNIQUE da tabela.
+// E-mail e CPF são UNIQUE na tabela `farmers`.
 export type FarmerRepository = Repository<Farmer, 'email' | 'cpf'>;

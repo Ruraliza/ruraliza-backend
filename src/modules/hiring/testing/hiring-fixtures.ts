@@ -4,6 +4,7 @@ import { type Service, createInMemoryServiceRepository } from '#modules/services
 import { createInMemoryWorkerRepository } from '#modules/workers';
 import type { Worker } from '#modules/workers';
 import type { ChangeTopic } from '#shared/domain/changes';
+import { directTransaction } from '#shared/domain/transaction';
 import { type SentPush, adjustableClock, recordingChangeFeed, recordingPush } from '#shared/testing/recorders';
 import type { ApplicationStatus, ServiceApplication } from '../hiring.contract';
 import { NO_HIRING_EVENTS } from '../domain/hiring-events';
@@ -31,10 +32,10 @@ export function hiringTestbed(): HiringTestbed {
   const clock = adjustableClock(NOW);
   const changes = recordingChangeFeed();
   const push = recordingPush();
+  const stores = { services: createInMemoryServiceRepository(), applications: createInMemoryApplicationRepository(), payments: createInMemoryPaymentRepository() };
   return {
-    services: createInMemoryServiceRepository(),
-    applications: createInMemoryApplicationRepository(),
-    payments: createInMemoryPaymentRepository(),
+    ...stores,
+    transaction: directTransaction(stores),
     workers,
     accounts,
     clock,

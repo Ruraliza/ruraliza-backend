@@ -15,7 +15,7 @@ export interface ChatRecord {
   insertion_date: string;
 }
 
-// TODO(db): restrição UNIQUE (service_id, worker_id): uma conversa por contratação.
+// Uma conversa por contratação: UNIQUE (service_id, worker_id) na tabela `chats`.
 export type ChatRepository = Repository<ChatRecord, 'service_id' | 'farmer_id' | 'worker_id'>;
-// TODO(db): índice (chat_id, id) e paginação das mensagens antigas.
+// Tabela `chat_messages`, com índice (chat_id, id). TODO(db): paginação das mensagens antigas.
 export type ChatMessageRepository = Repository<ChatMessage, 'chat_id'>;

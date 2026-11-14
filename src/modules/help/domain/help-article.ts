@@ -2,7 +2,7 @@ import type { Repository } from '#shared/domain/repository';
 import type { HelpArticle, HelpTopic } from '../help.contract';
 
 // Pergunta da central de ajuda como fica guardada (igual à resposta da API).
-// TODO(db): tabela `help_articles (id, question, answer, topic, position, published, updated_at)`.
+// Tabela `help_articles`.
 export type HelpArticleRecord = HelpArticle;
 
 export type HelpArticleRepository = Repository<HelpArticleRecord, 'topic' | 'published'>;

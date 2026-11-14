@@ -26,6 +26,7 @@ export {
 } from './domain/account.rules';
 export type { NewProfileData, ProfileFactory } from './domain/profile-factory';
 export { createInMemoryAccountRepository } from './infra/in-memory-account.repository';
+export { createPgAccountRepository } from './infra/pg-account.repository';
 export { type AccountSchemaName, accountSchemas } from './presentation/account.schemas';
 export {
   type ProfileChanges,

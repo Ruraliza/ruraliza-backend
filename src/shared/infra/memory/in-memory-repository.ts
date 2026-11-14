@@ -1,6 +1,6 @@
 import type { Criteria, Repository } from '../../domain/repository';
 
-// Implementação em memória de Repository<T, K>. Tudo some quando o processo reinicia.
+// Implementação em memória de Repository<T, K> (testes e subida sem DATABASE_URL). Tudo some quando o processo reinicia.
 // Guarda e devolve cópias (structuredClone), para se comportar como um banco:
 // quem altera uma entidade precisa chamar `update`.
 export class InMemoryRepository<T extends { id: number }, K extends keyof T> implements Repository<T, K> {

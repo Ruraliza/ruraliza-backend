@@ -22,7 +22,9 @@ export type { NotificationRecord, NotificationRepository } from './domain/notifi
 export { DISABLED_WHATSAPP, type WhatsAppSender, whatsappNumber } from './domain/whatsapp';
 export type { PushSubscriptionRepository } from './domain/push-subscription.repository';
 export { createInMemoryPushSubscriptionRepository } from './infra/in-memory-push-subscription.repository';
+export { createPgPushSubscriptionRepository } from './infra/pg-push-subscription.repository';
 export { createInMemoryNotificationRepository } from './infra/in-memory-notification.repository';
+export { createPgNotificationRepository } from './infra/pg-notification.repository';
 export { EvolutionWhatsAppSender } from './infra/evolution-whatsapp-sender';
 export { WebPushSender, toAngularPayload } from './infra/web-push-sender';
 export type { PushRoutes } from './presentation/push.routes';

@@ -4,8 +4,8 @@ import { searchable } from '#shared/utils/search';
 import type { Verification, VerificationDocumentType } from '../verification.contract';
 
 // Pedido de verificação como fica guardado: um por perfil (o reenvio substitui o anterior).
-// TODO(db): tabela `verifications (id, role, profile_id UNIQUE junto com role, document_type, document_id,
-// status, submitted_at, reviewed_at, rejection_reason, verified_name)`. A foto não vai para o banco.
+// Tabela `verifications`, com UNIQUE (role, profile_id). A foto fica no armazenamento privado (`idDocuments`),
+// só até a decisão da equipe.
 export interface VerificationRecord {
   id: number;
   role: UserRole;

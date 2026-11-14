@@ -4,6 +4,7 @@ export type { CertificateCodes, CertificateHasher, CertificateRepository } from 
 export type { EnrollmentRepository } from './domain/enrollment';
 export { TRACK_STATUS, type TrackActor, type TrackRecord, type TrackRepository } from './domain/track';
 export { createInMemoryCertificateRepository, createInMemoryEnrollmentRepository, createInMemoryTrackRepository } from './infra/in-memory-track.repositories';
+export { createPgCertificateRepository, createPgEnrollmentRepository, createPgTrackRepository } from './infra/pg-track.repositories';
 export { randomCertificateCodes } from './infra/random-certificate-codes';
 export { sha256CertificateHasher } from './infra/sha256-certificate-hasher';
 export type { TrackRoutes } from './presentation/track.routes';

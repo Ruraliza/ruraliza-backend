@@ -6,7 +6,7 @@ Instruções para agentes de IA. São curtas de propósito: os detalhes estão n
 
 - **Produto e escopo:** [PRODUCT.md](PRODUCT.md). **Uso, rotas e dados de teste:** [README.md](README.md).
 - **Stack:** Node.js 24, Express 5, TypeScript 6 estrito, npm. ESLint 10 com `typescript-eslint` (`strictTypeChecked`). Testes com `node:test` via `tsx`.
-- **Dados em memória, por decisão da equipe:** não adicione banco, ORM ou migração sem um pedido explícito. `pg` e `sequelize` estão instalados para a troca futura, mas não são usados.
+- **Dados:** PostgreSQL com o driver `pg` quando há `DATABASE_URL`; sem ela, memória (é como rodam os testes). Não adicione ORM. Mudança de esquema é um passo novo em `src/migrations/`, nunca a edição de um passo aplicado, junto com a lista de colunas do `infra/pg-*.ts` do módulo. O `sequelize` está instalado, mas não é usado.
 - **App:** o frontend Angular fica em `../ruraliza-frontend`. O contrato dos dois lados é conferido por `npm run check:contracts`.
 - **Mapa:** [docs/architecture.md](docs/architecture.md) (estrutura e decisões), [docs/design.md](docs/design.md) (convenções de resposta e erro), [docs/onboarding.md](docs/onboarding.md) (primeira execução), [docs/quality.md](docs/quality.md) (verificações e revisão), [docs/setup.md](docs/setup.md) (ferramentas de agente e evidências).
 
@@ -18,6 +18,7 @@ Instruções para agentes de IA. São curtas de propósito: os detalhes estão n
 - Lint: `npm run lint`
 - Autoteste das regras locais de lint: `npm run check:rules`
 - Testes: `npm run test:unit`, `npm run test:integration` e `npm run test:e2e`
+- Testes sobre o PostgreSQL: `TEST_DATABASE_URL=postgres://localhost:5432/ruraliza_test npm run test:postgres` (banco só de testes)
 - Contrato com o frontend: `npm run check:contracts` (precisa de `../ruraliza-frontend`)
 - Build: `npm run build`
 - Verificação completa: `npm test` (tipos, lint, regras, unitários, integração e e2e)
@@ -31,6 +32,7 @@ Instruções para agentes de IA. São curtas de propósito: os detalhes estão n
 - Cada rota declara quem pode chamá-la no último argumento de `route(...)`: um `Access` com `audience` `public`, `account` ou `system` (`src/shared/infra/http/access.ts`). As permissões da equipe estão em `SYSTEM_PERMISSIONS` (`src/modules/system-users/domain/system-user.ts`). A API é quem protege os dados; nunca confie no app.
 - Entre módulos, importe pela entrada pública `#modules/<módulo>`, nunca pelos arquivos internos de outro módulo.
 - Mudou um `*.contract.ts`? O frontend tem de mudar junto: rode `npm run check:contracts`. Rota nova ou alterada também entra em `tests/e2e/smoke.e2e.ts`.
+- SQL fica em `src/shared/infra/postgres/`, `src/migrations/` e nos `infra/pg-*.ts`, sempre com parâmetros. Casos de uso só conhecem as portas (`Repository`, e `Transaction` para gravar várias entidades juntas).
 - `req.body` e `req.query` chegam como `unknown` e são validados em `src/shared/infra/http/body.ts` e nos parsers do módulo. Não confie em tipos sem validar.
 - Mensagens de erro em português; não exponha stack, segredo ou dado pessoal em resposta ou log.
 - Mudou comportamento, comando, contrato ou configuração? Atualize, na mesma mudança, o documento responsável.

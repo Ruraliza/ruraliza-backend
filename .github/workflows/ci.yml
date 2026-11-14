@@ -1,4 +1,4 @@
-# Verificações em cada PR e push: tipos, lint, autoteste das regras, testes e build.
+# Verificações em cada PR e push: tipos, lint, autoteste das regras, testes (em memória e sobre o PostgreSQL) e build.
 # Só verifica: não publica nada e não é exigido para merge.
 name: CI
 
@@ -13,6 +13,20 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # PostgreSQL só para os testes de persistência (npm run test:postgres): some com o job.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ruraliza_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v5
 
@@ -24,5 +38,9 @@ jobs:
       - run: npm install --no-audit --no-fund
 
       - run: npm test
+
+      - run: npm run test:postgres
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/ruraliza_test
 
       - run: npm run build

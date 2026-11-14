@@ -7,7 +7,7 @@ export interface RemoveChatsDeps {
 }
 
 // Ao remover um perfil, saem as conversas dele com todas as mensagens.
-// TODO(db): ON DELETE CASCADE de chats → chat_messages.
+// No PostgreSQL, apagar a conversa já leva as mensagens (ON DELETE CASCADE); em memória, é este código.
 export function chatsCleanup({ chats, chatMessages }: RemoveChatsDeps): ProfileCleanup {
   async function remove(records: ChatRecord[]): Promise<void> {
     for (const chat of records) {

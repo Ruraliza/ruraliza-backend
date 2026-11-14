@@ -2,8 +2,7 @@ import type { Repository } from '#shared/domain/repository';
 import type { JobPreferences } from '../matching.contract';
 
 // Preferências de vaga de um trabalhador (uma por trabalhador).
-// TODO(db): tabela `job_preferences (worker_id PK, categories text[], latitude, longitude, radius_km, alerts,
-// last_digest_at)`.
+// Tabela `job_preferences`, com UNIQUE (worker_id); a região (`near`) vai em jsonb.
 export interface JobPreferencesRecord extends JobPreferences {
   id: number;
   worker_id: number;

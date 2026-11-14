@@ -31,7 +31,7 @@ Cada item existe em código e tem rotas documentadas no README (seção "Rotas")
 
 Fatos observados:
 
-- **Dados em memória, por decisão da equipe** de não adicionar banco ainda: tudo (inclusive fotos, currículos e sessões de push) some quando o servidor reinicia. O seed recria as contas e os dados de teste a cada subida, também em produção, enquanto o app é só de demonstração (`SEED_DEMO=false` desliga).
+- **Dados em PostgreSQL quando o servidor tem `DATABASE_URL`**; sem ela, em memória: tudo (inclusive fotos, currículos e inscrições de push) some quando o servidor reinicia. O seed cria as contas e os dados de teste, também em produção, enquanto o app é só de demonstração (`SEED_DEMO=false` desliga): a cada subida em memória e uma vez por banco no PostgreSQL, onde as contas de teste ficam gravadas até alguém removê-las.
 - **Uma instância só:** o aviso em tempo real (`InMemoryChangeFeed`) só vale para um processo.
 - **Deploy no Render** (citado no README e no `.env.example`). Não há `render.yaml` nem Dockerfile no repositório, então a configuração do serviço vive no painel do Render.
 - **E-mail não existe.** Por isso a redefinição pública fica desligada em produção (`TODO(email)`): a API responde o mesmo 200 e não cria código.

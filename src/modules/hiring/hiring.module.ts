@@ -13,6 +13,7 @@ import { WatchServiceApplicationsUseCase } from './application/watch-service-app
 import { WithdrawFromServiceUseCase } from './application/withdraw-from-service.usecase';
 import type { ApplicationRepository } from './domain/application.repository';
 import type { HiringEvents, WorkerReputationReader } from './domain/hiring-events';
+import type { HiringTransaction } from './domain/hiring-transaction';
 import type { PaymentRepository } from './domain/payment.repository';
 import type { WorkerVerificationReader } from './domain/worker-verification';
 import { createHiringController } from './presentation/hiring.controller';
@@ -22,6 +23,8 @@ export interface HiringModuleDeps {
   services: ServiceRepository;
   applications: ApplicationRepository;
   payments: PaymentRepository;
+  // Aceite, desistência e pagamento gravam serviço, candidaturas e pagamento juntos.
+  transaction: HiringTransaction;
   workers: WorkerRepository;
   accounts: AccountRepository;
   clock: Clock;

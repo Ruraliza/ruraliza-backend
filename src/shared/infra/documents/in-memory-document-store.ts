@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { DocumentStore, StoredDocument } from '../../domain/documents';
 
-const URL_PREFIX = '/api/documents/';
+// Prefixo das URLs servidas por GET /api/documents/:id (o mesmo em qualquer armazenamento que a API sirva).
+export const DOCUMENT_URL_PREFIX = '/api/documents/';
 
 // Documentos guardados em memória (Map id → bytes). Tudo some quando o processo reinicia.
 // Servidos por GET /api/documents/:id. Ver src/domain/documents.ts para a troca por um store real.
@@ -24,10 +25,10 @@ export class InMemoryDocumentStore implements DocumentStore {
   }
 
   urlFor(id: string): string {
-    return `${URL_PREFIX}${id}`;
+    return `${DOCUMENT_URL_PREFIX}${id}`;
   }
 
   idFromUrl(url: string): string | undefined {
-    return url.startsWith(URL_PREFIX) ? url.slice(URL_PREFIX.length) : undefined;
+    return url.startsWith(DOCUMENT_URL_PREFIX) ? url.slice(DOCUMENT_URL_PREFIX.length) : undefined;
   }
 }

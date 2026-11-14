@@ -3,8 +3,8 @@ import type { AccountPreferences, UserRole } from '../accounts.contract';
 
 // Conta de acesso: um e-mail e uma senha, ligados a até dois perfis (produtor e trabalhador).
 // Fica fora das entidades de perfil (Farmer/Worker) para a senha nunca sair numa resposta.
-// TODO(db): tabela `accounts` com UNIQUE (email), UNIQUE (farmer_id), UNIQUE (worker_id),
-// FKs para os perfis com ON DELETE SET NULL e CHECK de pelo menos um perfil.
+// Tabela `accounts`, com UNIQUE (email), (farmer_id) e (worker_id) e chave estrangeira para os perfis
+// (ON DELETE SET NULL). Que a conta tenha ao menos um perfil é regra dos casos de uso (unlinkProfile).
 export interface Account {
   id: number;
   email: string; // o mesmo dos perfis ligados
@@ -20,9 +20,8 @@ export interface Account {
   terms_version?: string;
   terms_accepted_at?: string; // ISO 8601
   // Tema, tamanho do texto e contraste. Ausente: os padrões (ver domain/preferences.ts).
-  // TODO(db): coluna `preferences jsonb` (ou três colunas) com os padrões no DEFAULT.
+  // Coluna `preferences jsonb`, vazia enquanto a pessoa não muda nada.
   preferences?: AccountPreferences;
 }
 
-// TODO(db): restrições UNIQUE (email), (farmer_id) e (worker_id).
 export type AccountRepository = Repository<Account, 'email' | 'farmer_id' | 'worker_id' | 'reset_token_digest'>;

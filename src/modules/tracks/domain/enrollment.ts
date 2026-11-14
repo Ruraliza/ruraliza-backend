@@ -3,7 +3,7 @@ import type { TrackProgress } from '../track.contract';
 import { type TrackRecord, allLessons } from './track';
 
 // Matrícula de um trabalhador numa trilha, com as aulas que ele já concluiu.
-// TODO(db): tabela `enrollments` com UNIQUE (track_id, worker_id).
+// Tabela `enrollments`, com UNIQUE (track_id, worker_id).
 export interface EnrollmentRecord {
   id: number;
   track_id: number;

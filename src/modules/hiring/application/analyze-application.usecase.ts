@@ -4,6 +4,7 @@ import type { ChangeFeed } from '#shared/domain/changes';
 import { type Result, conflict, invalid, notFound, ok } from '#shared/domain/result';
 import type { ApplicationRepository } from '../domain/application.repository';
 import type { HiringEvents } from '../domain/hiring-events';
+import type { HiringTransaction } from '../domain/hiring-transaction';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
 import type { AnalyzeInput, ServiceApplication } from '../hiring.contract';
 import { publishApplicationChanges, rejectedMessage } from './hiring-notifications';
@@ -11,6 +12,7 @@ import { publishApplicationChanges, rejectedMessage } from './hiring-notificatio
 export interface AnalyzeApplicationDeps {
   services: ServiceRepository;
   applications: ApplicationRepository;
+  transaction: HiringTransaction;
   changes: ChangeFeed;
   push: PushNotifier;
   events: HiringEvents;
@@ -26,8 +28,7 @@ export interface AnalyzeOutcome {
 }
 
 // RF03 - Aceita ou recusa uma candidatura.
-// Accept: o serviço vai para In Progress e as demais pendentes são recusadas (auto_rejected).
-// TODO(db): executar numa transação.
+// Accept: o serviço vai para In Progress e as demais pendentes são recusadas (auto_rejected), tudo junto.
 export class AnalyzeApplicationUseCase {
   constructor(private readonly deps: AnalyzeApplicationDeps) {}
 
@@ -50,19 +51,22 @@ export class AnalyzeApplicationUseCase {
       return ok({ application });
     }
 
-    application.status = APPLICATION_STATUS.ACCEPTED;
-    await applications.update(application);
-    const autoRejected: number[] = [];
-    for (const other of await applications.find({ service_id: service.id, status: APPLICATION_STATUS.PENDING })) {
-      // auto_rejected: recusada pelo aceite de outro; volta a Pending se o aceito desistir.
-      other.status = APPLICATION_STATUS.REJECTED;
-      other.auto_rejected = true;
-      await applications.update(other);
-      autoRejected.push(other.worker_id);
-    }
-    service.worker_id = application.worker_id;
-    service.status = SERVICE_STATUS.IN_PROGRESS;
-    await services.update(service);
+    const autoRejected = await this.deps.transaction(async (stores) => {
+      application.status = APPLICATION_STATUS.ACCEPTED;
+      await stores.applications.update(application);
+      const rejected: number[] = [];
+      for (const other of await stores.applications.find({ service_id: service.id, status: APPLICATION_STATUS.PENDING })) {
+        // auto_rejected: recusada pelo aceite de outro; volta a Pending se o aceito desistir.
+        other.status = APPLICATION_STATUS.REJECTED;
+        other.auto_rejected = true;
+        await stores.applications.update(other);
+        rejected.push(other.worker_id);
+      }
+      service.worker_id = application.worker_id;
+      service.status = SERVICE_STATUS.IN_PROGRESS;
+      await stores.services.update(service);
+      return rejected;
+    });
     await this.deps.events.accepted(service); // abre a conversa
     publishApplicationChanges(changes, service.id, [application.worker_id, ...autoRejected]);
     push.notify('worker', application.worker_id, {

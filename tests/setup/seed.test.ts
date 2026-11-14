@@ -1,20 +1,23 @@
 // O seed precisa servir de demonstração para todos os recursos das vagas.
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { after, describe, it } from 'node:test';
 import type { TrackActor } from '#modules/tracks';
 import { CATEGORIES } from '#modules/services';
 import type { SessionUser } from '../../src/contracts';
 import { createContainer } from '../../src/container';
 import { SEED_PASSWORD, seed } from '../../src/seed';
+import { dropTestDatabases, testStorage } from '../support/postgres';
 
 // Meio-dia em Brasília, para os limites de dia ficarem claros.
 const NOW = '2026-03-15T15:00:00.000Z';
 
 async function seeded(): Promise<ReturnType<typeof createContainer>> {
-  const c = createContainer({ clock: { now: () => NOW } });
+  const c = createContainer({ clock: { now: () => NOW }, ...testStorage() });
   await seed(c.repos, c.clock, c.passwords, c.idDocuments);
   return c;
 }
+
+after(dropTestDatabases);
 
 const asTutor = (id: number): TrackActor => ({ id, oversees: false });
 

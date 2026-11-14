@@ -1,35 +1,65 @@
-import { createInMemoryAccountRepository } from '#modules/accounts';
-import { type ChatMessageRepository, type ChatRepository, createInMemoryChatMessageRepository, createInMemoryChatRepository } from '#modules/chat';
+import { createInMemoryAccountRepository, createPgAccountRepository } from '#modules/accounts';
+import {
+  type ChatMessageRepository,
+  type ChatRepository,
+  createInMemoryChatMessageRepository,
+  createInMemoryChatRepository,
+  createPgChatMessageRepository,
+  createPgChatRepository
+} from '#modules/chat';
 import type { AccountRepository } from '#modules/accounts';
-import { createInMemoryFarmerRepository } from '#modules/farmers';
-import { type HelpArticleRepository, createInMemoryHelpArticleRepository } from '#modules/help';
+import { createInMemoryFarmerRepository, createPgFarmerRepository } from '#modules/farmers';
+import { type HelpArticleRepository, createInMemoryHelpArticleRepository, createPgHelpArticleRepository } from '#modules/help';
 import type { FarmerRepository } from '#modules/farmers';
-import { createInMemoryFarmRepository } from '#modules/farms';
+import { createInMemoryFarmRepository, createPgFarmRepository } from '#modules/farms';
 import type { FarmRepository } from '#modules/farms';
-import { createInMemoryApplicationRepository, createInMemoryPaymentRepository } from '#modules/hiring';
+import { createInMemoryApplicationRepository, createInMemoryPaymentRepository, createPgApplicationRepository, createPgPaymentRepository } from '#modules/hiring';
 import type { ApplicationRepository, PaymentRepository } from '#modules/hiring';
-import { createInMemoryNotificationRepository, createInMemoryPushSubscriptionRepository } from '#modules/notifications';
+import {
+  createInMemoryNotificationRepository,
+  createInMemoryPushSubscriptionRepository,
+  createPgNotificationRepository,
+  createPgPushSubscriptionRepository
+} from '#modules/notifications';
 import type { NotificationRepository, PushSubscriptionRepository } from '#modules/notifications';
-import { type JobAlertRepository, type JobPreferencesRepository, createInMemoryJobAlertRepository, createInMemoryJobPreferencesRepository } from '#modules/matching';
-import { type ReportRepository, createInMemoryReportRepository } from '#modules/reports';
-import { type SponsorRepository, createInMemorySponsorRepository } from '#modules/sponsors';
-import { type FarmReviewRepository, type WorkerReviewRepository, createInMemoryFarmReviewRepository, createInMemoryWorkerReviewRepository } from '#modules/reviews';
-import { createInMemoryServiceRepository } from '#modules/services';
+import {
+  type JobAlertRepository,
+  type JobPreferencesRepository,
+  createInMemoryJobAlertRepository,
+  createInMemoryJobPreferencesRepository,
+  createPgJobAlertRepository,
+  createPgJobPreferencesRepository
+} from '#modules/matching';
+import { type ReportRepository, createInMemoryReportRepository, createPgReportRepository } from '#modules/reports';
+import { type SponsorRepository, createInMemorySponsorRepository, createPgSponsorRepository } from '#modules/sponsors';
+import {
+  type FarmReviewRepository,
+  type WorkerReviewRepository,
+  createInMemoryFarmReviewRepository,
+  createInMemoryWorkerReviewRepository,
+  createPgFarmReviewRepository,
+  createPgWorkerReviewRepository
+} from '#modules/reviews';
+import { createInMemoryServiceRepository, createPgServiceRepository } from '#modules/services';
 import type { ServiceRepository } from '#modules/services';
-import { type SystemUserRepository, createInMemorySystemUserRepository } from '#modules/system-users';
+import { type SystemUserRepository, createInMemorySystemUserRepository, createPgSystemUserRepository } from '#modules/system-users';
 import {
   type CertificateRepository,
   type EnrollmentRepository,
   type TrackRepository,
   createInMemoryCertificateRepository,
   createInMemoryEnrollmentRepository,
-  createInMemoryTrackRepository
+  createInMemoryTrackRepository,
+  createPgCertificateRepository,
+  createPgEnrollmentRepository,
+  createPgTrackRepository
 } from '#modules/tracks';
-import { type VerificationRepository, createInMemoryVerificationRepository } from '#modules/verification';
-import { type WorkerRepository, createInMemoryWorkerRepository } from '#modules/workers';
+import { type VerificationRepository, createInMemoryVerificationRepository, createPgVerificationRepository } from '#modules/verification';
+import { type WorkerRepository, createInMemoryWorkerRepository, createPgWorkerRepository } from '#modules/workers';
+import type { Database } from '#shared/infra/postgres/database';
 
 // Todos os repositórios da API (cada módulo declara a sua porta em src/modules/<módulo>/domain).
-// A troca de persistência é passar outro `Repositories` em createContainer({ repos }).
+// A persistência é escolhida passando um `Repositories` em createContainer({ repos }): em memória ou PostgreSQL.
 
 
 export interface Repositories {
@@ -84,5 +114,34 @@ export function createInMemoryRepositories(): Repositories {
     jobPreferences: createInMemoryJobPreferencesRepository(),
     jobAlerts: createInMemoryJobAlertRepository(),
     sponsors: createInMemorySponsorRepository()
+  };
+}
+
+// Repositórios em PostgreSQL sobre o mesmo banco: o pool, ou uma conexão em transação (inTransaction).
+export function createPostgresRepositories(db: Database): Repositories {
+  return {
+    farmers: createPgFarmerRepository(db),
+    workers: createPgWorkerRepository(db),
+    farms: createPgFarmRepository(db),
+    services: createPgServiceRepository(db),
+    applications: createPgApplicationRepository(db),
+    payments: createPgPaymentRepository(db),
+    accounts: createPgAccountRepository(db),
+    pushSubscriptions: createPgPushSubscriptionRepository(db),
+    notifications: createPgNotificationRepository(db),
+    systemUsers: createPgSystemUserRepository(db),
+    workerReviews: createPgWorkerReviewRepository(db),
+    farmReviews: createPgFarmReviewRepository(db),
+    chats: createPgChatRepository(db),
+    chatMessages: createPgChatMessageRepository(db),
+    tracks: createPgTrackRepository(db),
+    enrollments: createPgEnrollmentRepository(db),
+    certificates: createPgCertificateRepository(db),
+    helpArticles: createPgHelpArticleRepository(db),
+    reports: createPgReportRepository(db),
+    verifications: createPgVerificationRepository(db),
+    jobPreferences: createPgJobPreferencesRepository(db),
+    jobAlerts: createPgJobAlertRepository(db),
+    sponsors: createPgSponsorRepository(db)
   };
 }

@@ -7,7 +7,9 @@ import { bootContainer } from '../../app';
 import type { Container } from '../../src/container';
 import { SEED_PASSWORD } from '../../src/seed';
 
-const ENV_KEYS = ['SEED_DEMO', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_NAME'] as const;
+// DATABASE_URL sai do ambiente: estes testes sobem em memória e nunca tocam o banco do .env de quem roda.
+// A subida com PostgreSQL é testada em tests/postgres.
+const ENV_KEYS = ['SEED_DEMO', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_NAME', 'DATABASE_URL'] as const;
 
 const systemLogin = async (c: Container, email: string, password: string): Promise<boolean> =>
   (await c.useCases.systemUsers.systemLogin.execute({ email, password })).ok;

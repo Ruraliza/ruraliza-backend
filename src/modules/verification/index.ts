@@ -3,6 +3,7 @@ export type * from './verification.contract';
 export type { VerificationRecord, VerificationRepository } from './domain/verification';
 export type { VerificationReader } from './application/verification-reader';
 export { createInMemoryVerificationRepository } from './infra/in-memory-verification.repository';
+export { createPgVerificationRepository } from './infra/pg-verification.repository';
 export type { VerificationRoutes } from './presentation/verification.routes';
 export { type VerificationSchemaName, verificationSchemas } from './presentation/verification.schemas';
 export {

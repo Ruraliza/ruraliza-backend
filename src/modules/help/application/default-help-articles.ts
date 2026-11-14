@@ -2,7 +2,7 @@ import type { HelpArticleRepository } from '../domain/help-article';
 import type { HelpTopic } from '../help.contract';
 
 // Perguntas que a central de ajuda já traz (a equipe edita, reordena e apaga em /sistema/ajuda).
-// Os textos descrevem o app como ele é hoje. TODO(db): virar migração com esses dados.
+// Os textos descrevem o app como ele é hoje. Entram pelo seed (uma vez por banco).
 const DEFAULT_ARTICLES: readonly [HelpTopic, string, string][] = [
   ['comecar', 'O que é o Ruraliza?',
     'Um app que conecta produtores rurais a trabalhadores, prestadores de serviço e estudantes. O produtor publica o serviço, quem sabe fazer se candidata, o produtor escolhe e os dois combinam os detalhes pela conversa do app.'],
