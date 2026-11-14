@@ -7,8 +7,8 @@ import type { Database } from './database';
 // `stored_files`. Cada armazenamento do container é um `store` separado: um id só é achado no seu.
 // Serve às fotos e aos documentos: as duas portas têm a mesma forma.
 //
-// É a opção que não pede outro serviço: o disco do servidor publicado some a cada deploy. Com volume,
-// troque por um store de arquivos (S3, Cloudflare R2) em createContainer({ images, documents }).
+// É a opção que não pede outro serviço: o disco do servidor publicado some a cada deploy. Para tirar os
+// bytes do banco, ligue o bucket do Supabase Storage (SUPABASE_*; ver supabase-file-store.ts).
 export class PgFileStore implements ImageStore, DocumentStore {
   constructor(
     private readonly db: Database,

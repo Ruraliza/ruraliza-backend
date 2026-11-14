@@ -9,7 +9,7 @@ import type { Result } from './result';
 //
 // Hoje: SharpImageProcessor, com InMemoryImageStore (some ao reiniciar) ou, com DATABASE_URL, PgFileStore
 // (os bytes na tabela `stored_files`). As entidades guardam só a URL (`photo_url`, `farm.photos`).
-// TODO(db): com volume, trocar por um store de arquivos (S3, Cloudflare R2), que tira os bytes do banco.
+// Com SUPABASE_*, SupabaseFileStore: os bytes num bucket privado do Supabase Storage, fora do banco.
 
 export const IMAGE_MAX_SIDE = 1000; // px, no maior lado
 export const IMAGE_MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // corpo aceito antes de processar

@@ -13,6 +13,25 @@ export function databaseUrl(): string | null {
   return (process.env['DATABASE_URL'] ?? '').trim() || null;
 }
 
+export interface SupabaseStorageSettings {
+  url: string;
+  serviceKey: string;
+  bucket: string;
+}
+
+// Bucket privado do Supabase Storage para os arquivos (fotos, currículos, fotos de documento). As três
+// variáveis juntas ligam; null = os arquivos ficam no PostgreSQL. Só vale com DATABASE_URL.
+// A chave de serviço ignora as regras de acesso do bucket: nunca sai do servidor.
+export function supabaseStorageSettings(): SupabaseStorageSettings | null {
+  const url = (process.env['SUPABASE_URL'] ?? '').trim().replace(/\/+$/, '');
+  const serviceKey = (process.env['SUPABASE_SERVICE_KEY'] ?? '').trim();
+  const bucket = (process.env['SUPABASE_BUCKET'] ?? '').trim();
+  if (!url && !serviceKey && !bucket) return null;
+  if (!url || !serviceKey || !bucket) throw new Error('Defina SUPABASE_URL, SUPABASE_SERVICE_KEY e SUPABASE_BUCKET juntas (ou nenhuma).');
+  if (!/^https?:\/\//.test(url)) throw new Error('SUPABASE_URL precisa ser o endereço do projeto (https://<projeto>.supabase.co).');
+  return { url, serviceKey, bucket };
+}
+
 export interface GoogleMapsSettings {
   apiKey: string;
   mapId: string;

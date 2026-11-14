@@ -7,14 +7,15 @@ import type { AddressInfo } from 'node:net';
 import { bootContainer, createApi } from '../../app';
 import { type Container, createContainer } from '../../src/container';
 import { MIGRATIONS } from '../../src/migrations';
-import { seedDemoOnce } from '../../src/postgres';
+import { createSupabaseFileStores, seedDemoOnce } from '../../src/postgres';
 import { type Repositories, createInMemoryRepositories } from '../../src/repositories';
 import { SEED_PASSWORD, seed } from '../../src/seed';
 import type { ServiceRepository } from '#modules/services';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import { InMemoryImageStore } from '#shared/infra/images/in-memory-image-store';
-import { PG_UNIQUE_VIOLATION, pgErrorCode } from '#shared/infra/postgres/database';
+import { PG_UNIQUE_VIOLATION, asDatabase, pgErrorCode } from '#shared/infra/postgres/database';
 import { migrate } from '#shared/infra/postgres/migrate';
+import type { Fetch } from '#shared/infra/supabase/supabase-file-store';
 import { type TestDatabase, TEST_DATABASE_URL, createTestDatabase, dropTestDatabases } from '../support/postgres';
 
 const NOW = '2026-03-15T15:00:00.000Z';
@@ -197,8 +198,25 @@ describe('PostgreSQL: arquivos', () => {
   });
 });
 
+describe('PostgreSQL: arquivos no Supabase Storage', () => {
+  it('com o bucket ligado, o que já estava em stored_files continua sendo lido e apagado', async () => {
+    const { pool, storage } = await database();
+    const bytes = new Uint8Array([7, 8, 9]);
+    const oldId = await storage.images.save({ bytes, contentType: 'image/webp', width: 1, height: 1 });
+    // Bucket vazio: toda leitura responde "não encontrado".
+    const emptyBucket: Fetch = () => Promise.resolve(new Response('{}', { status: 404 }));
+    const files = createSupabaseFileStores({ url: 'https://projeto.supabase.co', serviceKey: 'chave', bucket: 'ruraliza' }, asDatabase(pool), emptyBucket);
+
+    assert.deepEqual((await files.images.get(oldId))?.bytes, bytes);
+    assert.equal(await files.idDocuments.get(oldId), undefined);
+    await files.images.delete(oldId);
+    assert.equal(await storage.images.get(oldId), undefined);
+  });
+});
+
 describe('PostgreSQL: subida do servidor', () => {
-  const ENV_KEYS = ['DATABASE_URL', 'SEED_DEMO', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_NAME'] as const;
+  // SUPABASE_* sai do ambiente: estes testes nunca tocam o bucket do .env de quem roda.
+  const ENV_KEYS = ['DATABASE_URL', 'SEED_DEMO', 'ADMIN_EMAIL', 'ADMIN_PASSWORD', 'ADMIN_NAME', 'SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'SUPABASE_BUCKET'] as const;
   const saved = new Map<string, string | undefined>();
 
   beforeEach(() => {
