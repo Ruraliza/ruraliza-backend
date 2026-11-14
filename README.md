@@ -29,7 +29,7 @@ npm run test:postgres    # os mesmos fluxos e o e2e sobre o PostgreSQL (precisa 
 npm run check:contracts  # confere que o contrato bate com os models do frontend (../ruraliza-frontend)
 ```
 
-O servidor carrega **dados de teste** ao subir, também em produção (`npm start`), enquanto o app é só de demonstração e teste: as contas abaixo usam a senha pública e aparecem na tela de entrar do app. `SEED_DEMO=false` desliga o seed fora do `--dev`; sem ele, a equipe entra pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou, sem eles, pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que aparece no log do servidor a cada subida. Desligue antes de haver dados de verdade.
+O servidor carrega **dados de teste** ao subir, também em produção (`npm start`), enquanto o app é só de demonstração e teste: as contas abaixo usam a senha pública (a tela de entrar do app só as mostra no build de desenvolvimento). `SEED_DEMO=false` desliga o seed fora do `--dev`; sem ele, a equipe entra pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou, sem eles, pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que aparece no log do servidor a cada subida. Desligue antes de haver dados de verdade.
 
 Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o seed roda: a cada subida em memória; no PostgreSQL, só na primeira subida de cada banco.
 

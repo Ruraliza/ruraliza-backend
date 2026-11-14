@@ -112,7 +112,7 @@ export function whatsAppSettings(): WhatsAppSettings | null {
 }
 
 // Contas de teste (seed) também em produção, enquanto o app é só de demonstração e teste: as contas usam a
-// senha pública do README e aparecem na tela de entrar. SEED_DEMO=false desliga, e deve ficar desligado
+// senha pública do README (a tela de entrar só as mostra no build de desenvolvimento). SEED_DEMO=false desliga, e deve ficar desligado
 // quando houver dados de verdade. Com banco (DATABASE_URL), o seed roda uma vez e as contas ficam gravadas:
 // desligar depois não as apaga.
 export function demoSeedEnabled(): boolean {
