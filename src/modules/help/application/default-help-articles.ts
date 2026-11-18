@@ -26,7 +26,7 @@ const DEFAULT_ARTICLES: readonly [HelpTopic, string, string][] = [
   ['trabalhadores', 'Como o app escolhe as vagas para mim?',
     'Em Início, "Vagas para você" mostra as vagas que combinam com o que você escolheu em Seus interesses, com as trilhas que você faz e com as vagas em que já se candidatou. Se você marcar "Perto de mim", só entram as vagas dentro da distância escolhida.\nLigue "Me avisar de vagas novas" para receber na hora as vagas que combinam (no máximo 3 por dia) e, uma vez por semana, um resumo.'],
   ['trabalhadores', 'Como sei se fui aceito?',
-    'Em Candidaturas você acompanha cada uma: aguardando, aceita ou recusada. Quando o produtor aceita, chega um aviso no sino e, se você ativou, nas notificações do celular e no WhatsApp.'],
+    'Em Candidaturas você acompanha cada uma: aguardando, aceita ou recusada. Quando o produtor aceita, chega um aviso no sino e, se você ativou, nas notificações do celular.'],
   ['trabalhadores', 'Posso desistir de um serviço?',
     'Sim. Abra a vaga e toque em Desistir. Se você já tinha sido aceito, o serviço volta a receber candidaturas e o produtor é avisado. Desista o quanto antes, para não atrapalhar quem conta com você.'],
 

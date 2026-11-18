@@ -1,23 +1,18 @@
 import type { Account, AccountRepository, UserRole } from '#modules/accounts';
-import { findAccountOf, preferencesOf } from '#modules/accounts';
-import { appUrl } from '#shared/config';
-import type { PhoneDirectory, PushMessage, PushNotifier, PushSender } from '../domain/push';
+import { findAccountOf } from '#modules/accounts';
+import type { PushMessage, PushNotifier, PushSender } from '../domain/push';
 import type { PushSubscriptionRepository } from '../domain/push-subscription.repository';
-import { type WhatsAppSender, whatsappNumber } from '../domain/whatsapp';
 import { type NotificationHistoryDeps, recordNotification } from './notification-history';
 
 export interface PushDispatcherDeps extends NotificationHistoryDeps {
   accounts: AccountRepository;
   pushSubscriptions: PushSubscriptionRepository;
   sender: PushSender;
-  whatsapp: WhatsAppSender;
-  phoneOf: PhoneDirectory;
 }
 
-// Avisa um perfil em três frentes independentes, todas em segundo plano (`notify` não espera):
+// Avisa um perfil em duas frentes independentes, as duas em segundo plano (`notify` não espera):
 // 1. a central de notificações do perfil (histórico + sino, mesmo sem push ativado);
-// 2. o push em todos os aparelhos inscritos na conta (inscrições revogadas, 'gone', são apagadas);
-// 3. o WhatsApp, quando a mensagem traz o texto, a conta ligou "Avisos no WhatsApp" e há celular.
+// 2. o push em todos os aparelhos inscritos na conta (inscrições revogadas, 'gone', são apagadas).
 // A operação que avisou já respondeu; uma falha em qualquer frente só vai para o log.
 export class PushDispatcher implements PushNotifier {
   private readonly pending = new Set<Promise<void>>();
@@ -38,8 +33,7 @@ export class PushDispatcher implements PushNotifier {
     const account = await findAccountOf(this.deps.accounts, role, profileId).catch(() => undefined);
     const results = await Promise.allSettled([
       recordNotification(this.deps, role, profileId, message),
-      account ? this.push(account, message) : Promise.resolve(),
-      account && message.whatsapp ? this.whatsApp(account, role, profileId, message.whatsapp, message.url) : Promise.resolve()
+      account ? this.push(account, message) : Promise.resolve()
     ]);
     for (const result of results) {
       if (result.status === 'rejected') console.error('Falha ao entregar notificação:', result.reason);
@@ -57,13 +51,4 @@ export class PushDispatcher implements PushNotifier {
     );
   }
 
-  // A mensagem leva o link da tela do aviso (APP_URL + url).
-  private async whatsApp(account: Account, role: UserRole, profileId: number, text: string, url: string): Promise<void> {
-    const { whatsapp, phoneOf } = this.deps;
-    if (!whatsapp.enabled || !preferencesOf(account).whatsapp_alerts) return;
-    const phone = await phoneOf(role, profileId);
-    const number = phone === null ? null : whatsappNumber(phone);
-    if (number !== null) await whatsapp.send(number, `${text}
-${appUrl()}/${url}`);
-  }
 }

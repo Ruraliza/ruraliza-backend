@@ -106,7 +106,7 @@ As duas cumprem `Repository<T, K>`: assíncrono, `find` por igualdade de campos 
 | Contrato de tipos igual ao do frontend (`check:contracts`) | Evita divergência entre API e app | Se o frontend deixar de viver ao lado deste repositório |
 | `ChangeFeed` em memória | Basta para um processo, também com PostgreSQL | Ao rodar mais de uma instância (README sugere LISTEN/NOTIFY ou Redis) |
 | Um stream SSE por perfil | Limite de 6 conexões do HTTP/1.1 | Se o HTTP/2 for adotado (pendência registrada em PRODUCT.md) |
-| Envio de push e WhatsApp em segundo plano | Falha externa nunca derruba a resposta | Se for preciso garantia de entrega (fila) |
+| Envio de push em segundo plano | Falha externa nunca derruba a resposta | Se for preciso garantia de entrega (fila) |
 
 ## Manutenção
 

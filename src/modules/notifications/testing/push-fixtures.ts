@@ -8,8 +8,7 @@ import { createInMemoryPushSubscriptionRepository } from '../infra/in-memory-pus
 import type { NotificationsModuleDeps } from '../notifications.module';
 
 // Dependências das notificações, em memória, com um PushSender que grava os envios e pode
-// responder 'gone' (inscrição revogada) para endpoints escolhidos, e um WhatsApp que grava as mensagens
-// (ligado; `phones` diz o telefone de cada perfil, ex.: 'worker:1').
+// responder 'gone' (inscrição revogada) para endpoints escolhidos.
 
 export const NOW = '2026-01-01T00:00:00.000Z';
 export const KEYS = { p256dh: 'p', auth: 'a' };
@@ -17,8 +16,6 @@ export const KEYS = { p256dh: 'p', auth: 'a' };
 export interface PushTestbed extends NotificationsModuleDeps {
   delivered: { endpoint: string; message: PushMessage }[];
   gone: Set<string>;
-  whatsapps: { phone: string; text: string }[];
-  phones: Map<string, string>;
   changes: RecordingChangeFeed;
 }
 
@@ -26,8 +23,6 @@ export function pushTestbed(): PushTestbed {
   const accounts = createInMemoryAccountRepository();
   const delivered: PushTestbed['delivered'] = [];
   const gone = new Set<string>();
-  const whatsapps: PushTestbed['whatsapps'] = [];
-  const phones = new Map<string, string>();
   return {
     accounts,
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
@@ -40,12 +35,8 @@ export function pushTestbed(): PushTestbed {
         return Promise.resolve(gone.has(sub.endpoint) ? 'gone' : 'sent');
       }
     },
-    whatsapp: { enabled: true, send: (phone, text) => { whatsapps.push({ phone, text }); return Promise.resolve(); } },
-    phoneOf: (role, profileId) => Promise.resolve(phones.get(`${role}:${profileId}`) ?? null),
     delivered,
-    gone,
-    whatsapps,
-    phones
+    gone
   };
 }
 

@@ -10,14 +10,11 @@ import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
 import { type MatchingUseCases, createMatchingUseCases } from '#modules/matching';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import {
-  DISABLED_WHATSAPP,
-  EvolutionWhatsAppSender,
   type NotificationUseCases,
   type PushDispatcher,
   type PushSender,
   type PushUseCases,
   WebPushSender,
-  type WhatsAppSender,
   createNotificationUseCases,
   createPushDispatcher,
   createPushUseCases
@@ -30,7 +27,7 @@ import { type SystemUserUseCases, createSystemUserUseCases } from '#modules/syst
 import { type CertificateCodes, type TrackUseCases, createTrackUseCases, randomCertificateCodes, sha256CertificateHasher } from '#modules/tracks';
 import { type VerificationUseCases, createVerificationUseCases } from '#modules/verification';
 import { type WorkerUseCases, createWorkerUseCases } from '#modules/workers';
-import { authTokenSecret, whatsAppSettings } from '#shared/config';
+import { authTokenSecret } from '#shared/config';
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Clock, systemClock } from '#shared/domain/clock';
 import type { DocumentStore } from '#shared/domain/documents';
@@ -55,8 +52,7 @@ import { createInMemoryRepositories } from './repositories';
 // As senhas usam scrypt (`passwords`); os testes podem passar um hasher mais rápido.
 // Os avisos de mudança para as telas abertas (`changes`, por SSE) ficam em memória;
 // as notificações push saem pelo `push` (Web Push com as chaves VAPID do .env; os testes passam um falso),
-// ficam guardadas na central de notificações de cada perfil e, para quem pediu, saem também no WhatsApp
-// (`whatsapp`: Evolution API, ligada pelas variáveis WHATSAPP_* do .env; sem elas, desligada).
+// e ficam guardadas na central de notificações de cada perfil.
 // Os tokens de sessão (`tokens`) são assinados com AUTH_TOKEN_SECRET; os códigos dos certificados
 // (`certificateCodes`) são aleatórios, e os testes podem passar um gerador previsível.
 // As fotos dos documentos da verificação de identidade (`idDocuments`) ficam num armazenamento à parte,
@@ -113,7 +109,6 @@ export interface ContainerOptions {
   clock?: Clock;
   changes?: ChangeFeed;
   push?: PushSender;
-  whatsapp?: WhatsAppSender;
   tokens?: SessionTokens;
   certificateCodes?: CertificateCodes;
   // Entrega do código de "esqueci a senha". Sem ela (o padrão, até o envio por e-mail existir), a redefinição fica desligada.
@@ -133,12 +128,7 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const changes = options.changes ?? new InMemoryChangeFeed();
   const tokens = options.tokens ?? createHmacSessionTokens(authTokenSecret(), clock);
   const { farmers, workers, farms, services, applications, payments, accounts, pushSubscriptions, notifications, systemUsers, workerReviews, farmReviews, chats, chatMessages, tracks, enrollments, certificates } = repos;
-  const whatsAppConfig = whatsAppSettings();
-  const whatsapp = options.whatsapp ?? (whatsAppConfig ? new EvolutionWhatsAppSender(whatsAppConfig) : DISABLED_WHATSAPP);
-  // Telefone do perfil para o WhatsApp (o módulo de notificações não conhece produtores e trabalhadores).
-  const phoneOf = async (role: 'farmer' | 'worker', profileId: number): Promise<string | null> =>
-    (await (role === 'farmer' ? farmers.findById(profileId) : workers.findById(profileId)))?.phone ?? null;
-  const pushDeps = { accounts, pushSubscriptions, notifications, changes, clock, sender: options.push ?? new WebPushSender(), whatsapp, phoneOf };
+  const pushDeps = { accounts, pushSubscriptions, notifications, changes, clock, sender: options.push ?? new WebPushSender() };
   const notificationUseCases = createNotificationUseCases({ notifications, changes });
   const notifier = createPushDispatcher(pushDeps);
   // Avaliações e conversas vêm antes: a contratação e as vagas leem a reputação, a contratação abre

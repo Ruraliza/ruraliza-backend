@@ -4,13 +4,12 @@ import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
 import type { PushUseCases } from '../notifications.module';
-import type { PushConfig, WhatsAppConfig } from '../push.contract';
+import type { PushConfig } from '../push.contract';
 import { parsePushSubscription, parsePushUnsubscribe } from './push.parsers';
 
 // HTTP das notificações push: a chave pública e as inscrições de cada navegador na conta.
 export interface PushController {
   pushConfig: Handler<PushConfig>;
-  whatsappConfig: Handler<WhatsAppConfig>;
   subscribePush: Handler<MessageResponse, IdParams>;
   unsubscribePush: Handler<MessageResponse, IdParams>;
 }
@@ -23,9 +22,6 @@ export function createPushController(push: PushUseCases): PushController {
     if (!vapid) return res.status(503).json({ error: 'Notificações push não configuradas no servidor.' });
     return res.json({ public_key: vapid.publicKey });
   };
-
-  // GET /api/config/whatsapp - Se os avisos por WhatsApp estão ligados (WHATSAPP_* no .env)
-  const whatsappConfig: Handler<WhatsAppConfig> = (_req, res) => res.json({ enabled: push.whatsappEnabled() });
 
   // POST /api/accounts/:id/push-subscriptions - Inscreve este navegador nas notificações da conta
   const subscribePush: Handler<MessageResponse, IdParams> = async (req, res) => {
@@ -47,5 +43,5 @@ export function createPushController(push: PushUseCases): PushController {
     res.status(200).json({ message: 'Push subscription removed successfully!' });
   };
 
-  return { pushConfig, whatsappConfig, subscribePush, unsubscribePush };
+  return { pushConfig, subscribePush, unsubscribePush };
 }

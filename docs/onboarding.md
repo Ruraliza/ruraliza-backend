@@ -27,7 +27,6 @@ O `.env` fica fora do git. O `.env.example` explica cada variável. Nomes dispon
 - `PORT`, `CORS_ORIGINS` (no `.env` local, libere o Angular em desenvolvimento: `http://localhost:4200`).
 - `GOOGLE_MAPS_API_KEY`, `GOOGLE_MAPS_MAP_ID` (mapa; sem a chave, `GET /api/config/maps` responde 503).
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (push; gere o par com `npx web-push generate-vapid-keys`).
-- `WHATSAPP_API_URL`, `WHATSAPP_API_KEY`, `WHATSAPP_INSTANCE`, `APP_URL` (avisos por WhatsApp; as três primeiras juntas ligam o envio).
 - `AUTH_TOKEN_SECRET` (assina as sessões; sem ele, o segredo é temporário e as sessões caem a cada reinício).
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` (primeiro administrador; em desenvolvimento o seed já cria `admin@exemplo.com`, com `SEED_DEMO=false` e sem elas, o servidor cria `admin@ruraliza.app` com uma senha sorteada que aparece no log e muda a cada reinício).
 - `DATABASE_URL` (PostgreSQL; sem ela, os dados ficam em memória. Ver "Banco de dados" abaixo).

@@ -38,7 +38,6 @@ import type {
   NotificationsReadResponse,
   MapsConfig,
   PushConfig,
-  WhatsAppConfig,
   OpenService,
   PasswordResetRequestResponse,
   PaymentResponse,
@@ -476,9 +475,9 @@ async function run(): Promise<void> {
   await step('desativar push', 'DELETE', `${accountUrl}/push-subscriptions`, { endpoint: pushSub.endpoint }, 200);
   await step('desativar push sem endpoint', 'DELETE', `${accountUrl}/push-subscriptions`, {}, 400);
   await step<AccountPreferences>('preferências padrão', 'GET', `${accountUrl}/preferences`, undefined, 200,
-    (b) => assert.deepEqual(b, { theme: 'light', text_size: 'normal', high_contrast: false, whatsapp_alerts: false }));
+    (b) => assert.deepEqual(b, { theme: 'light', text_size: 'normal', high_contrast: false }));
   await step<PreferencesResponse>('tema escuro e letras maiores', 'PATCH', `${accountUrl}/preferences`, { theme: 'dark', text_size: 'large' }, 200,
-    (b) => assert.deepEqual(b.preferences, { theme: 'dark', text_size: 'large', high_contrast: false, whatsapp_alerts: false }));
+    (b) => assert.deepEqual(b.preferences, { theme: 'dark', text_size: 'large', high_contrast: false }));
   await step('preferência sem campos', 'PATCH', `${accountUrl}/preferences`, {}, 400);
   await step('tema inválido', 'PATCH', `${accountUrl}/preferences`, { theme: 'azul' }, 400);
   await step('preferências de outra pessoa', 'GET', `/accounts/${workerSession.account_id}/preferences`, undefined, 403);
@@ -971,8 +970,6 @@ async function run(): Promise<void> {
   process.env['VAPID_PRIVATE_KEY'] = 'chave-privada';
   await step<PushConfig>('configuração do push', 'GET', '/config/push', undefined, 200,
     (b) => assert.equal(b.public_key, 'chave-publica'));
-  await step<WhatsAppConfig>('WhatsApp desligado sem as variáveis WHATSAPP_*', 'GET', '/config/whatsapp', undefined, 200,
-    (b) => assert.equal(b.enabled, false));
   if (savedVapid[0] === undefined) delete process.env['VAPID_PUBLIC_KEY'];
   else process.env['VAPID_PUBLIC_KEY'] = savedVapid[0];
   if (savedVapid[1] === undefined) delete process.env['VAPID_PRIVATE_KEY'];
