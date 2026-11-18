@@ -8,7 +8,7 @@ API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Os dados e os arqu
 
 ## 🗺️ Documentos do projeto
 
-[Produto e escopo](PRODUCT.md) · [Arquitetura](docs/architecture.md) · [Convenções da API](docs/design.md) · [Primeira execução](docs/onboarding.md) · [Qualidade e revisão](docs/quality.md) · [Ferramentas de agente](docs/setup.md) · [Instruções para agentes de IA](AGENTS.md)
+[Produto e escopo](PRODUCT.md) · [Funcionalidades](docs/features.md) · [Arquitetura](docs/architecture.md) · [Convenções da API](docs/design.md) · [Primeira execução](docs/onboarding.md) · [Qualidade e revisão](docs/quality.md) · [Ferramentas de agente](docs/setup.md) · [Instruções para agentes de IA](AGENTS.md)
 
 ---
 

@@ -1,6 +1,6 @@
 # Código e arquitetura
 
-Visão técnica do que existe hoje. Rotas, variáveis e regras de negócio detalhadas ficam no [README](../README.md); o escopo do produto, em [PRODUCT.md](../PRODUCT.md).
+Visão técnica do que existe hoje. Rotas, variáveis e regras de negócio detalhadas ficam no [README](../README.md); o escopo do produto, em [PRODUCT.md](../PRODUCT.md). Os diagramas em Mermaid estão em [diagrams.md](diagrams.md).
 
 ## Stack
 
