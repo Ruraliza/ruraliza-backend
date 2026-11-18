@@ -24,7 +24,7 @@ Cada item existe em código e tem rotas documentadas no README (seção "Rotas")
 - **Pagamento simulado:** o produtor "libera" o pagamento de um serviço em andamento e o serviço fica concluído. Não há dinheiro real.
 - **Avaliações:** dupla e cega, prazo de 14 dias, reputação ponderada.
 - **Trilhas e certificados:** tutores montam, trabalhadores estudam, o certificado sai ao concluir a última aula, com código e resumo SHA-256 validados em rota pública.
-- **Notificações:** central por perfil, push (Web Push) e WhatsApp (candidatura aceita), mais tempo real por SSE.
+- **Notificações:** central por perfil, push (Web Push) e tempo real por SSE.
 - **Denúncias, verificação de identidade e moderação** pela equipe, **patrocínios** (cartão "Patrocinado"), **central de ajuda** editável, **painel da fazenda** e fotos e currículo em PDF.
 
 ## Restrições
@@ -35,7 +35,7 @@ Fatos observados:
 - **Uma instância só:** o aviso em tempo real (`InMemoryChangeFeed`) só vale para um processo.
 - **Deploy no Render** (citado no README e no `.env.example`). Não há `render.yaml` nem Dockerfile no repositório, então a configuração do serviço vive no painel do Render.
 - **E-mail não existe.** Por isso a redefinição pública fica desligada em produção (`TODO(email)`): a API responde o mesmo 200 e não cria código.
-- **WhatsApp depende de ambiente:** só envia com `WHATSAPP_API_URL`, `WHATSAPP_API_KEY` e `WHATSAPP_INSTANCE`. Push depende das chaves VAPID e o mapa, de `GOOGLE_MAPS_API_KEY`; sem elas as rotas de configuração respondem 503.
+- **Integrações dependem de ambiente:** push depende das chaves VAPID e o mapa, de `GOOGLE_MAPS_API_KEY`; sem elas as rotas de configuração respondem 503.
 - Sem `AUTH_TOKEN_SECRET`, o segredo é temporário e as sessões caem a cada reinício.
 - Mensagens da API em português; status de domínio em inglês (`Pending`, `In Progress`...).
 

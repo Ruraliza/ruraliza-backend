@@ -9,9 +9,8 @@ import { PushDispatcher } from './application/push-dispatcher';
 import { SubscribePushUseCase } from './application/subscribe-push.usecase';
 import { UnsubscribePushUseCase } from './application/unsubscribe-push.usecase';
 import type { NotificationRepository } from './domain/notification';
-import type { PhoneDirectory, PushSender } from './domain/push';
+import type { PushSender } from './domain/push';
 import type { PushSubscriptionRepository } from './domain/push-subscription.repository';
-import type { WhatsAppSender } from './domain/whatsapp';
 import { createNotificationController } from './presentation/notification.controller';
 import { type NotificationRoutes, notificationRoutes } from './presentation/notification.routes';
 import { createPushController } from './presentation/push.controller';
@@ -24,15 +23,11 @@ export interface NotificationsModuleDeps {
   changes: ChangeFeed;
   clock: Clock;
   sender: PushSender;
-  whatsapp: WhatsAppSender;
-  phoneOf: PhoneDirectory;
 }
 
 export interface PushUseCases {
   subscribe: SubscribePushUseCase;
   unsubscribe: UnsubscribePushUseCase;
-  // Se a integração de WhatsApp está ligada (o app só oferece a opção quando está).
-  whatsappEnabled(): boolean;
 }
 
 export interface NotificationUseCases {
@@ -43,14 +38,14 @@ export interface NotificationUseCases {
 }
 
 // Quem avisa os perfis em nome dos outros módulos (o PushNotifier que eles recebem):
-// central de notificações, push e WhatsApp.
+// central de notificações e push.
 export function createPushDispatcher(deps: NotificationsModuleDeps): PushDispatcher {
   return new PushDispatcher(deps);
 }
 
 // Casos de uso das inscrições de push (montados pelo container).
 export function createPushUseCases(deps: NotificationsModuleDeps): PushUseCases {
-  return { subscribe: new SubscribePushUseCase(deps), unsubscribe: new UnsubscribePushUseCase(deps), whatsappEnabled: () => deps.whatsapp.enabled };
+  return { subscribe: new SubscribePushUseCase(deps), unsubscribe: new UnsubscribePushUseCase(deps) };
 }
 
 // Casos de uso da central de notificações (montados pelo container).

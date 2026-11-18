@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { unwrap } from '#shared/testing/unwrap';
+import type { AccountPreferences } from '../accounts.contract';
 import { DEFAULT_PREFERENCES } from '../domain/preferences';
 import { type AccountsTestbed, accountsTestbed, givenAccount } from '../testing/account-fixtures';
 import { GetPreferencesUseCase } from './get-preferences.usecase';
@@ -26,8 +27,16 @@ describe('GetPreferencesUseCase / UpdatePreferencesUseCase', () => {
     await update.execute({ accountId: account.id, changes: { theme: 'dark' } });
     const saved = unwrap(await update.execute({ accountId: account.id, changes: { text_size: 'large', high_contrast: true } }));
 
-    assert.deepEqual(saved, { theme: 'dark', text_size: 'large', high_contrast: true, whatsapp_alerts: false });
+    assert.deepEqual(saved, { theme: 'dark', text_size: 'large', high_contrast: true });
     assert.deepEqual((await t.accounts.findById(account.id))?.preferences, saved);
+  });
+
+  it('ignora o whatsapp_alerts que contas antigas guardaram (avisos por WhatsApp retirados)', async () => {
+    const account = await givenAccount(t, { farmer_id: 1 });
+    const legacy = { theme: 'dark', text_size: 'normal', high_contrast: false, whatsapp_alerts: true } as AccountPreferences;
+    await t.accounts.update({ ...account, preferences: legacy });
+
+    assert.deepEqual(unwrap(await new GetPreferencesUseCase(t).execute({ accountId: account.id })), { theme: 'dark', text_size: 'normal', high_contrast: false });
   });
 
   it('conta inexistente dá not_found', async () => {

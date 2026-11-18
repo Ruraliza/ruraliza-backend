@@ -17,8 +17,7 @@ const ref: RefTo<AccountSchemaName> = refTo;
 const preferenceProps = {
   theme: { type: 'string', enum: ['light', 'dark', 'system'], example: 'dark', description: "'system' segue o tema do aparelho." },
   text_size: { type: 'string', enum: ['normal', 'large'], example: 'large', description: "'large' aumenta todos os textos em 25%." },
-  high_contrast: { type: 'boolean', example: true, description: 'Cores mais fortes e bordas mais escuras.' },
-  whatsapp_alerts: { type: 'boolean', example: false, description: 'Avisos importantes também no WhatsApp do perfil (celular com DDD). Desligado por padrão.' }
+  high_contrast: { type: 'boolean', example: true, description: 'Cores mais fortes e bordas mais escuras.' }
 } satisfies Record<string, Schema>;
 
 export const accountSchemas = {
@@ -48,8 +47,8 @@ export const accountSchemas = {
   SessionResponse: object({ message: { type: 'string', example: 'Profile created successfully!' }, user: ref('SessionUser') }, ['message', 'user']),
   AccountPreferences: object(
     preferenceProps,
-    ['theme', 'text_size', 'high_contrast', 'whatsapp_alerts'],
-    'Preferências da conta, nos dois painéis e em qualquer aparelho. Padrão: tema claro, texto normal, sem alto contraste e sem WhatsApp.'
+    ['theme', 'text_size', 'high_contrast'],
+    'Preferências da conta, nos dois painéis e em qualquer aparelho. Padrão: tema claro, texto normal e sem alto contraste.'
   ),
   AccountPreferencesInput: input(preferenceProps, [], 'Só o que mudou; ao menos um campo. Campos desconhecidos são ignorados.'),
   PreferencesResponse: object(

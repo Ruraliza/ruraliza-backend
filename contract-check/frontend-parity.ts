@@ -43,7 +43,6 @@ export type ContractParity = [
   Expect<Equals<Api.PushSubscriptionInput, FrontPush.PushSubscriptionInput>>,
   Expect<Equals<Api.PushUnsubscribeInput, FrontPush.PushUnsubscribeInput>>,
   Expect<Equals<Api.PushConfig, FrontPush.PushConfig>>,
-  Expect<Equals<Api.WhatsAppConfig, FrontPush.WhatsAppConfig>>,
 
   Expect<Equals<Api.AppNotification, FrontNotification.AppNotification>>,
   Expect<Equals<Api.NotificationsPage, FrontNotification.NotificationsPage>>,

@@ -8,7 +8,7 @@ API em **Node.js + Express 5 + TypeScript**, padrão **MVC**. Os dados e os arqu
 
 ## 🗺️ Documentos do projeto
 
-[Produto e escopo](PRODUCT.md) · [Arquitetura](docs/architecture.md) · [Convenções da API](docs/design.md) · [Primeira execução](docs/onboarding.md) · [Qualidade e revisão](docs/quality.md) · [Ferramentas de agente](docs/setup.md) · [Instruções para agentes de IA](AGENTS.md)
+[Produto e escopo](PRODUCT.md) · [Funcionalidades](docs/features.md) · [Arquitetura](docs/architecture.md) · [Convenções da API](docs/design.md) · [Primeira execução](docs/onboarding.md) · [Qualidade e revisão](docs/quality.md) · [Ferramentas de agente](docs/setup.md) · [Instruções para agentes de IA](AGENTS.md)
 
 ---
 
@@ -62,9 +62,7 @@ As variáveis ficam no `.env` (fora do git). O `.env.example` traz cada uma com 
 | `GOOGLE_MAPS_MAP_ID` | Map ID para o alfinete arrastável (padrão `DEMO_MAP_ID`, só para desenvolvimento) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Chaves das notificações push (gere com `npx web-push generate-vapid-keys`). Sem elas, `GET /api/config/push` responde 503 e nada é enviado |
 | `VAPID_SUBJECT` | Contato do responsável pelo envio (`mailto:` ou `https:`), exigido pelos serviços de push |
-| `WHATSAPP_API_URL` / `WHATSAPP_API_KEY` / `WHATSAPP_INSTANCE` | Avisos por WhatsApp pela [Evolution API](https://doc.evolution-api.com) v2. As três juntas ligam o envio; sem elas, nada sai |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` | Bucket privado do Supabase Storage para fotos e currículos, no lugar do banco. As três juntas, com `DATABASE_URL`. Veja [Armazenamento](#-armazenamento) |
-| `APP_URL` | Endereço do frontend nos links que saem do app (padrão `https://ruraliza.github.io/ruraliza-frontend`) |
 
 Em produção (Render), cadastre as mesmas variáveis no painel do serviço.
 
@@ -497,10 +495,6 @@ Tudo o que vira push também fica guardado na **central de notificações** do p
 | GET | `/api/farmers/:id/notifications` e `/api/workers/:id/notifications` | `{ unread, items: [{ id, title, body, url, count, read, insertion_date }] }`, os mais recentes primeiro |
 | POST | `/api/farmers/:id/notifications/read` e `/api/workers/:id/notifications/read` | `{ ids? }`: marca como lidos (ids de outro perfil são ignorados) → `{ message, unread }` |
 | GET | `/api/farmers/:id/notifications/events` e `/api/workers/:id/notifications/events` | SSE `event: notifications`: chegou aviso novo ou algum foi lido |
-
-### Avisos por WhatsApp
-
-Quem liga **Avisos no WhatsApp** (`whatsapp_alerts` nas preferências da conta, desligado por padrão) recebe no celular os avisos que não podem passar despercebidos; hoje, **candidatura aceita**, com o link da tela no app (`APP_URL`). Só sai para celular com DDD (o número vira `55` + DDD + número; telefone fixo é ignorado) e só com a integração configurada (`WHATSAPP_*` no `.env`, Evolution API v2). O `PushDispatcher` cuida das três frentes (central, push e WhatsApp) em segundo plano: uma falha em qualquer uma só vai para o log.
 
 ### Notificações push
 

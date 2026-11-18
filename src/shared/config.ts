@@ -92,25 +92,6 @@ export function authTokenSecret(): string {
   return generatedSecret;
 }
 
-// Endereço público do frontend, usado nos links que saem do app (ex.: mensagem de WhatsApp).
-export function appUrl(): string {
-  return ((process.env['APP_URL'] ?? '').trim() || 'https://ruraliza.github.io/ruraliza-frontend').replace(/\/+$/, '');
-}
-
-export interface WhatsAppSettings {
-  apiUrl: string;
-  apiKey: string;
-  instance: string;
-}
-
-// Integração de WhatsApp (Evolution API v2). null = desligada: nada é enviado.
-export function whatsAppSettings(): WhatsAppSettings | null {
-  const apiUrl = (process.env['WHATSAPP_API_URL'] ?? '').trim().replace(/\/+$/, '');
-  const apiKey = (process.env['WHATSAPP_API_KEY'] ?? '').trim();
-  const instance = (process.env['WHATSAPP_INSTANCE'] ?? '').trim();
-  return apiUrl && apiKey && instance ? { apiUrl, apiKey, instance } : null;
-}
-
 // Contas de teste (seed) também em produção, enquanto o app é só de demonstração e teste: as contas usam a
 // senha pública do README (a tela de entrar só as mostra no build de desenvolvimento). SEED_DEMO=false desliga, e deve ficar desligado
 // quando houver dados de verdade. Com banco (DATABASE_URL), o seed roda uma vez e as contas ficam gravadas:
