@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { type Container, createContainer } from '../../src/container';
-import { NOW, PASSWORD, farmerWithFarm, openService, setup, unwrap, worker } from './support';
+import { NOW, PASSWORD, farmerWithFarm, hire, openService, setup, unwrap, worker } from './support';
 
 describe('FarmerUseCases', () => {
   it('não remove produtor com serviço em andamento; depois do pagamento remove em cascata', async () => {
@@ -13,12 +13,12 @@ describe('FarmerUseCases', () => {
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
-    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
+    unwrap(await hire(c, serviceId, app.id));
 
     const blocked = await c.useCases.farmers.deleteFarmer.execute({ farmerId: farmerId });
     assert.equal(blocked.ok ? 'ok' : blocked.kind, 'conflict');
 
-    unwrap(await c.useCases.hiring.payService.execute({ serviceId: serviceId }));
+    unwrap(await c.useCases.hiring.payService.execute({ serviceId, value: 300 }));
     unwrap(await c.useCases.farmers.deleteFarmer.execute({ farmerId: farmerId }));
 
     assert.equal(await c.repos.farmers.findById(farmerId), undefined);
@@ -252,7 +252,7 @@ describe('AdminUseCases', () => {
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
     const application = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
-    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: application.id, action: 'Accept' }));
+    unwrap(await hire(c, serviceId, application.id));
 
     const blocked = await c.useCases.admin.deleteAccount.execute({ accountId: id });
     assert.equal(blocked.ok ? '' : blocked.kind, 'conflict');

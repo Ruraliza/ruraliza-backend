@@ -10,7 +10,7 @@ const accountId = pathParam('id', 'ID da conta (`account_id`).');
 const farmerId = pathParam('id', 'ID do produtor.');
 const workerId = pathParam('id', 'ID do trabalhador.');
 const adminOperation = operation<AdminSchemaName | FarmerSchemaName | WorkerSchemaName>;
-const inProgress = 'Há serviço em andamento (o pagamento precisa ser concluído antes).';
+const inProgress = 'Há serviço em andamento (ele precisa ser concluído antes).';
 
 // Montadas em /api/admin. Só usuários de sistema com cargo que tenha a permissão (hoje, o admin).
 // Editar e remover perfis seguem as mesmas regras de quando o próprio usuário faz.
@@ -41,7 +41,7 @@ export function adminRoutes(admin: AdminController, staffRoutes: readonly RouteD
       summary: 'Remover conta',
       description:
         'Remove os dois perfis (com fazendas, serviços, candidaturas, fotos e currículo) e a conta. ' +
-        'Os pagamentos ficam como histórico. Nada é removido se algum perfil tiver serviço em andamento.',
+        'Nada é removido se algum perfil tiver serviço em andamento.',
       params: [accountId],
       success: { status: 200, description: 'Conta removida.', schema: 'MessageResponse' },
       errors: { 404: 'Conta não encontrada.', 409: inProgress }

@@ -4,6 +4,7 @@ import { SERVICE_STATUS, type ServiceRepository, isExpired } from '#modules/serv
 import type { WorkerRepository } from '#modules/workers';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
+import { maskContacts } from '#shared/domain/contacts';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import type { ApplicationRepository } from '../domain/application.repository';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
@@ -23,13 +24,15 @@ export interface ApplyForServiceDeps {
 export interface ApplyForServiceInput {
   serviceId: number;
   workerId: number;
+  message?: string; // já validada (tamanho e palavrões)
 }
 
-// RF02 - Candidata-se a um serviço aberto (uma vez por serviço) e avisa o produtor.
+// RF02 - Candidata-se a um serviço aberto (uma vez por serviço) e avisa o produtor. A mensagem opcional
+// aparece na lista de candidatos, com telefone e e-mail ocultos (o contato só é trocado depois do aceite).
 export class ApplyForServiceUseCase {
   constructor(private readonly deps: ApplyForServiceDeps) {}
 
-  async execute({ serviceId, workerId }: ApplyForServiceInput): Promise<Result<ServiceApplication>> {
+  async execute({ serviceId, workerId, message }: ApplyForServiceInput): Promise<Result<ServiceApplication>> {
     const { services, workers, applications } = this.deps;
     const service = await services.findById(serviceId);
     if (!service) return notFound('Serviço não encontrado.');
@@ -60,6 +63,7 @@ export class ApplyForServiceUseCase {
       service_id: service.id,
       worker_id: worker.id,
       status: APPLICATION_STATUS.PENDING,
+      ...(message ? { message: maskContacts(message).text } : {}),
       insertion_date: this.deps.clock.now()
     });
     publishApplicationChanges(this.deps.changes, service.id, [worker.id]);

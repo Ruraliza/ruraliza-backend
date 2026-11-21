@@ -3,6 +3,7 @@ import { type PushNotifier, WORKER_APPLICATIONS_URL } from '#modules/notificatio
 import type { ChangeFeed } from '#shared/domain/changes';
 import { type Result, conflict, notFound, ok } from '#shared/domain/result';
 import { SERVICE_STATUS } from '../domain/service-status';
+import type { JobEvents } from '../domain/job-events';
 import type { ServiceRepository } from '../domain/service.repository';
 import type { Service } from '../service.contract';
 import { notifyApplicants } from './notify-applicants';
@@ -12,13 +13,15 @@ export interface CancelServiceDeps {
   applications: ApplicationRepository;
   changes: ChangeFeed;
   push: PushNotifier;
+  jobEvents: Pick<JobEvents, 'jobCancelled'>;
 }
 
 export interface CancelServiceInput {
   serviceId: number;
 }
 
-// Só enquanto Pending. As candidaturas pendentes são recusadas e os candidatos, avisados por push.
+// Só enquanto Pending. As candidaturas pendentes são recusadas, as conversas da vaga são encerradas
+// e os candidatos, avisados por push.
 export class CancelServiceUseCase {
   constructor(private readonly deps: CancelServiceDeps) {}
 
@@ -42,6 +45,7 @@ export class CancelServiceUseCase {
         url: WORKER_APPLICATIONS_URL
       });
     }
+    await this.deps.jobEvents.jobCancelled(service);
     await notifyApplicants(this.deps, service.id);
 
     return ok(service);

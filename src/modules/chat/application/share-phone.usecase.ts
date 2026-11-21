@@ -4,7 +4,7 @@ import type { Clock } from '#shared/domain/clock';
 import { type Result, conflict, ok } from '#shared/domain/result';
 import type { Chat } from '../chat.contract';
 import type { ChatRecord } from '../domain/chat.repository';
-import { type ChatSide, type ChatViewer, bothSharePhone, firstName, isOpen, otherSide } from '../domain/chat.rules';
+import { type ChatSide, type ChatViewer, bothSharePhone, firstName, isHired, isOpen, otherSide } from '../domain/chat.rules';
 import { type ChatViewDeps, addSystemMessage, publishChatChanges, toChat } from './chat-views';
 import { findOwnChat } from './find-own-chat';
 
@@ -29,7 +29,8 @@ function shares(chat: ChatRecord, side: ChatSide): boolean {
 }
 
 // Consentimento duplo: cada lado libera (ou deixa de liberar) o próprio WhatsApp, e os números só
-// aparecem quando os dois liberaram. Cada mudança deixa um aviso na conversa; quem ainda não
+// aparecem quando os dois liberaram. Liberar só vale depois do aceite: na conversa com o trabalhador
+// aceito, com o serviço em andamento ou concluído. Na negociação, o contato fica oculto. Cada mudança deixa um aviso na conversa; quem ainda não
 // liberou recebe push com o pedido.
 export class SharePhoneUseCase {
   constructor(private readonly deps: SharePhoneDeps) {}
@@ -42,6 +43,7 @@ export class SharePhoneUseCase {
     const now = clock.now();
     if (!isOpen(chat, now)) return conflict('Esta conversa foi encerrada.');
     if (shares(chat, side) === share) return ok(await toChat(this.deps, chat, side, now));
+    if (share && !(await this.hired(chat))) return conflict('O WhatsApp só pode ser liberado depois que o produtor aceitar o trabalhador.');
 
     const updated = withShare(chat, side, share);
     await chats.update(updated);
@@ -63,6 +65,11 @@ export class SharePhoneUseCase {
         : { title: 'Pedido de WhatsApp', body: `${me} quer trocar WhatsApp com você.`, url: chatUrl(other, chat.id) });
     }
     return ok(await toChat(this.deps, withNotice, side, now));
+  }
+
+  private async hired(chat: ChatRecord): Promise<boolean> {
+    const service = await this.deps.services.findById(chat.service_id);
+    return service !== undefined && isHired(chat, service);
   }
 
   private async firstNames(chat: ChatRecord): Promise<Record<ChatSide, string>> {

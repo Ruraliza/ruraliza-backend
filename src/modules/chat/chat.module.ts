@@ -1,16 +1,17 @@
 import type { AccessPolicies } from '#modules/auth';
 import type { FarmerRepository } from '#modules/farmers';
-import type { HiringEvents } from '#modules/hiring';
+import type { ApplicationRepository, HiringEvents, NegotiationChats, ProposalRepository } from '#modules/hiring';
 import type { PushNotifier } from '#modules/notifications';
-import type { ServiceRepository } from '#modules/services';
+import type { JobEvents, ServiceRepository } from '#modules/services';
 import type { WorkerRepository } from '#modules/workers';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { Clock } from '#shared/domain/clock';
 import type { ProfileCleanup } from '#shared/domain/profile-cleanup';
-import { chatHiringEvents } from './application/chat-hiring-events';
+import { chatHiringEvents, negotiationChats } from './application/chat-hiring-events';
 import { GetChatUseCase } from './application/get-chat.usecase';
 import { ListChatsUseCase } from './application/list-chats.usecase';
 import { MarkChatReadUseCase } from './application/mark-chat-read.usecase';
+import { OpenChatUseCase } from './application/open-chat.usecase';
 import { chatsCleanup } from './application/remove-chats';
 import { SendMessageUseCase } from './application/send-message.usecase';
 import { SharePhoneUseCase } from './application/share-phone.usecase';
@@ -22,6 +23,8 @@ export interface ChatModuleDeps {
   chats: ChatRepository;
   chatMessages: ChatMessageRepository;
   services: ServiceRepository;
+  applications: ApplicationRepository;
+  proposals: ProposalRepository;
   farmers: FarmerRepository;
   workers: WorkerRepository;
   clock: Clock;
@@ -31,12 +34,15 @@ export interface ChatModuleDeps {
 
 export interface ChatUseCases {
   listChats: ListChatsUseCase;
+  openChat: OpenChatUseCase;
   getChat: GetChatUseCase;
   sendMessage: SendMessageUseCase;
   markChatRead: MarkChatReadUseCase;
   sharePhone: SharePhoneUseCase;
-  // Abre/fecha a conversa junto com a contratação (ligado no módulo hiring pelo container).
-  hiringEvents: HiringEvents;
+  // Fecha/reabre a conversa junto com a contratação e o cancelamento da vaga (ligado nos módulos hiring e services pelo container).
+  hiringEvents: HiringEvents & Pick<JobEvents, 'jobCancelled'>;
+  // A conversa em que as propostas são feitas (lida pelo módulo hiring).
+  negotiationChats: NegotiationChats;
   // Apaga as conversas de um perfil removido.
   cleanup: ProfileCleanup;
 }
@@ -45,11 +51,13 @@ export interface ChatUseCases {
 export function createChatUseCases(deps: ChatModuleDeps): ChatUseCases {
   return {
     listChats: new ListChatsUseCase(deps),
+    openChat: new OpenChatUseCase(deps),
     getChat: new GetChatUseCase(deps),
     sendMessage: new SendMessageUseCase(deps),
     markChatRead: new MarkChatReadUseCase(deps),
     sharePhone: new SharePhoneUseCase(deps),
     hiringEvents: chatHiringEvents(deps),
+    negotiationChats: negotiationChats(deps),
     cleanup: chatsCleanup(deps)
   };
 }

@@ -11,7 +11,7 @@ import { dayOf } from '#shared/domain/dates';
 import type { ImageStore } from '#shared/domain/images';
 import type { PasswordHasher } from '#shared/domain/passwords';
 import type { Repositories } from './repositories';
-import { SERVICE_STATUS } from '#modules/services';
+import { type PriceUnit, SERVICE_STATUS } from '#modules/services';
 import { createAccount } from '#modules/accounts';
 import { createDefaultHelpArticles } from '#modules/help';
 import { seedHistory } from './seed-history';
@@ -28,7 +28,8 @@ interface DemoService {
   description: string;
   category: string;
   duration: number;
-  price: number;
+  price: number | null; // estimativa; null = vaga antiga, sem valor ("a combinar")
+  price_unit: PriceUnit | null;
   publishedDaysAgo: number;
   expiresInDays: number | null; // null = sem prazo; negativo = já vencida
 }
@@ -106,37 +107,37 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   // Sete vagas abertas, cada uma de um serviço (ver src/modules/services/domain/categories.ts). Os serviços 1 a 3 são os citados na documentação.
   const demoServices: DemoService[] = [
     {
-      farmId: farmSaoJose.id, name: 'Colheita de café', category: 'Colheita', duration: 40, price: 1800,
+      farmId: farmSaoJose.id, name: 'Colheita de café', category: 'Colheita', duration: 40, price: 180, price_unit: 'day',
       description: 'Colheita manual do café arábica. Levar luvas e chapéu; a fazenda oferece almoço.',
       publishedDaysAgo: 2, expiresInDays: 10
     },
     {
-      farmId: farmBoaVista.id, name: 'Plantio de milho', category: 'Plantio', duration: 24, price: 1200,
+      farmId: farmBoaVista.id, name: 'Plantio de milho', category: 'Plantio', duration: 24, price: 120, price_unit: 'hectare',
       description: 'Plantio em 3 hectares com plantadeira. Experiência com trator é um diferencial.',
       publishedDaysAgo: 5, expiresInDays: 3
     },
     {
-      farmId: farmSaoJose.id, name: 'Conserto de cerca', category: 'Conserto de cerca', duration: 8, price: 400,
+      farmId: farmSaoJose.id, name: 'Conserto de cerca', category: 'Conserto de cerca', duration: 8, price: 12, price_unit: 'meter',
       description: 'Troca de mourões e arame em cerca de pasto (cerca de 200 m).',
       publishedDaysAgo: 0, expiresInDays: null
     },
     {
-      farmId: farmBoaVista.id, name: 'Pulverização de pasto', category: 'Pulverização', duration: 12, price: 650,
+      farmId: farmBoaVista.id, name: 'Pulverização de pasto', category: 'Pulverização', duration: 12, price: 650, price_unit: 'fixed',
       description: 'Aplicação de herbicida com bomba costal em 5 hectares de pasto. EPI completo fornecido pela fazenda.',
       publishedDaysAgo: 1, expiresInDays: 0
     },
     {
-      farmId: farmSaoJose.id, name: 'Roçada com trator', category: 'Operação de máquinas', duration: 16, price: 900,
+      farmId: farmSaoJose.id, name: 'Roçada com trator', category: 'Operação de máquinas', duration: 16, price: 45, price_unit: 'hour',
       description: 'Roçada mecânica com trator e roçadeira hidráulica. Precisa ter carteira de tratorista.',
       publishedDaysAgo: 8, expiresInDays: null
     },
     {
-      farmId: farmBoaVista.id, name: 'Apartação do rebanho', category: 'Manejo de gado', duration: 6, price: 300,
+      farmId: farmBoaVista.id, name: 'Apartação do rebanho', category: 'Manejo de gado', duration: 6, price: null, price_unit: null,
       description: 'Apoio na lida com 120 cabeças no curral: apartar os bezerros e conferir o rebanho. Começa às 6h.',
       publishedDaysAgo: 3, expiresInDays: 7
     },
     {
-      farmId: farmSaoJose.id, name: 'Limpeza de galpão', category: 'Outros', duration: 4, price: 180,
+      farmId: farmSaoJose.id, name: 'Limpeza de galpão', category: 'Outros', duration: 4, price: 180, price_unit: 'fixed',
       description: 'Limpeza e organização do galpão de ferramentas antes da colheita.',
       publishedDaysAgo: 12, expiresInDays: -2 // vencida: some das vagas, mas o produtor ainda vê e pode renovar
     }
@@ -147,12 +148,11 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
       farmer_id: farmer.id,
       farm_id: s.farmId,
       worker_id: null,
-      payment_id: null,
+      payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: s.price, price_unit: s.price_unit,
       name: s.name,
       description: s.description,
       category: s.category,
       duration: s.duration,
-      price: s.price,
       expires_at: s.expiresInDays === null ? null : dayOf(shift(s.expiresInDays)),
       status: SERVICE_STATUS.PENDING,
       insertion_date: shift(-s.publishedDaysAgo)

@@ -5,12 +5,15 @@ import { toPublicProfile } from '#shared/utils/profile';
 import { maskEmail, maskPhone } from '#shared/utils/validation';
 import type { ApplicationRepository } from '../domain/application.repository';
 import type { WorkerReputationReader } from '../domain/hiring-events';
+import type { ProposalRepository } from '../domain/proposal.repository';
 import type { WorkerVerificationReader } from '../domain/worker-verification';
+import { acceptedProposal } from './negotiation';
 import type { ApplicationWithWorker } from '../hiring.contract';
 
 export interface ListServiceApplicationsDeps {
   services: ServiceRepository;
   applications: ApplicationRepository;
+  proposals: ProposalRepository;
   workers: WorkerRepository;
   reputation: WorkerReputationReader;
   verification: WorkerVerificationReader;
@@ -21,7 +24,8 @@ export interface ListServiceApplicationsInput {
 }
 
 // Candidaturas do serviço com o trabalhador embutido, a reputação dele e o selo de verificado. CPF, telefone e e-mail saem
-// mascarados: o contato só é trocado pela conversa, quando os dois liberam o WhatsApp.
+// mascarados: o contato só é trocado pela conversa, quando os dois liberam o WhatsApp. Cada uma traz a proposta
+// aceita na conversa, se houver: sem ela, o aceite não passa.
 export class ListServiceApplicationsUseCase {
   constructor(private readonly deps: ListServiceApplicationsDeps) {}
 
@@ -38,7 +42,8 @@ export class ListServiceApplicationsUseCase {
         const worker = requireFound(await workers.findById(a.worker_id), `trabalhador da candidatura ${a.id}`);
         const masked = { ...toPublicProfile(worker), phone: maskPhone(worker.phone), email: maskEmail(worker.email) };
         const reputation = requireFound(reputations.get(a.worker_id), `reputação do trabalhador ${a.worker_id}`);
-        return { ...a, worker: masked, reputation, verified: verified.has(a.worker_id) };
+        const accepted_proposal = await acceptedProposal(this.deps.proposals, a.id);
+        return { ...a, worker: masked, reputation, verified: verified.has(a.worker_id), accepted_proposal };
       })
     );
     return ok(result);

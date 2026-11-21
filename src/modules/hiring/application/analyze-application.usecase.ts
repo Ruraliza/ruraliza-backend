@@ -5,17 +5,22 @@ import { type Result, conflict, invalid, notFound, ok } from '#shared/domain/res
 import type { ApplicationRepository } from '../domain/application.repository';
 import type { HiringEvents } from '../domain/hiring-events';
 import type { HiringTransaction } from '../domain/hiring-transaction';
+import type { ProposalRepository } from '../domain/proposal.repository';
+import type { Clock } from '#shared/domain/clock';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
 import type { AnalyzeInput, ServiceApplication } from '../hiring.contract';
 import { publishApplicationChanges, rejectedMessage } from './hiring-notifications';
+import { acceptedProposal, agreementOf, supersedePending } from './negotiation';
 
 export interface AnalyzeApplicationDeps {
   services: ServiceRepository;
   applications: ApplicationRepository;
+  proposals: ProposalRepository;
   transaction: HiringTransaction;
   changes: ChangeFeed;
   push: PushNotifier;
   events: HiringEvents;
+  clock: Clock;
 }
 
 export interface AnalyzeApplicationInput extends AnalyzeInput {
@@ -28,7 +33,10 @@ export interface AnalyzeOutcome {
 }
 
 // RF03 - Aceita ou recusa uma candidatura.
-// Accept: o serviço vai para In Progress e as demais pendentes são recusadas (auto_rejected), tudo junto.
+// Accept: exige uma proposta aceita pelos dois na conversa (ela é a confirmação do trabalhador). O serviço vai
+// para In Progress com o combinado, e as demais pendentes são recusadas (auto_rejected), tudo junto.
+// As propostas pendentes das candidaturas recusadas deixam de valer (Superseded).
+// A conversa da candidatura recusada (e as dos recusados pelo aceite) é encerrada.
 export class AnalyzeApplicationUseCase {
   constructor(private readonly deps: AnalyzeApplicationDeps) {}
 
@@ -44,11 +52,20 @@ export class AnalyzeApplicationUseCase {
     if (application.status !== APPLICATION_STATUS.PENDING) return conflict('Esta candidatura já foi analisada.');
 
     if (action === 'Reject') {
-      application.status = APPLICATION_STATUS.REJECTED;
-      await applications.update(application);
+      await this.deps.transaction(async (stores) => {
+        application.status = APPLICATION_STATUS.REJECTED;
+        await stores.applications.update(application);
+        await supersedePending(stores.proposals, { application_id: application.id });
+      });
       publishApplicationChanges(changes, service.id, [application.worker_id]);
+      await this.deps.events.rejected(service, application.worker_id); // encerra a conversa
       push.notify('worker', application.worker_id, rejectedMessage(service));
       return ok({ application });
+    }
+
+    const agreed = await acceptedProposal(this.deps.proposals, application.id);
+    if (!agreed) {
+      return conflict('Para aceitar, combinem antes o valor na conversa: uma proposta precisa estar aceita pelos dois.');
     }
 
     const autoRejected = await this.deps.transaction(async (stores) => {
@@ -60,14 +77,17 @@ export class AnalyzeApplicationUseCase {
         other.status = APPLICATION_STATUS.REJECTED;
         other.auto_rejected = true;
         await stores.applications.update(other);
+        await supersedePending(stores.proposals, { application_id: other.id });
         rejected.push(other.worker_id);
       }
       service.worker_id = application.worker_id;
+      service.proposal_id = agreed.id;
+      service.agreement = agreementOf(agreed, this.deps.clock.now());
       service.status = SERVICE_STATUS.IN_PROGRESS;
       await stores.services.update(service);
       return rejected;
     });
-    await this.deps.events.accepted(service); // abre a conversa
+    await this.deps.events.accepted(service, autoRejected); // avisa na conversa do aceito e encerra as dos outros
     publishApplicationChanges(changes, service.id, [application.worker_id, ...autoRejected]);
     push.notify('worker', application.worker_id, {
       title: 'Você foi aceito!',

@@ -8,8 +8,8 @@ O Ruraliza (AgTech) conecta produtores rurais a trabalhadores, prestadores e est
 
 ## Quem usa
 
-- **Produtor:** cadastra fazendas (com ponto no mapa), publica e gerencia vagas, analisa candidaturas, libera o pagamento, avalia o trabalhador e vê o painel da fazenda.
-- **Trabalhador (também prestador ou estudante):** busca e recebe recomendações de vagas, se candidata, conversa com o produtor, estuda trilhas e recebe certificados, avalia a fazenda.
+- **Produtor:** cadastra fazendas (com ponto no mapa), publica e gerencia vagas, publica vagas com valor estimado, conversa com os candidatos e combina o valor por proposta, aceita um, libera o pagamento (simulado), avalia o trabalhador e vê o painel da fazenda.
+- **Trabalhador (também prestador ou estudante):** busca e recebe recomendações de vagas, se candidata (com uma mensagem), combina o valor na conversa, vê o pagamento liberado, estuda trilhas e recebe certificados, avalia a fazenda.
 - **Conta com os dois perfis:** uma pessoa pode ser produtor e trabalhador com o mesmo e-mail e senha, mas não se candidata a uma vaga que ela mesma publicou.
 - **Equipe (usuários de sistema, sem cadastro público):** `admin` gerencia contas, equipe, trilhas, ajuda, patrocínios, denúncias e verificações; `tutor` cria e edita as trilhas de que é tutor. As permissões estão em `src/modules/system-users/domain/system-user.ts`.
 
@@ -27,9 +27,10 @@ Cada item existe em código e tem rotas documentadas no README (seção "Rotas")
   - Animais: Manejo de gado, Vaqueiro e peão, Ordenha, Trato de animais, Casqueamento e ferrageamento, Doma e lida com cavalos.
   - Máquinas: Operação de máquinas.
   - Outros: Outros.
-- **Candidatura e aceite:** candidatar, desistir, aceitar ou recusar; as demais candidaturas são recusadas pelo aceite.
-- **Conversa:** abre no aceite, WhatsApp só aparece com consentimento dos dois, números e e-mails nas mensagens são ocultados.
-- **Pagamento simulado:** o produtor "libera" o pagamento de um serviço em andamento e o serviço fica concluído. Não há dinheiro real.
+- **Fluxo da contratação:** vaga com estimativa → candidatura → conversa e negociação → aceite → serviço → pagamento simulado no app → avaliação. A vaga traz o valor estimado pelo produtor (por hora, dia, metro, hectare ou empreitada); vagas antigas sem valor aparecem como "a combinar".
+- **Candidatura:** candidatar com uma mensagem opcional, desistir; o produtor recusa ou aceita, e as demais candidaturas são recusadas pelo aceite.
+- **Conversa e proposta:** só o produtor abre a conversa, a partir de uma candidatura pendente. Qualquer lado propõe valor e unidade (a primeira proposta parte da estimativa da vaga); só o outro aceita. O aceite da candidatura exige uma proposta aceita e guarda o combinado no serviço. A conversa fecha na recusa, no aceite de outro, na desistência e no cancelamento, e reabre se o aceito desistir. O WhatsApp só é liberado depois do aceite, com o consentimento dos dois; números e e-mails nas mensagens são ocultados.
+- **Pagamento simulado:** o produtor dono libera o pagamento de um serviço em andamento, informando o total (o app sugere a partir da proposta aceita), e o serviço fica concluído. Não há dinheiro real. O trabalhador vê o valor e a data no serviço dele.
 - **Avaliações:** dupla e cega, prazo de 14 dias, reputação ponderada.
 - **Trilhas e certificados:** tutores montam, trabalhadores estudam, o certificado sai ao concluir a última aula, com código e resumo SHA-256 validados em rota pública.
 - **Notificações:** central por perfil, push (Web Push) e tempo real por SSE.
@@ -49,7 +50,7 @@ Fatos observados:
 
 ## Fora do escopo (hoje)
 
-Envio de e-mail, pagamento real, assinatura digital dos certificados, registro de horas e relatórios em PDF, várias instâncias da API. Esses itens estão em "Próximos passos" do README.
+Envio de e-mail, pagamento real (gateway, Pix gerado pelo app, recibo), ordenação das vagas por valor (as unidades não se comparam), vaga com várias posições, moderação por IA, assinatura digital dos certificados, registro de horas e relatórios em PDF, várias instâncias da API. Esses itens estão em "Próximos passos" do README.
 
 ## Decisões pendentes
 
@@ -65,7 +66,7 @@ Cada resultado abaixo é observável e coberto por testes existentes (`npm test`
 
 | Resultado observável | Evidência |
 |---|---|
-| Produtor publica vaga, trabalhador se candidata, o aceite coloca o serviço em andamento e o pagamento o conclui | `tests/integration/hiring-flow.test.ts`, `tests/e2e/smoke.e2e.ts` |
+| Produtor publica vaga com valor estimado, trabalhador se candidata com mensagem, os dois combinam o valor por proposta na conversa, o aceite (que exige a proposta aceita) coloca o serviço em andamento e o pagamento simulado o conclui | `tests/integration/hiring-flow.test.ts`, `tests/integration/negotiation-chat.test.ts`, `tests/e2e/smoke.e2e.ts` |
 | Vaga vencida some da busca e recusa candidaturas (409) até renovar o prazo | `tests/integration/hiring-flow.test.ts` |
 | Só o trabalhador aceito recebe as coordenadas da fazenda | `tests/integration/hiring-flow.test.ts` |
 | Rota protegida sem token dá 401; token de outra pessoa dá 403 | `tests/e2e/smoke.e2e.ts`, `src/modules/auth/presentation/access.spec.ts` |

@@ -5,8 +5,9 @@ import assert from 'node:assert/strict';
 import { after, afterEach, beforeEach, describe, it } from 'node:test';
 import type { AddressInfo } from 'node:net';
 import { bootContainer, createApi } from '../../app';
-import { type Container, createContainer } from '../../src/container';
+import { createContainer } from '../../src/container';
 import { MIGRATIONS } from '../../src/migrations';
+import { NOW, acceptedService, negotiatedService } from './hiring-helpers';
 import { createSupabaseFileStores, seedDemoOnce } from '../../src/postgres';
 import { type Repositories, createInMemoryRepositories } from '../../src/repositories';
 import { SEED_PASSWORD, seed } from '../../src/seed';
@@ -18,7 +19,7 @@ import { migrate } from '#shared/infra/postgres/migrate';
 import type { Fetch } from '#shared/infra/supabase/supabase-file-store';
 import { type TestDatabase, TEST_DATABASE_URL, createTestDatabase, dropTestDatabases } from '../support/postgres';
 
-const NOW = '2026-03-15T15:00:00.000Z';
+
 const clock = { now: (): string => NOW };
 // Sem sal aleatório, para a memória e o banco guardarem o mesmo hash.
 const passwords: PasswordHasher = {
@@ -33,23 +34,6 @@ function database(): Promise<TestDatabase> {
 
 async function rejectsWithUnique(work: Promise<unknown>): Promise<void> {
   await assert.rejects(work, (error) => pgErrorCode(error) === PG_UNIQUE_VIOLATION);
-}
-
-// Produtor, fazenda, vaga, candidatura e aceite: o serviço fica em andamento, pronto para pagar.
-async function acceptedService(c: Container): Promise<{ serviceId: number; workerId: number }> {
-  const { farmers, farms, workers, services, hiring } = c.useCases;
-  const farmer = await farmers.registerFarmer.execute({ email: 'ana@exemplo.com', name: 'Ana', phone: '1', cpf: '52998224725', password: 'senha-forte-1' });
-  assert.ok(farmer.ok);
-  const farm = await farms.createFarm.execute({ farmerId: farmer.value.farmer.id, input: { address: 'Sítio', city: 'Três Rios', state: 'RJ', latitude: -22.1165, longitude: -43.2092 } });
-  assert.ok(farm.ok);
-  const worker = await workers.registerWorker.execute({ email: 'rui@exemplo.com', name: 'Rui', phone: '1', cpf: '11144477735', password: 'senha-forte-1', bio: null, certificates: null, courses: null, experience: null });
-  assert.ok(worker.ok);
-  const service = await services.publishService.execute({ farmer_id: farmer.value.farmer.id, farm_id: farm.value.id, name: 'Capina', category: 'Manutenção', duration: 4, price: 200 });
-  assert.ok(service.ok);
-  const application = await hiring.applyForService.execute({ serviceId: service.value.id, workerId: worker.value.worker.id });
-  assert.ok(application.ok);
-  assert.ok((await hiring.analyzeApplication.execute({ serviceId: service.value.id, application_id: application.value.id, action: 'Accept' })).ok);
-  return { serviceId: service.value.id, workerId: worker.value.worker.id };
 }
 
 after(dropTestDatabases);
@@ -108,14 +92,14 @@ describe('PostgreSQL: repositório', () => {
 
   it('filtra por nulo, guarda o dia sem hora e deixa de fora o campo opcional não informado', async () => {
     const { storage: { repos } } = await database();
-    const base = { farmer_id: 1, farm_id: 1, payment_id: null, name: 'Capina', description: null, category: 'Outros', duration: 2.5, price: 199.9, status: 'Pending' as const, insertion_date: NOW };
+    const base = { farmer_id: 1, farm_id: 1, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 199.9, price_unit: 'hour' as const, name: 'Capina', description: null, category: 'Outros', duration: 2.5, status: 'Pending' as const, insertion_date: NOW };
     const open = await repos.services.create({ ...base, worker_id: null, expires_at: '2026-03-20' });
     await repos.services.create({ ...base, worker_id: 7, expires_at: null });
 
     assert.deepEqual(await repos.services.find({ worker_id: null }), [open]);
     assert.equal(open.expires_at, '2026-03-20');
     assert.equal(open.duration, 2.5);
-    assert.equal(open.price, 199.9);
+    assert.deepEqual([open.price, open.price_unit], [199.9, 'hour']);
 
     const application = await repos.applications.create({ service_id: open.id, worker_id: 7, status: 'Pending', insertion_date: NOW });
     assert.equal('auto_rejected' in application, false);
@@ -141,9 +125,15 @@ describe('PostgreSQL: repositório', () => {
     await repos.applications.create({ ...application, worker_id: 2, status: 'Accepted' });
     await rejectsWithUnique(repos.applications.create({ ...application, worker_id: 3, status: 'Accepted' }));
 
-    const payment = { service_id: 1, farmer_id: 1, worker_id: 1, value: 100, status: 'Completed' as const, insertion_date: NOW };
-    await repos.payments.create(payment);
-    await rejectsWithUnique(repos.payments.create(payment));
+    // Uma candidatura não fica com duas propostas pendentes, nem com duas aceitas.
+    const proposal = {
+      application_id: 1, service_id: 1, farmer_id: 1, worker_id: 1, amount: 100, unit: 'day',
+      notes: null, proposed_by: 'worker', status: 'Pending', insertion_date: NOW, answered_at: null
+    } as const;
+    await repos.proposals.create(proposal);
+    await rejectsWithUnique(repos.proposals.create(proposal));
+    await repos.proposals.create({ ...proposal, status: 'Accepted', answered_at: NOW });
+    await rejectsWithUnique(repos.proposals.create({ ...proposal, status: 'Accepted', answered_at: NOW }));
 
     const user = { email: 'a@exemplo.com', name: 'A', role: 'tutor' as const, password_hash: 'x', insertion_date: NOW };
     await repos.systemUsers.create(user);
@@ -277,20 +267,53 @@ describe('PostgreSQL: subida do servidor', () => {
     const c = createContainer({ clock, passwords, ...storage });
     const { serviceId, workerId } = await acceptedService(c);
 
-    assert.ok((await c.useCases.hiring.payService.execute({ serviceId })).ok);
+    assert.ok((await c.useCases.hiring.payService.execute({ serviceId, value: 599.4 })).ok);
     await c.notifier.idle();
 
-    assert.equal((await c.repos.services.findById(serviceId))?.status, 'Completed');
-    assert.equal((await c.repos.payments.find({ service_id: serviceId })).length, 1);
+    const done = await c.repos.services.findById(serviceId);
+    assert.deepEqual([done?.status, done?.completed_at], ['Completed', NOW]);
+    const [payment] = await c.repos.payments.find({ service_id: serviceId });
+    assert.deepEqual([payment?.id, payment?.value], [done?.payment_id, 599.4]);
+    assert.equal((await c.repos.proposals.find({ service_id: serviceId, status: 'Accepted' })).length, 1);
     assert.equal((await c.repos.chats.find({ service_id: serviceId })).length, 1);
+    assert.ok((await c.repos.chatMessages.find()).some((m) => m.proposal_id !== undefined));
     assert.ok((await c.repos.notifications.find({ role: 'worker', profile_id: workerId })).length > 0);
     // Pagar de novo é recusado pela regra (o serviço já está concluído).
-    assert.equal((await c.useCases.hiring.payService.execute({ serviceId })).ok, false);
+    assert.equal((await c.useCases.hiring.payService.execute({ serviceId, value: 1 })).ok, false);
   });
 
   it('pagamento que falha no meio não grava nada, e o serviço pode ser pago de novo', async () => {
     const { storage } = await database();
     // O banco "cai" na segunda gravação do pagamento (a conclusão do serviço), dentro da transação.
+    let down = false;
+    const flaky = (services: ServiceRepository): ServiceRepository => ({
+      findById: (id) => services.findById(id),
+      find: (criteria) => services.find(criteria),
+      create: (data) => services.create(data),
+      delete: (id) => services.delete(id),
+      update: (service) => (down ? Promise.reject(new Error('queda do banco')) : services.update(service))
+    });
+    const c = createContainer({
+      clock, passwords, ...storage,
+      transaction: (work) => storage.transaction((repos) => work({ ...repos, services: flaky(repos.services) }))
+    });
+    const { serviceId } = await acceptedService(c);
+    down = true;
+
+    await assert.rejects(c.useCases.hiring.payService.execute({ serviceId, value: 300 }), /queda do banco/);
+    assert.deepEqual(await c.repos.payments.find({ service_id: serviceId }), []);
+    assert.equal((await c.repos.services.findById(serviceId))?.status, 'In Progress');
+
+    down = false;
+    assert.ok((await c.useCases.hiring.payService.execute({ serviceId, value: 300 })).ok);
+    assert.equal((await c.repos.payments.find({ service_id: serviceId })).length, 1);
+    assert.equal((await c.repos.services.findById(serviceId))?.status, 'Completed');
+    await c.notifier.idle();
+  });
+
+  it('aceite que falha no meio não grava nada, e pode ser feito de novo', async () => {
+    const { storage } = await database();
+    // O banco "cai" na gravação do serviço no aceite, depois da candidatura, dentro da transação.
     let down = true;
     const flaky = (services: ServiceRepository): ServiceRepository => ({
       findById: (id) => services.findById(id),
@@ -304,17 +327,19 @@ describe('PostgreSQL: subida do servidor', () => {
       transaction: (work) => storage.transaction((repos) => work({ ...repos, services: flaky(repos.services) }))
     });
     down = false;
-    const { serviceId } = await acceptedService(c);
+    const { serviceId, applicationId } = await negotiatedService(c);
     down = true;
 
-    await assert.rejects(c.useCases.hiring.payService.execute({ serviceId }), /queda do banco/);
-    assert.deepEqual(await c.repos.payments.find({ service_id: serviceId }), []);
-    assert.equal((await c.repos.services.findById(serviceId))?.status, 'In Progress');
+    const accept = (): ReturnType<typeof c.useCases.hiring.analyzeApplication.execute> =>
+      c.useCases.hiring.analyzeApplication.execute({ serviceId, application_id: applicationId, action: 'Accept' });
+    await assert.rejects(accept(), /queda do banco/);
+    assert.equal((await c.repos.applications.findById(applicationId))?.status, 'Pending');
+    assert.equal((await c.repos.services.findById(serviceId))?.status, 'Pending');
 
     down = false;
-    assert.ok((await c.useCases.hiring.payService.execute({ serviceId })).ok);
-    assert.equal((await c.repos.payments.find({ service_id: serviceId })).length, 1);
-    assert.equal((await c.repos.services.findById(serviceId))?.status, 'Completed');
+    assert.ok((await accept()).ok);
+    assert.equal((await c.repos.applications.findById(applicationId))?.status, 'Accepted');
+    assert.equal((await c.repos.services.findById(serviceId))?.status, 'In Progress');
     await c.notifier.idle();
   });
 });

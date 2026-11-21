@@ -33,7 +33,7 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
         body: 'ServiceInput',
         success: { status: 201, description: 'Serviço publicado.', schema: 'ServiceResponse' },
         errors: {
-          400: 'Campo obrigatório faltando; `category` fora de GET /api/categories; `duration` ou `price` não é número maior que zero; fazenda de outro produtor.',
+          400: 'Campo obrigatório faltando; `category` fora de GET /api/categories; `duration` não é número maior que zero; fazenda de outro produtor.',
           404: 'Produtor não encontrado; fazenda não encontrada ou removida.'
         }
       }), access.farmerInBody()),
@@ -54,7 +54,7 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
         body: 'ServiceUpdate',
         success: { status: 200, description: 'Serviço atualizado.', schema: 'ServiceResponse' },
         errors: {
-          400: 'Tentou alterar `farmer_id`, `worker_id`, `payment_id` ou `status`; nome ou categoria vazios; `category` fora de GET /api/categories; duração ou valor inválidos; fazenda de outro produtor.',
+          400: 'Tentou alterar `farmer_id`, `worker_id` ou `status`; nome ou categoria vazios; `category` fora de GET /api/categories; duração inválida; fazenda de outro produtor.',
           404: 'Serviço não encontrado; fazenda não encontrada ou removida.',
           409: 'O serviço não está mais `Pending`.'
         }
@@ -98,7 +98,7 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
           queryParam('from', 'Publicadas a partir deste dia.', date),
           queryParam('to', 'Publicadas até este dia.', date),
           queryParam('min_rating', 'Só fazendas com média de avaliação a partir desta nota (fazendas sem avaliação ficam de fora).', { type: 'number', minimum: 1, maximum: 5 }),
-          queryParam('sort', 'Ordem. Padrão: recent. `rating`: fazendas mais bem avaliadas primeiro (média ponderada pela quantidade de avaliações).', { type: 'string', enum: ['recent', 'price_desc', 'price_asc', 'duration_asc', 'duration_desc', 'rating'] })
+          queryParam('sort', 'Ordem. Padrão: recent. `rating`: fazendas mais bem avaliadas primeiro (média ponderada pela quantidade de avaliações).', { type: 'string', enum: ['recent', 'duration_asc', 'duration_desc', 'rating'] })
         ],
         success: { status: 200, description: 'Vagas abertas.', schema: { listOf: 'OpenService' } },
         errors: { 400: '`category` ou `category_group` desconhecidos; número ou data em formato inválido; mínimo maior que o máximo; `from` depois de `to`; `min_rating` fora de 1 a 5; `sort` desconhecido.' }

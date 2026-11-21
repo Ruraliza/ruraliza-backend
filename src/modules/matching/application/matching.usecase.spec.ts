@@ -29,8 +29,8 @@ describe('Vagas para você', () => {
 
   const publish = (name: string, category: string, farmId = farmTresRios, changes: Partial<Service> = {}): Promise<Service> =>
     deps.services.create({
-      farmer_id: 1, farm_id: farmId, payment_id: null, worker_id: null, name, description: null, category,
-      duration: 8, price: 1800, expires_at: null, status: 'Pending', insertion_date: deps.clock.now(), ...changes
+      farmer_id: 1, farm_id: farmId, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 200, price_unit: 'fixed', worker_id: null, name, description: null, category,
+      duration: 8, expires_at: null, status: 'Pending', insertion_date: deps.clock.now(), ...changes
     });
 
   beforeEach(async () => {
@@ -121,7 +121,7 @@ describe('Vagas para você', () => {
       [1, 'Vaga nova perto de você'], [1, 'Vaga nova perto de você'], [1, 'Vaga nova perto de você']
     ]);
     assert.deepEqual(pushes[0]?.message, {
-      title: 'Vaga nova perto de você', body: 'Colheita de café em Três Rios, RJ (a 1 km): 8 horas por R$ 1.800.', url: `trabalhador/vagas/${first.id}`
+      title: 'Vaga nova perto de você', body: 'Colheita de café em Três Rios, RJ (a 1 km): 8 horas, estimativa de R$\u00a0200,00 pela empreitada.', url: `trabalhador/vagas/${first.id}`
     });
   });
 

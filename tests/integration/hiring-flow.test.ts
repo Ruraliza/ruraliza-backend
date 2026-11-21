@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { type Container, createContainer } from '../../src/container';
-import { NOW, farmerWithFarm, openService, setup, unwrap, worker } from './support';
+import { NOW, farmerWithFarm, hire, openService, setup, unwrap, worker } from './support';
 
 describe('HiringUseCases', () => {
   it('desistir depois do aceite devolve o serviço e só as candidaturas recusadas pelo aceite', async () => {
@@ -22,7 +22,7 @@ describe('HiringUseCases', () => {
     const a3 = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w3 }));
 
     unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a3.id, action: 'Reject' }));
-    const accepted = unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a1.id, action: 'Accept' }));
+    const accepted = unwrap(await hire(c, serviceId, a1.id));
     assert.equal(accepted.service?.status, 'In Progress');
 
     const withdrawn = unwrap(await c.useCases.hiring.withdrawFromService.execute({ serviceId: serviceId, workerId: w1 }));
@@ -67,22 +67,29 @@ describe('HiringUseCases', () => {
     assert.equal(forOther.some((s) => s.id === serviceId), true);
   });
 
-  it('pagamento só em serviço em andamento, e conclui o serviço', async () => {
+  it('pagamento só em serviço em andamento: conclui com o total informado, libera a avaliação e dá prazo à conversa', async () => {
     const c = setup();
     const { farmerId, farmId } = await farmerWithFarm(c);
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'w@exemplo.com', '11144477735');
 
-    const early = await c.useCases.hiring.payService.execute({ serviceId: serviceId });
+    const early = await c.useCases.hiring.payService.execute({ serviceId, value: 300 });
     assert.equal(early.ok ? 'ok' : early.kind, 'conflict');
 
     const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
-    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
-    const { service, payment } = unwrap(await c.useCases.hiring.payService.execute({ serviceId: serviceId }));
-    assert.equal(service.status, 'Completed');
-    assert.equal(payment.value, 200);
-    assert.equal(payment.worker_id, w);
-    assert.equal(payment.insertion_date, NOW);
+    unwrap(await hire(c, serviceId, app.id));
+    const { service, payment } = unwrap(await c.useCases.hiring.payService.execute({ serviceId, value: 450 }));
+    assert.deepEqual([service.status, service.payment_id, service.completed_at], ['Completed', payment.id, NOW]);
+    assert.deepEqual([payment.value, payment.worker_id, payment.insertion_date], [450, w, NOW]);
+    const [chat] = await c.repos.chats.find({ service_id: serviceId });
+    assert.ok(chat?.closes_at !== null && chat?.closes_at !== undefined && chat.closes_at > NOW);
+    const pending = await c.useCases.reviews.listPendingReviews.forWorker({ workerId: w });
+    assert.deepEqual(pending.map((p) => p.service_id), [serviceId]);
+
+    // Só o trabalhador aceito vê o pagamento junto do serviço.
+    const mine = unwrap(await c.useCases.services.getOpenService.execute({ serviceId, viewerWorkerId: w }));
+    const other = unwrap(await c.useCases.services.getOpenService.execute({ serviceId }));
+    assert.deepEqual([mine.payment, other.payment], [{ value: 450, paid_at: NOW }, null]);
   });
 });
 describe('Validade das vagas (expires_at)', () => {
@@ -97,7 +104,7 @@ describe('Validade das vagas (expires_at)', () => {
     const { c, setNow } = setupAt();
     const { farmerId, farmId } = await farmerWithFarm(c);
     const service = unwrap(await c.useCases.services.publishService.execute({
-      farmer_id: farmerId, farm_id: farmId, name: 'Colheita', category: 'Colheita', duration: 8, price: 300, expires_at: '2026-10-01'
+      farmer_id: farmerId, farm_id: farmId, name: 'Colheita', category: 'Colheita', duration: 8, price: 150, price_unit: 'day', expires_at: '2026-10-01'
     }));
     const w = await worker(c, 'w@exemplo.com', '11144477735');
 
@@ -135,7 +142,7 @@ describe('Localização da fazenda para o trabalhador', () => {
 
     const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: accepted }));
     unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: other }));
-    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
+    unwrap(await hire(c, serviceId, app.id));
 
     const seen = unwrap(await c.useCases.services.getOpenService.execute({ serviceId: serviceId, viewerWorkerId: accepted })).farm;
     assert.deepEqual([seen.latitude, seen.longitude], [-22.1165, -43.2092]);
@@ -157,7 +164,7 @@ describe('Localização da fazenda para o trabalhador', () => {
     const serviceId = await openService(c, farmerId, farmId);
     const w = await worker(c, 'a@exemplo.com', '11144477735');
     const app = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w }));
-    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: app.id, action: 'Accept' }));
+    unwrap(await hire(c, serviceId, app.id));
 
     assert.equal('latitude' in unwrap(await c.useCases.services.getOpenService.execute({ serviceId: serviceId, viewerWorkerId: w })).farm, false);
   });

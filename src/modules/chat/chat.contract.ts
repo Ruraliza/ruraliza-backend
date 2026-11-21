@@ -1,16 +1,20 @@
+import type { Proposal } from '#modules/hiring';
+import type { ServiceEstimate } from '#modules/services';
 import type { MessageResponse } from '#shared/contracts/api';
 
-// Conversa interna de um serviço entre o produtor e o trabalhador aceito. Abre no aceite,
-// fecha se o trabalhador desistir e fica aberta por 7 dias depois do pagamento.
-// Os números de WhatsApp só aparecem quando os dois liberam.
+// Conversa interna de um serviço entre o produtor e um candidato. O produtor a abre a partir da candidatura,
+// para negociar antes do aceite; ela fecha na recusa, no aceite de outro, na desistência e no cancelamento
+// da vaga, e fica aberta por 7 dias depois do pagamento. Os números de WhatsApp só aparecem quando os dois
+// liberam, o que só é possível depois do aceite.
 
 export type ChatSender = 'farmer' | 'worker' | 'system';
 
 export interface ChatMessage {
   id: number;
   chat_id: number;
-  sender: ChatSender; // 'system': aviso da plataforma (aceite, desistência, pagamento, WhatsApp)
+  sender: ChatSender; // 'system': aviso da plataforma (conversa aberta, aceite, recusa, desistência, pagamento, WhatsApp)
   body: string;
+  proposal_id?: number; // aviso de uma proposta: o cartão dela está em ChatDetail.proposals
   insertion_date: string;
 }
 
@@ -30,6 +34,7 @@ export interface Chat {
   worker: ChatPerson;
   farmer_shares_phone: boolean;
   worker_shares_phone: boolean;
+  hired: boolean; // o trabalhador foi aceito neste serviço (em andamento ou concluído): o WhatsApp pode ser liberado
   open: boolean; // aceita mensagens
   closes_at: string | null; // quando deixa (deixou) de aceitar mensagens; null enquanto o serviço está em andamento
   unread: number; // mensagens da outra parte (e avisos) que quem pediu ainda não leu
@@ -40,6 +45,9 @@ export interface Chat {
 // GET /chats/:id
 export interface ChatDetail extends Chat {
   messages: ChatMessage[]; // da mais antiga para a mais nova
+  application_id: number | null; // a candidatura em negociação (null se o trabalhador desistiu dela)
+  proposals: Proposal[]; // as propostas desta candidatura, da mais antiga para a mais nova
+  estimate: ServiceEstimate | null; // a estimativa da vaga: o app pré-preenche a primeira proposta com ela (null nas vagas antigas)
 }
 
 // POST /chats/:id/messages

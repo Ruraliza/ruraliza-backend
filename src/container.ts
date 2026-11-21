@@ -6,7 +6,7 @@ import { type FarmerUseCases, createFarmerUseCases } from '#modules/farmers';
 import { type FarmUseCases, createFarmUseCases } from '#modules/farms';
 import { type FarmStatsUseCases, createFarmStatsUseCases } from '#modules/farm-stats';
 import { type HelpUseCases, createHelpUseCases } from '#modules/help';
-import { type HiringUseCases, createHiringUseCases } from '#modules/hiring';
+import { type HiringUseCases, createHiringUseCases, servicePaymentReader } from '#modules/hiring';
 import { type MatchingUseCases, createMatchingUseCases } from '#modules/matching';
 import { type PhotoUseCases, createPhotoUseCases } from '#modules/media';
 import {
@@ -133,8 +133,8 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const notifier = createPushDispatcher(pushDeps);
   // Avaliações e conversas vêm antes: a contratação e as vagas leem a reputação, a contratação abre
   // e fecha a conversa, e a remoção de um perfil apaga as conversas e as avaliações dele.
-  const reviewUseCases = createReviewUseCases({ services, payments, farms, workers, workerReviews, farmReviews, clock, changes, push: notifier });
-  const chatUseCases = createChatUseCases({ chats, chatMessages, services, farmers, workers, clock, changes, push: notifier });
+  const reviewUseCases = createReviewUseCases({ services, farms, workers, workerReviews, farmReviews, clock, changes, push: notifier });
+  const chatUseCases = createChatUseCases({ chats, chatMessages, services, applications, proposals: repos.proposals, farmers, workers, clock, changes, push: notifier });
   // A verificação vem antes das vagas e da contratação, que mostram o selo.
   const verificationUseCases = createVerificationUseCases({
     verifications: repos.verifications, farmers, workers, accounts, idDocuments: { processor: imageProcessor, store: idDocuments }, clock, push: notifier
@@ -154,13 +154,20 @@ export function createContainer(options: ContainerOptions = {}): Container {
     }
   };
   const reputation = reviewUseCases.getReputation;
+  // O pagamento de cada serviço, que só o trabalhador aceito vê junto do serviço dele.
+  const servicePayments = servicePaymentReader(payments);
+  // A contratação lê e grava as propostas; a conversa abre, fecha e mostra cada etapa.
+  const hiringUseCases = createHiringUseCases({
+    services, applications, payments, proposals: repos.proposals, transaction, workers, accounts, clock, changes, push: notifier,
+    events: chatUseCases.hiringEvents, chats: chatUseCases.negotiationChats, reputation, verification: verificationUseCases.reader
+  });
   // Vagas para você: as recomendações e os avisos de vaga nova (ligados na publicação das vagas).
   const matchingUseCases = createMatchingUseCases({
     jobPreferences: repos.jobPreferences, jobAlerts: repos.jobAlerts, services, farms, applications, tracks, enrollments, workers, accounts,
     reputation, verification: verificationUseCases.reader, clock, push: notifier
   });
   const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes, cleanup });
-  const workerUseCases = createWorkerUseCases({ workers, farmers, farms, services, applications, accounts, pushSubscriptions, clock, images, documents, passwords, changes, cleanup });
+  const workerUseCases = createWorkerUseCases({ servicePayments, workers, farmers, farms, services, applications, accounts, pushSubscriptions, clock, images, documents, passwords, changes, cleanup });
   // O segundo perfil de uma conta (src/modules/accounts) é criado pelos casos de uso dos perfis.
   const profiles: ProfileFactory = {
     create: (role, { bio, certificates, courses, experience, ...base }) => role === 'farmer'
@@ -185,10 +192,13 @@ export function createContainer(options: ContainerOptions = {}): Container {
       workers: workerUseCases,
       farms: createFarmUseCases({ farmers, farms, services, clock }),
       services: createServiceUseCases({
-        farmers, farms, services, applications, clock, changes, push: notifier, reputation, verification: verificationUseCases.reader,
-        jobEvents: { jobPublished: (service) => matchingUseCases.alerts.jobPublished(service) }
+        farmers, farms, services, applications, clock, changes, push: notifier, reputation, verification: verificationUseCases.reader, servicePayments,
+        jobEvents: { jobPublished: (service) => matchingUseCases.alerts.jobPublished(service), jobCancelled: async (service) => {
+          await hiringUseCases.jobEvents.jobCancelled(service);
+          await chatUseCases.hiringEvents.jobCancelled(service);
+        } }
       }),
-      hiring: createHiringUseCases({ services, applications, payments, transaction, workers, accounts, clock, changes, push: notifier, events: chatUseCases.hiringEvents, reputation, verification: verificationUseCases.reader }),
+      hiring: hiringUseCases,
       reviews: reviewUseCases,
       chat: chatUseCases,
       photos: createPhotoUseCases({ farmers, workers, farms, images: { processor: imageProcessor, store: images } }),

@@ -1,4 +1,3 @@
-import type { PaymentRepository } from '#modules/hiring';
 import type { ServiceRepository } from '#modules/services';
 import type { WorkerRepository } from '#modules/workers';
 import type { Clock } from '#shared/domain/clock';
@@ -9,7 +8,6 @@ import { farmerView, workerView } from './review-views';
 
 export interface GetServiceReviewsDeps {
   services: ServiceRepository;
-  payments: PaymentRepository;
   workerReviews: WorkerReviewRepository;
   farmReviews: FarmReviewRepository;
   workers: WorkerRepository;

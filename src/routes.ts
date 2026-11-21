@@ -93,7 +93,7 @@ export function createRouteGroups({ useCases, repos, tokens, changes }: Pick<Con
         ...tracks.progress // estudo da trilha, aulas concluídas e certificados
       ]
     },
-    { prefix: '/api/chats', routes: chat.chats },
+    { prefix: '/api/chats', routes: [...hiring.chats, ...chat.chats] }, // propostas e conversa
     { prefix: '/api/reviews', routes: reviews.reputation },
     { prefix: '/api/admin', routes: [...createAdminRoutes(useCases, systemUsers.admin, access), ...tracks.manage, ...help.admin, ...reports.admin, ...verification.admin, ...sponsors.admin] },
     { prefix: '/api/help', routes: help.public },

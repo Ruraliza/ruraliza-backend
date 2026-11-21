@@ -2,13 +2,13 @@ import type { ServiceResponse } from '#modules/services';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import { APPLICATIONS_CHANGED_EVENT, openEventStream, sendEvent } from '#shared/infra/http/sse';
-import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { AnalyzeResponse, ApplicationResponse, ApplicationWithWorker, PaymentResponse } from '../hiring.contract';
+import type { Handler, IdParams, ProposalParams } from '#shared/infra/http/types';
+import type { AnalyzeResponse, ApplicationResponse, ApplicationWithWorker, PaymentResponse, ProposalResponse } from '../hiring.contract';
 import type { HiringUseCases } from '../hiring.module';
-import { parseAnalyzeInput, parseWorkerAction } from './hiring.parsers';
+import { parseAnalyzeInput, parseApplyInput, parsePaymentInput, parseProposalAnswer, parseProposalInput, parseWorkerAction, viewerOf } from './hiring.parsers';
 
-// HTTP da contratação: candidaturas do serviço (com os avisos em tempo real), aceite/recusa e
-// pagamento (produtor); candidatura e desistência (trabalhador).
+// HTTP da contratação: candidaturas do serviço (com os avisos em tempo real), aceite/recusa e pagamento
+// (produtor); candidatura e desistência (trabalhador); propostas (conversa).
 export interface HiringController {
   listServiceApplications: Handler<ApplicationWithWorker[], IdParams>;
   serviceApplicationEvents: Handler<never, IdParams>;
@@ -16,6 +16,8 @@ export interface HiringController {
   processPayment: Handler<PaymentResponse, IdParams>;
   applyForService: Handler<ApplicationResponse, IdParams>;
   withdrawFromService: Handler<ServiceResponse, IdParams>;
+  propose: Handler<ProposalResponse, IdParams>;
+  answerProposal: Handler<ProposalResponse, ProposalParams>;
 }
 
 export function createHiringController(hiring: HiringUseCases): HiringController {
@@ -50,19 +52,22 @@ export function createHiringController(hiring: HiringUseCases): HiringController
     res.status(200).json({ message: 'Worker accepted successfully. Service is now in progress!', service, application });
   };
 
-  // RF04 - POST /api/farmers/services/:id/payment - Libera o pagamento (simulação)
+  // RF04 - POST /api/farmers/services/:id/payment - Libera o pagamento (simulação) do total informado e conclui o serviço
   const processPayment: Handler<PaymentResponse, IdParams> = async (req, res) => {
-    const result = await hiring.payService.execute({ serviceId: toId(req.params.id) });
+    const input = parsePaymentInput(toBody(req.body));
+    if (!input.ok) { sendFailure(res, input); return; }
+    const result = await hiring.payService.execute({ serviceId: toId(req.params.id), value: input.value.value });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(200).json({ message: 'Payment released and service completed successfully!', ...result.value });
   };
 
   // RF02 - POST /api/workers/services/:id/apply - Candidata-se a um serviço
   const applyForService: Handler<ApplicationResponse, IdParams> = async (req, res) => {
-    const input = parseWorkerAction(toBody(req.body));
+    const input = parseApplyInput(toBody(req.body));
     if (!input.ok) { sendFailure(res, input); return; }
 
-    const result = await hiring.applyForService.execute({ serviceId: toId(req.params.id), workerId: input.value.worker_id });
+    const { worker_id, message } = input.value;
+    const result = await hiring.applyForService.execute({ serviceId: toId(req.params.id), workerId: worker_id, ...(message ? { message } : {}) });
     if (!result.ok) { sendFailure(res, result); return; }
     res.status(201).json({
       message: "Application sent successfully! Wait for the farmer's approval.",
@@ -85,5 +90,25 @@ export function createHiringController(hiring: HiringUseCases): HiringController
     res.status(200).json({ message, service });
   };
 
-  return { listServiceApplications, serviceApplicationEvents, analyzeOffer, processPayment, applyForService, withdrawFromService };
+  // POST /api/chats/:id/proposals - Proposta de valor e pagamento na conversa
+  const propose: Handler<ProposalResponse, IdParams> = async (req, res) => {
+    const input = parseProposalInput(toBody(req.body));
+    if (!input.ok) { sendFailure(res, input); return; }
+    const result = await hiring.propose.execute({ chatId: toId(req.params.id), viewer: viewerOf(res.locals.principal), terms: input.value });
+    if (!result.ok) { sendFailure(res, result); return; }
+    res.status(201).json({ message: 'Proposal sent.', proposal: result.value });
+  };
+
+  // PATCH /api/chats/:id/proposals/:proposalId - Aceita ou recusa a proposta do outro lado
+  const answerProposal: Handler<ProposalResponse, ProposalParams> = async (req, res) => {
+    const input = parseProposalAnswer(toBody(req.body));
+    if (!input.ok) { sendFailure(res, input); return; }
+    const result = await hiring.answerProposal.execute({
+      chatId: toId(req.params.id), proposalId: toId(req.params.proposalId), viewer: viewerOf(res.locals.principal), action: input.value.action
+    });
+    if (!result.ok) { sendFailure(res, result); return; }
+    res.status(200).json({ message: input.value.action === 'Accept' ? 'Proposal accepted.' : 'Proposal declined.', proposal: result.value });
+  };
+
+  return { propose, answerProposal, listServiceApplications, serviceApplicationEvents, analyzeOffer, processPayment, applyForService, withdrawFromService };
 }

@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { type Container, createContainer } from '../../src/container';
-import { NOW, farmerWithFarm, openService, setup, unwrap, worker } from './support';
+import { NOW, agree, farmerWithFarm, openService, setup, unwrap, worker } from './support';
 
 describe('Avisos em tempo real (SSE)', () => {
   // Conta quantas vezes cada tela aberta seria avisada.
@@ -41,9 +41,10 @@ describe('Avisos em tempo real (SSE)', () => {
     const [w1, w2] = [await worker(c, 'w1@exemplo.com', '11144477735'), await worker(c, 'w2@exemplo.com', '39053344705')];
     const a1 = unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w1 }));
     unwrap(await c.useCases.hiring.applyForService.execute({ serviceId: serviceId, workerId: w2 }));
+    await agree(c, serviceId, a1.id);
     const [screen1, screen2] = [await watch(c, 'worker', w1), await watch(c, 'worker', w2)];
 
-    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a1.id, action: 'Accept' }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId, application_id: a1.id, action: 'Accept' }));
     assert.deepEqual([screen1.count(), screen2.count()], [1, 1]); // aceito e recusado pelo aceite
 
     unwrap(await c.useCases.hiring.withdrawFromService.execute({ serviceId: serviceId, workerId: w1 }));
@@ -103,8 +104,10 @@ describe('Notificações push', () => {
       ['https://push.exemplo.com/produtor', `produtor/servicos/${serviceId}`]
     ]);
 
+    await agree(c, serviceId, a1.id);
+    await c.notifier.idle();
     sent.length = 0;
-    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId: serviceId, application_id: a1.id, action: 'Accept' }));
+    unwrap(await c.useCases.hiring.analyzeApplication.execute({ serviceId, application_id: a1.id, action: 'Accept' }));
     await c.notifier.idle();
     assert.deepEqual(sent.map((s) => [s.endpoint, s.title]), [
       ['https://push.exemplo.com/w1', 'Você foi aceito!'],

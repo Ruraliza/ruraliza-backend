@@ -54,7 +54,7 @@ export function farmerRoutes(farmers: FarmerController, access: AccessPolicies):
     route('delete', '/:id', farmers.deleteFarmer, farmerOperation({
       tag: TAGS.farmers,
       summary: 'Remover produtor',
-      description: 'Remove também as fazendas, os serviços e as candidaturas desses serviços. Pagamentos ficam como histórico.',
+      description: 'Remove também as fazendas, os serviços e as candidaturas desses serviços.',
       params: [farmerId],
       success: { status: 200, description: 'Produtor removido.', schema: 'MessageResponse' },
       errors: { 404: 'Produtor não encontrado.', 409: 'O produtor tem serviço `In Progress`.' }

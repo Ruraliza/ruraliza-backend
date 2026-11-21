@@ -1,6 +1,5 @@
 import type { AccessPolicies } from '#modules/auth';
 import type { FarmRepository } from '#modules/farms';
-import type { PaymentRepository } from '#modules/hiring';
 import type { PushNotifier } from '#modules/notifications';
 import type { ServiceRepository } from '#modules/services';
 import type { WorkerRepository } from '#modules/workers';
@@ -18,7 +17,6 @@ import { type ReviewRoutes, reviewRoutes } from './presentation/review.routes';
 
 export interface ReviewsModuleDeps {
   services: ServiceRepository;
-  payments: PaymentRepository;
   farms: FarmRepository;
   workers: WorkerRepository;
   workerReviews: WorkerReviewRepository;

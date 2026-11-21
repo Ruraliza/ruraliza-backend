@@ -21,7 +21,7 @@ describe('GetOpenServiceUseCase', () => {
 
     const job = unwrap(await getOpen.execute({ serviceId: service.id, viewerWorkerId: 7 }));
 
-    assert.deepEqual(job, { ...service, farm: { city: 'Três Rios', state: 'RJ', photos: [PHOTO.url] } });
+    assert.deepEqual(job, { ...service, farm: { city: 'Três Rios', state: 'RJ', photos: [PHOTO.url] }, payment: null });
   });
 
   it('só o trabalhador aceito recebe o ponto no mapa', async () => {

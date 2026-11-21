@@ -55,7 +55,7 @@ export class GetFarmerStatsUseCase {
     const completed: { service: Service; paidAt: string; paid: number }[] = [];
     for (const service of own.filter((s) => s.status === SERVICE_STATUS.COMPLETED)) {
       const [payment] = await payments.find({ service_id: service.id });
-      completed.push({ service, paidAt: payment?.insertion_date ?? service.insertion_date, paid: payment?.value ?? service.price });
+      completed.push({ service, paidAt: payment?.insertion_date ?? service.completed_at ?? service.insertion_date, paid: payment?.value ?? 0 });
     }
 
     const months = new Map<string, FarmerStatsMonth>(lastMonths(dayOf(now)).map((month) => [month, { month, services: 0, hours: 0, paid: 0 }]));

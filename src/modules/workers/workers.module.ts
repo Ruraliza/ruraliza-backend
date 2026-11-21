@@ -4,7 +4,7 @@ import type { FarmerRepository } from '#modules/farmers';
 import type { FarmRepository } from '#modules/farms';
 import type { ApplicationRepository } from '#modules/hiring';
 import type { PushSubscriptionRepository } from '#modules/notifications';
-import type { ServiceRepository } from '#modules/services';
+import type { ServicePaymentReader, ServiceRepository } from '#modules/services';
 import type { ChangeFeed } from '#shared/domain/changes';
 import type { ProfileCleanup } from '#shared/domain/profile-cleanup';
 import type { Clock } from '#shared/domain/clock';
@@ -31,6 +31,8 @@ import { type WorkerRoutes, workerRoutes } from './presentation/worker.routes';
 
 export interface WorkersModuleDeps {
   workers: WorkerRepository;
+  // O pagamento dos serviços do trabalhador (módulo de contratação).
+  servicePayments: ServicePaymentReader;
   farmers: FarmerRepository;
   farms: FarmRepository;
   services: ServiceRepository;

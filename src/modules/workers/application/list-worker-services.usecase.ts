@@ -1,5 +1,5 @@
 import type { FarmRepository } from '#modules/farms';
-import { type OpenService, type ServiceRepository, toOpenService } from '#modules/services';
+import { type OpenService, type ServicePaymentReader, type ServiceRepository, toOpenService } from '#modules/services';
 import { type Result, notFound, ok } from '#shared/domain/result';
 import type { WorkerRepository } from '../domain/worker.repository';
 
@@ -7,9 +7,10 @@ export interface ListWorkerServicesDeps {
   workers: WorkerRepository;
   services: ServiceRepository;
   farms: FarmRepository;
+  servicePayments: ServicePaymentReader;
 }
 
-// Serviços em que o trabalhador foi aceito (em andamento ou concluídos), com o ponto no mapa.
+// Serviços em que o trabalhador foi aceito (em andamento ou concluídos), com o ponto no mapa, o combinado e o pagamento.
 export class ListWorkerServicesUseCase {
   constructor(private readonly deps: ListWorkerServicesDeps) {}
 
@@ -18,6 +19,6 @@ export class ListWorkerServicesUseCase {
     if (!worker) return notFound('Trabalhador não encontrado.');
 
     const assigned = await this.deps.services.find({ worker_id: worker.id });
-    return ok(await Promise.all(assigned.map((s) => toOpenService(this.deps.farms, s, worker.id))));
+    return ok(await Promise.all(assigned.map((s) => toOpenService(this.deps.farms, s, worker.id, this.deps.servicePayments))));
   }
 }

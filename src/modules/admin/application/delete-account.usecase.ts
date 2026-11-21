@@ -24,7 +24,7 @@ export class DeleteAccountUseCase {
     const { services } = this.deps;
     if (account.farmer_id !== null) {
       const own = await services.find({ farmer_id: account.farmer_id, status: SERVICE_STATUS.IN_PROGRESS });
-      if (own.length > 0) return conflict('Não é possível remover: o produtor tem serviço em andamento. O pagamento precisa ser concluído antes.');
+      if (own.length > 0) return conflict('Não é possível remover: o produtor tem serviço em andamento. O serviço precisa ser concluído antes.');
     }
     if (account.worker_id !== null) {
       const assigned = await services.find({ worker_id: account.worker_id, status: SERVICE_STATUS.IN_PROGRESS });

@@ -1,5 +1,4 @@
 import type { FarmRepository } from '#modules/farms';
-import type { PaymentRepository } from '#modules/hiring';
 import { SERVICE_STATUS, type Service, type ServiceRepository } from '#modules/services';
 import type { WorkerRepository } from '#modules/workers';
 import type { Clock } from '#shared/domain/clock';
@@ -11,7 +10,6 @@ import { reviewWindow } from './review-views';
 
 export interface ListPendingReviewsDeps {
   services: ServiceRepository;
-  payments: PaymentRepository;
   farms: FarmRepository;
   workers: WorkerRepository;
   workerReviews: WorkerReviewRepository;
@@ -30,7 +28,7 @@ export class ListPendingReviewsUseCase {
     const { services, workers, workerReviews, farmReviews } = this.deps;
     const pending: PendingReview[] = [];
     for (const service of await services.find({ farmer_id: farmerId, status: SERVICE_STATUS.COMPLETED })) {
-      const windowEnds = await this.openWindow(service);
+      const windowEnds = this.openWindow(service);
       if (windowEnds === null || service.worker_id === null) continue;
       if ((await workerReviews.find({ service_id: service.id })).length > 0) continue;
       const worker = await workers.findById(service.worker_id);
@@ -49,7 +47,7 @@ export class ListPendingReviewsUseCase {
     const { services, farms, workerReviews, farmReviews } = this.deps;
     const pending: PendingReview[] = [];
     for (const service of await services.find({ worker_id: workerId, status: SERVICE_STATUS.COMPLETED })) {
-      const windowEnds = await this.openWindow(service);
+      const windowEnds = this.openWindow(service);
       if (windowEnds === null) continue;
       if ((await farmReviews.find({ service_id: service.id })).length > 0) continue;
       const farm = requireFound(await farms.findById(service.farm_id), `fazenda do serviço ${service.id}`);
@@ -63,8 +61,8 @@ export class ListPendingReviewsUseCase {
     return pending.sort(byDeadline);
   }
 
-  private async openWindow(service: Service): Promise<string | null> {
-    const windowEnds = await reviewWindow(this.deps.payments, service);
+  private openWindow(service: Service): string | null {
+    const windowEnds = reviewWindow(service);
     return windowEnds !== null && isWindowOpen(windowEnds, this.deps.clock.now()) ? windowEnds : null;
   }
 

@@ -8,8 +8,10 @@ const chatId = pathParam('id', 'ID da conversa.');
 const chatOperation = operation<ChatSchemaName>;
 
 const LIFECYCLE =
-  'A conversa de um serviço abre quando o produtor aceita o trabalhador, fecha se ele desistir e continua aberta por 7 dias ' +
-  'depois do pagamento. Os telefones (`phone`) só aparecem quando os dois liberaram o WhatsApp.';
+  'O produtor abre a conversa a partir de uma candidatura pendente, para negociar antes do aceite. Ela fecha quando a candidatura ' +
+  'é recusada, quando outro trabalhador é aceito, quando o trabalhador desiste e quando a vaga é cancelada, reabre se o aceito ' +
+  'desistir e continua aberta por 7 dias depois do pagamento. Os telefones (`phone`) só aparecem quando os dois liberaram o ' +
+  'WhatsApp, o que só é possível depois do aceite.';
 
 function listEvents(role: string, listPath: string): string {
   return 'Server-Sent Events (`text/event-stream`), para usar com `EventSource`. A conexão fica aberta e `event: chats` ' +
@@ -29,6 +31,21 @@ export interface ChatRoutes {
 export function chatRoutes(chat: ChatController, access: AccessPolicies): ChatRoutes {
   return {
     farmer: [
+      route('post', '/services/:id/applications/:applicationId/chat', chat.openChat, chatOperation({
+        tag: TAGS.chat,
+        summary: 'Conversar com o candidato',
+        description:
+          'Só o produtor abre a conversa, a partir de uma candidatura `Pending` de uma vaga `Pending` dele; o trabalhador recebe push. ' +
+          'Abrir de novo devolve a mesma conversa, e uma conversa encerrada é reaberta. ' + LIFECYCLE,
+        params: [pathParam('id', 'ID do serviço.'), pathParam('applicationId', 'ID da candidatura.')],
+        success: { status: 200, description: 'A conversa com o candidato (nova, reaberta ou a que já existia).', schema: 'ChatResponse' },
+        errors: {
+          400: 'A candidatura é de outro serviço.',
+          404: 'Serviço ou candidatura não encontrados.',
+          409: 'A vaga não está mais aberta ou a candidatura já foi analisada.'
+        }
+      }), access.farmerOfService()),
+
       route('get', '/:id/chats', chat.farmerChats, chatOperation({
         tag: TAGS.chat,
         summary: 'Conversas do produtor',
@@ -109,11 +126,12 @@ export function chatRoutes(chat: ChatController, access: AccessPolicies): ChatRo
         summary: 'Liberar o WhatsApp',
         description:
           '`share: true` libera o número de quem pede; `false` deixa de compartilhar. Os dois números só aparecem (`farmer.phone` e ' +
-          '`worker.phone`) quando os dois liberaram. Cada mudança deixa um aviso na conversa.',
+          '`worker.phone`) quando os dois liberaram. Liberar só é possível depois do aceite, na conversa com o trabalhador aceito ' +
+          '(serviço `In Progress` ou `Completed`). Cada mudança deixa um aviso na conversa.',
         params: [chatId],
         body: 'ChatPhoneInput',
         success: { status: 200, description: 'Conversa atualizada.', schema: 'ChatResponse' },
-        errors: { 400: '`share` não é true/false.', 404: 'Conversa não encontrada.', 409: 'A conversa foi encerrada.' }
+        errors: { 400: '`share` não é true/false.', 404: 'Conversa não encontrada.', 409: 'A conversa foi encerrada; o trabalhador ainda não foi aceito neste serviço.' }
       }), access.chatParticipant())
     ]
   };

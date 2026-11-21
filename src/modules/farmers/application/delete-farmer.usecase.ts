@@ -22,7 +22,7 @@ export interface DeleteFarmerDeps {
 }
 
 // Remove em cascata: conversas e avaliações → candidaturas → serviços → fazendas (e fotos) → foto de perfil
-// → perfil na conta → produtor. Os pagamentos ficam como histórico. Bloqueado enquanto houver serviço em andamento.
+// → perfil na conta → produtor. Bloqueado enquanto houver serviço em andamento.
 export class DeleteFarmerUseCase {
   constructor(private readonly deps: DeleteFarmerDeps) {}
 
@@ -33,7 +33,7 @@ export class DeleteFarmerUseCase {
 
     const ownServices = await services.find({ farmer_id: farmer.id });
     if (ownServices.some((s) => s.status === SERVICE_STATUS.IN_PROGRESS)) {
-      return conflict('Não é possível remover: há serviço em andamento. Conclua o pagamento antes.');
+      return conflict('Não é possível remover: há serviço em andamento. Conclua o serviço antes.');
     }
 
     // TODO(db): numa transação, ou com ON DELETE CASCADE.

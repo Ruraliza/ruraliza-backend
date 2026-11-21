@@ -40,6 +40,7 @@ export function workersTestbed(): WorkersTestbed {
     farms: createInMemoryFarmRepository(),
     services: createInMemoryServiceRepository(),
     applications: createInMemoryApplicationRepository(),
+    servicePayments: { paymentOf: () => Promise.resolve(null) },
     accounts: createInMemoryAccountRepository(),
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
     clock: fixedClock(NOW),
@@ -68,7 +69,7 @@ export function givenFarm(t: WorkersTestbed): Promise<Farm> {
 
 export function givenService(t: WorkersTestbed, farm: Farm, changes: Partial<Service> = {}): Promise<Service> {
   return t.services.create({
-    farmer_id: farm.farmer_id, farm_id: farm.id, payment_id: null, worker_id: null, name: 'Capina', description: null,
-    category: 'Manutenção', duration: 4, price: 200, expires_at: null, status: 'Pending', insertion_date: NOW, ...changes
+    farmer_id: farm.farmer_id, farm_id: farm.id, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 200, price_unit: 'fixed', worker_id: null, name: 'Capina', description: null,
+    category: 'Manutenção', duration: 4, expires_at: null, status: 'Pending', insertion_date: NOW, ...changes
   });
 }

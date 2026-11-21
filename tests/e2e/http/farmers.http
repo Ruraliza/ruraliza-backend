@@ -170,8 +170,7 @@ Content-Type: application/json
   "farm_id": {{farmId}},
   "name": "Colheita de milho",
   "category": "Colheita",
-  "duration": 16,
-  "price": 900
+  "duration": 16
 }
 
 ### Listar serviços do produtor
@@ -193,8 +192,7 @@ Content-Type: application/json
 
 {
   "name": "Colheita de milho (2 dias)",
-  "duration": 20,
-  "price": 1100
+  "duration": 20
 }
 
 ### Cancelar serviço (só enquanto Pending; recusa as candidaturas pendentes)

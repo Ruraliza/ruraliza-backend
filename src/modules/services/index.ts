@@ -1,5 +1,7 @@
 // API pública do módulo de serviços (vagas): o único arquivo que outros módulos enxergam (#modules/services).
 export type * from './service.contract';
+export { PRICE_UNITS, describeTerms, isPriceUnit, money } from './domain/agreement';
+export type { ServicePaymentReader } from './domain/service-payment';
 export { CATEGORIES, CATEGORY_GROUPS, isCategory } from './domain/categories';
 export type { FarmReputationReader } from './domain/farm-reputation';
 export { type FarmerVerificationReader, NO_VERIFIED_FARMERS } from './domain/farmer-verification';
@@ -11,5 +13,5 @@ export { createInMemoryServiceRepository } from './infra/in-memory-service.repos
 export { createPgServiceRepository } from './infra/pg-service.repository';
 export { categoryRoutes } from './presentation/category.routes';
 export type { ServiceRoutes } from './presentation/service.routes';
-export { type ServiceSchemaName, openServiceProps, openServiceRequired, serviceSchemas } from './presentation/service.schemas';
+export { type ServiceSchemaName, agreementTermsProps, agreementTermsRequired, openServiceProps, openServiceRequired, serviceSchemas } from './presentation/service.schemas';
 export { type ServiceUseCases, type ServicesModuleDeps, createServiceRoutes, createServiceUseCases } from './services.module';

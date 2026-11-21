@@ -37,6 +37,7 @@ export function servicesTestbed(): ServicesTestbed {
     clock,
     changes,
     push,
+    servicePayments: { paymentOf: () => Promise.resolve(null) },
     reputation: { forFarms: () => Promise.resolve(new Map()) }, // sem avaliações: as vagas saem sem `farm.reputation`
     verification: NO_VERIFIED_FARMERS,
     jobEvents: NO_JOB_EVENTS,
@@ -59,8 +60,8 @@ export function givenFarm(t: ServicesTestbed, farmer: Farmer, changes: Partial<F
 
 export function givenService(t: ServicesTestbed, farm: Farm, changes: Partial<Service> = {}): Promise<Service> {
   return t.services.create({
-    farmer_id: farm.farmer_id, farm_id: farm.id, payment_id: null, worker_id: null,
-    name: 'Capina', description: null, category: 'Capina', duration: 4, price: 200,
+    farmer_id: farm.farmer_id, farm_id: farm.id, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 200, price_unit: 'fixed', worker_id: null,
+    name: 'Capina', description: null, category: 'Capina', duration: 4,
     expires_at: null, status: 'Pending', insertion_date: NOW, ...changes
   });
 }

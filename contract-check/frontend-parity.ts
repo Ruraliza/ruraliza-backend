@@ -127,6 +127,11 @@ export type ContractParity = [
   Expect<Equals<Api.WorkerUpdate, FrontWorker.WorkerUpdate>>,
 
   Expect<Equals<Api.Service, FrontService.Service>>,
+  Expect<Equals<Api.PriceUnit, FrontService.PriceUnit>>,
+  Expect<Equals<Api.ServiceEstimate, FrontService.ServiceEstimate>>,
+  Expect<Equals<Api.ServicePayment, FrontService.ServicePayment>>,
+  Expect<Equals<Api.AgreementTerms, FrontService.AgreementTerms>>,
+  Expect<Equals<Api.ServiceAgreement, FrontService.ServiceAgreement>>,
   Expect<Equals<Api.ServiceInput, FrontService.ServiceInput>>,
   Expect<Equals<Api.ServiceUpdate, FrontService.ServiceUpdate>>,
   Expect<Equals<Api.ServiceWithFarm, FrontService.ServiceWithFarm>>,
@@ -140,8 +145,17 @@ export type ContractParity = [
   Expect<Equals<Api.ApplicationWithWorker, FrontApplication.ApplicationWithWorker>>,
   Expect<Equals<Api.ApplicationWithService, FrontApplication.ApplicationWithService>>,
   Expect<Equals<Api.AnalyzeAction, FrontApplication.AnalyzeAction>>,
-
+  Expect<Equals<Api.ApplyInput, FrontApplication.ApplyInput>>,
   Expect<Equals<Api.Payment, FrontPayment.Payment>>,
+  Expect<Equals<Api.PaymentInput, FrontPayment.PaymentInput>>,
+  Expect<Equals<Api.ProposalStatus, FrontApplication.ProposalStatus>>,
+  Expect<Equals<Api.ProposalSide, FrontApplication.ProposalSide>>,
+  Expect<Equals<Api.Proposal, FrontApplication.Proposal>>,
+  Expect<Equals<Api.ProposalInput, FrontApplication.ProposalInput>>,
+  Expect<Equals<Api.ProposalAnswer, FrontApplication.ProposalAnswer>>,
+  Expect<Equals<Api.ProposalAnswerInput, FrontApplication.ProposalAnswerInput>>,
+  Expect<Equals<Api.ProposalResponse, FrontApplication.ProposalResponse>>,
+
 
   Expect<Equals<Api.WorkerReviewScores, FrontReview.WorkerReviewScores>>,
   Expect<Equals<Api.FarmReviewScores, FrontReview.FarmReviewScores>>,

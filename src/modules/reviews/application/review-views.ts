@@ -1,4 +1,3 @@
-import type { PaymentRepository } from '#modules/hiring';
 import { SERVICE_STATUS, type Service } from '#modules/services';
 import type { WorkerRepository } from '#modules/workers';
 import type { FarmReviewRecord, FarmReviewRepository, Visibility, WorkerReviewRecord, WorkerReviewRepository } from '../domain/review.repository';
@@ -6,17 +5,15 @@ import { isPublished, isWindowOpen, toPublicReview, windowEndsAt } from '../doma
 import type { FarmerServiceReviews, ServiceReviews, WorkerServiceReviews } from '../reviews.contract';
 
 export interface ReviewViewDeps {
-  payments: PaymentRepository;
   workerReviews: WorkerReviewRepository;
   farmReviews: FarmReviewRepository;
   workers: WorkerRepository;
 }
 
-// Fim do prazo para avaliar: 14 dias depois do pagamento. null enquanto o serviço não foi concluído.
-export async function reviewWindow(payments: PaymentRepository, service: Service): Promise<string | null> {
-  if (service.status !== SERVICE_STATUS.COMPLETED || service.payment_id === null) return null;
-  const payment = await payments.findById(service.payment_id);
-  return payment ? windowEndsAt(payment.insertion_date) : null;
+// Fim do prazo para avaliar: 14 dias depois da conclusão. null enquanto o serviço não foi concluído.
+export function reviewWindow(service: Service): string | null {
+  if (service.status !== SERVICE_STATUS.COMPLETED || service.completed_at === null) return null;
+  return windowEndsAt(service.completed_at);
 }
 
 function view<G extends Visibility, R extends Visibility>(
@@ -45,7 +42,7 @@ async function reviewsOf(deps: ReviewViewDeps, serviceId: number): Promise<{ ofW
 // perfil não pode mais ser avaliado (as avaliações dele saíram junto).
 export async function farmerView(deps: ReviewViewDeps, service: Service, now: string): Promise<FarmerServiceReviews> {
   const { ofWorker, ofFarm } = await reviewsOf(deps, service.id);
-  const state = view(await reviewWindow(deps.payments, service), ofWorker, ofFarm, now);
+  const state = view(reviewWindow(service), ofWorker, ofFarm, now);
   if (state.can_review && !(await workerStillExists(deps.workers, service))) state.can_review = false;
   return state;
 }
@@ -57,5 +54,5 @@ export async function workerStillExists(workers: WorkerRepository, service: Serv
 // O trabalhador escreve a avaliação da fazenda e recebe a dele.
 export async function workerView(deps: ReviewViewDeps, service: Service, now: string): Promise<WorkerServiceReviews> {
   const { ofWorker, ofFarm } = await reviewsOf(deps, service.id);
-  return view(await reviewWindow(deps.payments, service), ofFarm, ofWorker, now);
+  return view(reviewWindow(service), ofFarm, ofWorker, now);
 }

@@ -17,7 +17,7 @@ describe('conversa do serviço', () => {
   beforeEach(async () => {
     t = chatTestbed();
     h = await givenHiring(t);
-    await chatHiringEvents(t).accepted(h.service);
+    await chatHiringEvents(t).accepted(h.service, []);
     const [chat] = await t.chats.find({ service_id: h.service.id });
     chatId = chat?.id ?? 0;
   });
@@ -26,7 +26,7 @@ describe('conversa do serviço', () => {
     const detail = unwrap(await new GetChatUseCase(t).execute({ chatId, viewer: h.asWorker }));
 
     assert.deepEqual(detail.messages.map((m) => [m.sender, m.body]), [['system', HIRED_MESSAGE]]);
-    assert.deepEqual([detail.open, detail.unread, detail.farmer.name, detail.worker.phone], [true, 1, 'João Produtor', null]);
+    assert.deepEqual([detail.open, detail.hired, detail.unread, detail.farmer.name, detail.worker.phone], [true, true, 1, 'João Produtor', null]);
     assert.deepEqual((await new ListChatsUseCase(t).forFarmer({ farmerId: h.farmer.id })).map((c) => c.unread), [0]);
   });
 
@@ -69,18 +69,20 @@ describe('conversa do serviço', () => {
   });
 
   it('fecha na desistência: não aceita mais mensagens nem troca de WhatsApp', async () => {
-    await chatHiringEvents(t).withdrawn({ ...h.service, status: 'Pending', worker_id: null }, h.worker.id);
+    await chatHiringEvents(t).withdrawn({ ...h.service, status: 'Pending', worker_id: null }, h.worker.id, []);
 
     const send = await new SendMessageUseCase(t).execute({ chatId, viewer: h.asFarmer, body: 'Oi?' });
     const share = await new SharePhoneUseCase(t).execute({ chatId, viewer: h.asFarmer, share: true });
     const detail = unwrap(await new GetChatUseCase(t).execute({ chatId, viewer: h.asFarmer }));
 
     assert.deepEqual([send.ok ? 'ok' : send.kind, share.ok ? 'ok' : share.kind], ['conflict', 'conflict']);
-    assert.deepEqual([detail.open, detail.messages.at(-1)?.body], [false, 'Maria desistiu do serviço. A conversa foi encerrada.']);
+    assert.deepEqual([detail.open, detail.messages.at(-1)?.body], [false, 'Maria desistiu. A conversa foi encerrada.']);
   });
 
-  it('depois do pagamento fica aberta por mais 7 dias', async () => {
+  it('depois do pagamento fica aberta por mais 7 dias, com o aviso', async () => {
     await chatHiringEvents(t).paid({ ...h.service, status: 'Completed' });
+    const detail = unwrap(await new GetChatUseCase(t).execute({ chatId, viewer: h.asFarmer }));
+    assert.equal(detail.messages.at(-1)?.body, 'Pagamento liberado. A conversa continua aberta por mais 7 dias.');
     const send = new SendMessageUseCase(t);
 
     t.setNow('2026-10-07T14:59:00.000Z');
@@ -93,8 +95,8 @@ describe('conversa do serviço', () => {
 
   it('se a mesma pessoa for aceita de novo, a conversa reabre com o histórico', async () => {
     const events = chatHiringEvents(t);
-    await events.withdrawn(h.service, h.worker.id);
-    await events.accepted(h.service);
+    await events.withdrawn(h.service, h.worker.id, []);
+    await events.accepted(h.service, []);
 
     const chats = await t.chats.find({ service_id: h.service.id });
     const detail = unwrap(await new GetChatUseCase(t).execute({ chatId, viewer: h.asFarmer }));
