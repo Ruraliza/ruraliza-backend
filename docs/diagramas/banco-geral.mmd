@@ -1,0 +1,89 @@
+---
+title: Ruraliza — visão geral do banco (24 tabelas, 7 áreas)
+config:
+  layout: elk
+---
+erDiagram
+  direction TB
+  farmers
+  workers
+  accounts
+  system_users
+  farms
+  services
+  applications
+  payments
+  worker_reviews
+  farm_reviews
+  chats
+  chat_messages
+  push_subscriptions
+  notifications
+  tracks
+  enrollments
+  certificates
+  help_articles
+  reports
+  verifications
+  job_preferences
+  job_alerts
+  sponsors
+  stored_files
+  farmers |o--o| accounts : ""
+  workers |o--o| accounts : ""
+  chats ||--o{ chat_messages : ""
+  accounts ||..o{ push_subscriptions : ""
+  farmers ||..o{ farms : ""
+  farmers ||..o{ services : ""
+  farms ||..o{ services : ""
+  workers |o..o{ services : ""
+  services ||..o{ applications : ""
+  workers ||..o{ applications : ""
+  services ||..o| payments : ""
+  farmers ||..o{ payments : ""
+  workers ||..o{ payments : ""
+  services ||..o| worker_reviews : ""
+  farmers ||..o{ worker_reviews : ""
+  workers ||..o{ worker_reviews : ""
+  services ||..o| farm_reviews : ""
+  farms ||..o{ farm_reviews : ""
+  farmers ||..o{ farm_reviews : ""
+  workers ||..o{ farm_reviews : ""
+  services ||..o{ chats : ""
+  farmers ||..o{ chats : ""
+  workers ||..o{ chats : ""
+  farmers ||..o{ notifications : ""
+  workers ||..o{ notifications : ""
+  system_users ||..o{ tracks : ""
+  system_users }o..o{ tracks : ""
+  tracks ||..o{ enrollments : ""
+  workers ||..o{ enrollments : ""
+  tracks ||..o{ certificates : ""
+  workers ||..o{ certificates : ""
+  farmers ||..o| verifications : ""
+  workers ||..o| verifications : ""
+  farmers ||..o{ reports : ""
+  workers ||..o{ reports : ""
+  services ||..o{ reports : ""
+  workers ||..o| job_preferences : ""
+  workers ||..o{ job_alerts : ""
+  services ||..o{ job_alerts : ""
+  farmers ||..o| stored_files : ""
+  workers ||..o{ stored_files : ""
+  farms ||..o{ stored_files : ""
+  verifications ||..o| stored_files : ""
+  sponsors ||..o| stored_files : ""
+  classDef a0 fill:#E3EFD9,stroke:#4A5A48
+  class accounts,farmers,workers,push_subscriptions a0
+  classDef a1 fill:#FBEBC8,stroke:#4A5A48
+  class farms,services,job_preferences,job_alerts a1
+  classDef a2 fill:#F6DCCB,stroke:#4A5A48
+  class applications,payments a2
+  classDef a3 fill:#DCEBF5,stroke:#4A5A48
+  class tracks,enrollments,certificates a3
+  classDef a4 fill:#E9E1F3,stroke:#4A5A48
+  class chats,chat_messages,notifications a4
+  classDef a5 fill:#F7DDE3,stroke:#4A5A48
+  class worker_reviews,farm_reviews,reports,verifications a5
+  classDef a6 fill:#E6E6E6,stroke:#4A5A48
+  class system_users,help_articles,sponsors,stored_files a6

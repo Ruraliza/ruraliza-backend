@@ -41,14 +41,14 @@ Fatos observados:
 
 ## Fora do escopo (hoje)
 
-Envio de e-mail, pagamento real, assinatura digital dos certificados (ver [estudo gov.br](docs/estudo-govbr-certificados.md)), registro de horas e relatórios em PDF, várias instâncias da API. Esses itens estão em "Próximos passos" do README.
+Envio de e-mail, pagamento real, assinatura digital dos certificados, registro de horas e relatórios em PDF, várias instâncias da API. Esses itens estão em "Próximos passos" do README.
 
 ## Decisões pendentes
 
 - **Banco de dados em produção:** a persistência em PostgreSQL (`DATABASE_URL`) e os arquivos em bucket do Supabase Storage (`SUPABASE_*`) estão implementados; ligar em produção, e com qual provedor, é decisão da equipe. Veja "Armazenamento" no README.
 - **Revisão jurídica dos termos de uso e da política de privacidade:** informada pela equipe; não há registro dela no repositório. Os textos ficam no frontend e a versão aceita é guardada em `TERMS_VERSION` (`src/modules/accounts/domain/terms.ts`).
 - **HTTP/2:** informada pela equipe como pendente; no repositório só consta que, em HTTP/1.1, o limite de 6 conexões por servidor motivou o stream único por perfil (`/live`).
-- **e-CNPJ ICP-Brasil** para assinar certificados, conforme o estudo em `docs/`.
+- **e-CNPJ ICP-Brasil** para assinar certificados (a API de assinatura do gov.br é só para órgãos públicos).
 - Suposição: a ordem dessas decisões ainda não foi definida.
 
 ## Critérios de aceite

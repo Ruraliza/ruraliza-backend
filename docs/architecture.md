@@ -36,7 +36,7 @@ src/modules/<módulo>/   fatia por contexto (22 pastas): accounts, admin, auth, 
                         system-users, tracks, verification, workers
 src/shared/             domain (portas e regras puras), infra (http, crypto, imagens, memória, postgres, docs), utils, testing, config.ts
 tests/                  integration/ (container, sem HTTP), setup/ (seed), e2e/ (HTTP real + openapi-check.ts), postgres/ (o que só o banco prova), support/ (schema de teste)
-docs/                   estudo-govbr-certificados.md e estes documentos
+docs/                   estes documentos e os diagramas (diagrams.md, diagrams/)
 ```
 
 Dentro de um módulo, as pastas existem só quando há o que pôr nelas: `domain/` (porta do repositório e regras), `application/` (um `*.usecase.ts` por caso de uso, com `*.spec.ts` ao lado), `infra/` (repositório em memória, repositório PostgreSQL e adaptadores), `presentation/` (controller, `*.routes.ts`, parsers, `*.schemas.ts`), `testing/` (fixtures, fora do build), mais `index.ts`, `<módulo>.module.ts` e `<nome>.contract.ts`. Alguns módulos são menores: `live` tem só `presentation/`, `admin` e `farm-stats` não têm `domain/` nem `infra/`.

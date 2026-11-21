@@ -1,0 +1,92 @@
+---
+title: Ruraliza — Confiança
+config:
+  layout: elk
+---
+erDiagram
+  direction TB
+  worker_reviews {
+    integer id PK
+    integer service_id FK, UK "lógica -> services"
+    integer farmer_id FK "lógica -> farmers"
+    integer worker_id FK "lógica -> workers"
+    smallint punctuality
+    smallint effort
+    smallint quality
+    text comment
+    timestamptz insertion_date
+    timestamptz window_ends_at
+    boolean revealed
+  }
+  farm_reviews {
+    integer id PK
+    integer service_id FK, UK "lógica -> services"
+    integer farm_id FK "lógica -> farms"
+    integer farmer_id FK "lógica -> farmers"
+    integer worker_id FK "lógica -> workers"
+    smallint infrastructure
+    smallint conditions
+    smallint as_described
+    text comment
+    timestamptz insertion_date
+    timestamptz window_ends_at
+    boolean revealed
+  }
+  reports {
+    integer id PK
+    text target_type
+    integer target_id FK "lógica -> services, farmers ou workers (target_type)"
+    text reason
+    text details
+    text status
+    timestamptz insertion_date
+    text reporter_role
+    integer reporter_id FK "lógica -> farmers ou workers (reporter_role)"
+    text resolution_note
+    timestamptz reviewed_at
+  }
+  verifications {
+    integer id PK
+    text role UK "UK composta (role, profile_id)"
+    integer profile_id FK, UK "UK composta (role, profile_id); lógica -> farmers ou workers (role)"
+    text document_type
+    text document_id FK "lógica -> stored_files"
+    text status
+    timestamptz submitted_at
+    timestamptz reviewed_at
+    text rejection_reason
+    text verified_name
+  }
+  farmers {
+    integer id PK "tabela de outra área"
+  }
+  farms {
+    integer id PK "tabela de outra área"
+  }
+  services {
+    integer id PK "tabela de outra área"
+  }
+  stored_files {
+    text store PK "tabela de outra área"
+    text id PK "tabela de outra área"
+  }
+  workers {
+    integer id PK "tabela de outra área"
+  }
+  services ||..o| worker_reviews : "service_id"
+  farmers ||..o{ worker_reviews : "farmer_id"
+  workers ||..o{ worker_reviews : "worker_id"
+  services ||..o| farm_reviews : "service_id"
+  farms ||..o{ farm_reviews : "farm_id"
+  farmers ||..o{ farm_reviews : "farmer_id"
+  workers ||..o{ farm_reviews : "worker_id"
+  farmers ||..o| verifications : "profile_id (role=farmer)"
+  workers ||..o| verifications : "profile_id (role=worker)"
+  farmers ||..o{ reports : "reporter_id / target_id"
+  workers ||..o{ reports : "reporter_id / target_id"
+  services ||..o{ reports : "target_id (target_type=service)"
+  verifications ||..o| stored_files : "document_id"
+  classDef area fill:#E3EFD9,stroke:#2F6B3A
+  classDef ext fill:#F2F2F2,stroke:#9AA39A,color:#5E6B58
+  class worker_reviews,farm_reviews,reports,verifications area
+  class farmers,farms,services,stored_files,workers ext

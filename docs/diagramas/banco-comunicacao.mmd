@@ -1,0 +1,56 @@
+---
+title: Ruraliza — Comunicação
+config:
+  layout: elk
+---
+erDiagram
+  direction TB
+  chats {
+    integer id PK
+    integer service_id FK, UK "UK composta (service_id, worker_id); lógica -> services"
+    integer farmer_id FK "lógica -> farmers"
+    integer worker_id FK, UK "UK composta (service_id, worker_id); lógica -> workers"
+    boolean farmer_shares_phone
+    boolean worker_shares_phone
+    integer farmer_read_up_to
+    integer worker_read_up_to
+    timestamptz closes_at
+    timestamptz insertion_date
+  }
+  chat_messages {
+    integer id PK
+    integer chat_id FK "FK real -> chats"
+    text sender
+    text body
+    timestamptz insertion_date
+  }
+  notifications {
+    integer id PK
+    text role
+    integer profile_id FK "lógica -> farmers ou workers (role)"
+    text title
+    text body
+    text url
+    integer count
+    boolean read
+    timestamptz insertion_date
+  }
+  farmers {
+    integer id PK "tabela de outra área"
+  }
+  services {
+    integer id PK "tabela de outra área"
+  }
+  workers {
+    integer id PK "tabela de outra área"
+  }
+  chats ||--o{ chat_messages : "chat_id"
+  services ||..o{ chats : "service_id"
+  farmers ||..o{ chats : "farmer_id"
+  workers ||..o{ chats : "worker_id"
+  farmers ||..o{ notifications : "profile_id (role=farmer)"
+  workers ||..o{ notifications : "profile_id (role=worker)"
+  classDef area fill:#E3EFD9,stroke:#2F6B3A
+  classDef ext fill:#F2F2F2,stroke:#9AA39A,color:#5E6B58
+  class chats,chat_messages,notifications area
+  class farmers,services,workers ext

@@ -1,0 +1,70 @@
+---
+title: Ruraliza — Fazendas e vagas
+config:
+  layout: elk
+---
+erDiagram
+  direction TB
+  farms {
+    integer id PK
+    integer farmer_id FK "lógica -> farmers"
+    text address
+    text city
+    text state
+    double_precision latitude
+    double_precision longitude
+    jsonb photos FK "lógica -> stored_files"
+    timestamptz insertion_date
+    timestamptz deleted_at
+  }
+  services {
+    integer id PK
+    integer farmer_id FK "lógica -> farmers"
+    integer farm_id FK "lógica -> farms"
+    integer payment_id FK "lógica -> payments"
+    integer worker_id FK "lógica -> workers"
+    text name
+    text description
+    text category
+    double_precision duration
+    double_precision price
+    date expires_at
+    text status
+    timestamptz insertion_date
+  }
+  job_preferences {
+    integer id PK
+    integer worker_id FK, UK "lógica -> workers"
+    text[] categories
+    jsonb near
+    boolean alerts
+    timestamptz last_digest_at
+  }
+  job_alerts {
+    integer id PK
+    integer worker_id FK "lógica -> workers"
+    integer service_id FK "lógica -> services"
+    timestamptz sent_at
+  }
+  farmers {
+    integer id PK "tabela de outra área"
+  }
+  stored_files {
+    text store PK "tabela de outra área"
+    text id PK "tabela de outra área"
+  }
+  workers {
+    integer id PK "tabela de outra área"
+  }
+  farmers ||..o{ farms : "farmer_id"
+  farmers ||..o{ services : "farmer_id"
+  farms ||..o{ services : "farm_id"
+  workers |o..o{ services : "worker_id (contratado)"
+  workers ||..o| job_preferences : "worker_id"
+  workers ||..o{ job_alerts : "worker_id"
+  services ||..o{ job_alerts : "service_id"
+  farms ||..o{ stored_files : "photos (jsonb)"
+  classDef area fill:#E3EFD9,stroke:#2F6B3A
+  classDef ext fill:#F2F2F2,stroke:#9AA39A,color:#5E6B58
+  class farms,services,job_preferences,job_alerts area
+  class farmers,stored_files,workers ext

@@ -1,0 +1,70 @@
+---
+title: Ruraliza — Equipe interna, conteúdo e arquivos
+config:
+  layout: elk
+---
+erDiagram
+  direction TB
+  system_users {
+    integer id PK
+    text email UK
+    text name
+    text role
+    text password_hash
+    timestamptz insertion_date
+  }
+  help_articles {
+    integer id PK
+    text question
+    text answer
+    text topic
+    integer position
+    boolean published
+    timestamptz updated_at
+  }
+  sponsors {
+    integer id PK
+    text sponsor
+    text title
+    text text
+    text cta_label
+    text url
+    text image_url FK "lógica -> stored_files"
+    text audience
+    text[] states
+    text[] categories
+    date starts_on
+    date ends_on
+    boolean active
+    integer impressions
+    integer clicks
+    timestamptz updated_at
+  }
+  stored_files {
+    text store PK
+    text id PK
+    text content_type
+    bytea bytes
+    timestamptz insertion_date
+  }
+  farmers {
+    integer id PK "tabela de outra área"
+  }
+  farms {
+    integer id PK "tabela de outra área"
+  }
+  verifications {
+    integer id PK "tabela de outra área"
+  }
+  workers {
+    integer id PK "tabela de outra área"
+  }
+  farmers ||..o| stored_files : "photo_url"
+  workers ||..o{ stored_files : "photo_url / resume_url"
+  farms ||..o{ stored_files : "photos (jsonb)"
+  verifications ||..o| stored_files : "document_id"
+  sponsors ||..o| stored_files : "image_url"
+  classDef area fill:#E3EFD9,stroke:#2F6B3A
+  classDef ext fill:#F2F2F2,stroke:#9AA39A,color:#5E6B58
+  class system_users,help_articles,sponsors,stored_files area
+  class farmers,farms,verifications,workers ext

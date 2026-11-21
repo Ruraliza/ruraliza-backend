@@ -1,0 +1,58 @@
+---
+title: Ruraliza — Capacitação
+config:
+  layout: elk
+---
+erDiagram
+  direction TB
+  tracks {
+    integer id PK
+    text title
+    text description
+    text[] categories
+    integer[] tutor_ids FK "lógica -> system_users (lista)"
+    text status
+    jsonb modules
+    integer last_item_id
+    integer created_by FK "lógica -> system_users"
+    timestamptz insertion_date
+    timestamptz updated_at
+    timestamptz published_at
+  }
+  enrollments {
+    integer id PK
+    integer track_id FK, UK "UK composta (track_id, worker_id); lógica -> tracks"
+    integer worker_id FK, UK "UK composta (track_id, worker_id); lógica -> workers"
+    integer[] completed_lesson_ids
+    integer last_lesson_id
+    timestamptz started_at
+    timestamptz completed_at
+  }
+  certificates {
+    integer id PK
+    text code UK
+    integer track_id FK, UK "UK composta (track_id, worker_id); lógica -> tracks"
+    text track_title
+    text worker_name
+    integer workload_minutes
+    timestamptz completed_at
+    text data_hash
+    integer worker_id FK, UK "UK composta (track_id, worker_id); lógica -> workers"
+    timestamptz issued_at
+  }
+  system_users {
+    integer id PK "tabela de outra área"
+  }
+  workers {
+    integer id PK "tabela de outra área"
+  }
+  system_users ||..o{ tracks : "created_by"
+  system_users }o..o{ tracks : "tutor_ids[]"
+  tracks ||..o{ enrollments : "track_id"
+  workers ||..o{ enrollments : "worker_id"
+  tracks ||..o{ certificates : "track_id"
+  workers ||..o{ certificates : "worker_id"
+  classDef area fill:#E3EFD9,stroke:#2F6B3A
+  classDef ext fill:#F2F2F2,stroke:#9AA39A,color:#5E6B58
+  class tracks,enrollments,certificates area
+  class system_users,workers ext

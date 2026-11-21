@@ -1,0 +1,65 @@
+---
+title: Ruraliza — Conta e acesso
+config:
+  layout: elk
+---
+erDiagram
+  direction TB
+  accounts {
+    integer id PK
+    text email UK
+    text password_hash
+    text reset_token_digest
+    timestamptz reset_expires_at
+    integer farmer_id FK, UK "FK real -> farmers"
+    integer worker_id FK, UK "FK real -> workers"
+    text last_role
+    text terms_version
+    timestamptz terms_accepted_at
+    jsonb preferences
+  }
+  farmers {
+    integer id PK
+    text email UK
+    text name
+    integer[] farms FK "lógica -> farms (lista de ids)"
+    text phone
+    text cpf UK
+    text photo_url FK "lógica -> stored_files"
+    timestamptz insertion_date
+  }
+  workers {
+    integer id PK
+    text email UK
+    text name
+    text bio
+    text certificates
+    text courses
+    text experience
+    text phone
+    text cpf UK
+    text photo_url FK "lógica -> stored_files"
+    text resume_url FK "lógica -> stored_files"
+    timestamptz insertion_date
+  }
+  push_subscriptions {
+    integer id PK
+    integer account_id FK "lógica -> accounts"
+    text endpoint UK
+    text p256dh
+    text auth
+    timestamptz insertion_date
+  }
+  stored_files {
+    text store PK "tabela de outra área"
+    text id PK "tabela de outra área"
+  }
+  farmers |o--o| accounts : "farmer_id"
+  workers |o--o| accounts : "worker_id"
+  accounts ||..o{ push_subscriptions : "account_id"
+  farmers ||..o| stored_files : "photo_url"
+  workers ||..o{ stored_files : "photo_url / resume_url"
+  classDef area fill:#E3EFD9,stroke:#2F6B3A
+  classDef ext fill:#F2F2F2,stroke:#9AA39A,color:#5E6B58
+  class accounts,farmers,workers,push_subscriptions area
+  class stored_files ext

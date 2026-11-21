@@ -1,0 +1,42 @@
+---
+title: Ruraliza — Candidaturas e pagamentos
+config:
+  layout: elk
+---
+erDiagram
+  direction TB
+  applications {
+    integer id PK
+    integer service_id FK, UK "UK composta (service_id, worker_id); lógica -> services"
+    integer worker_id FK, UK "UK composta (service_id, worker_id); lógica -> workers"
+    text status
+    boolean auto_rejected
+    timestamptz insertion_date
+  }
+  payments {
+    integer id PK
+    integer service_id FK, UK "lógica -> services"
+    integer farmer_id FK "lógica -> farmers"
+    integer worker_id FK "lógica -> workers"
+    double_precision value
+    text status
+    timestamptz insertion_date
+  }
+  farmers {
+    integer id PK "tabela de outra área"
+  }
+  services {
+    integer id PK "tabela de outra área"
+  }
+  workers {
+    integer id PK "tabela de outra área"
+  }
+  services ||..o{ applications : "service_id"
+  workers ||..o{ applications : "worker_id"
+  services ||..o| payments : "service_id / payment_id"
+  farmers ||..o{ payments : "farmer_id"
+  workers ||..o{ payments : "worker_id"
+  classDef area fill:#E3EFD9,stroke:#2F6B3A
+  classDef ext fill:#F2F2F2,stroke:#9AA39A,color:#5E6B58
+  class applications,payments area
+  class farmers,services,workers ext
