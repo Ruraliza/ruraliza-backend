@@ -1,4 +1,4 @@
-import type { HiringEvents, NegotiationChats, Proposal } from '#modules/hiring';
+import type { HiringEvents, NegotiationChats, Proposal, ServiceApplication } from '#modules/hiring';
 import { type PushNotifier, chatUrl } from '#modules/notifications';
 import { type JobEvents, type Service, describeTerms } from '#modules/services';
 import type { ChangeFeed } from '#shared/domain/changes';
@@ -7,6 +7,7 @@ import { requireFound } from '#shared/domain/result';
 import type { ChatMessageRepository, ChatRecord, ChatRepository } from '../domain/chat.repository';
 import { CHAT_GRACE_DAYS, type ChatSide, firstName, graceEnd, isOpen, otherSide } from '../domain/chat.rules';
 import { type ChatViewDeps, addSystemMessage, publishChatChanges } from './chat-views';
+import { openChatRecord } from './open-chat.usecase';
 
 export interface ChatHiringDeps extends ChatViewDeps {
   chats: ChatRepository;
@@ -22,6 +23,10 @@ export const HIRED_MESSAGE =
 export const NOT_CHOSEN_MESSAGE = 'Outro trabalhador foi escolhido para este serviço. A conversa foi encerrada.';
 export const REJECTED_MESSAGE = 'O produtor recusou a candidatura. A conversa foi encerrada.';
 export const REOPENED_MESSAGE = 'O trabalhador escolhido desistiu e a vaga voltou a receber candidaturas. A conversa foi reaberta.';
+export function inviteAcceptedMessage(workerName: string): string {
+  return `${firstName(workerName)} aceitou o convite. Conversem sobre o serviço por aqui. ` +
+    'Telefone e e-mail ficam ocultos; o WhatsApp só pode ser liberado depois do aceite da vaga.';
+}
 export const CANCELLED_MESSAGE = 'O produtor cancelou a vaga. A conversa foi encerrada.';
 
 async function chatOf(chats: ChatRepository, serviceId: number, workerId: number): Promise<ChatRecord | undefined> {
@@ -130,6 +135,15 @@ export function chatHiringEvents(deps: ChatHiringDeps): HiringEvents & Pick<JobE
       notify(chat, proposal.proposed_by, accepted ? 'Proposta aceita' : 'Proposta recusada', `${name} ${accepted ? 'aceitou' : 'recusou'} sua proposta.`);
     },
 
+    // O trabalhador aceitou o convite: a conversa abre sozinha (o push ao produtor sai da contratação).
+    async inviteAccepted(service: Service, application: ServiceApplication) {
+      const worker = requireFound(await deps.workers.findById(application.worker_id), `trabalhador ${application.worker_id}`);
+      const { chat } = await openChatRecord(deps, {
+        service, workerId: worker.id, message: inviteAcceptedMessage(worker.name), actor: 'worker', now: clock.now()
+      });
+      publishChatChanges(changes, chat);
+      return chat.id;
+    },
     async jobCancelled(service: Service) {
       for (const chat of await chats.find({ service_id: service.id })) await close(chat, CANCELLED_MESSAGE, 'farmer');
     }

@@ -18,7 +18,7 @@ describe('DeleteWorkerUseCase', () => {
     const resumeId = await t.documents.save({ bytes: PDF, contentType: 'application/pdf' });
     const worker = await givenWorker(t, { photo_url: t.images.urlFor(photoId), resume_url: t.documents.urlFor(resumeId) });
     const service = await givenService(t, await givenFarm(t));
-    await t.applications.create({ service_id: service.id, worker_id: worker.id, status: 'Pending', insertion_date: NOW });
+    await t.applications.create({ invited: false, service_id: service.id, worker_id: worker.id, status: 'Pending', insertion_date: NOW });
     await t.accounts.create({ email: worker.email, password_hash: 'h', reset_token_digest: null, reset_expires_at: null, farmer_id: null, worker_id: worker.id, last_role: 'worker' });
 
     unwrap(await remove.execute({ workerId: worker.id }));

@@ -1,4 +1,6 @@
 import { createInMemoryAccountRepository } from '#modules/accounts';
+import { createInMemoryFarmerRepository } from '#modules/farmers';
+import { createInMemoryFarmRepository } from '#modules/farms';
 import { workerReputation } from '#modules/reviews';
 import { type Service, createInMemoryServiceRepository } from '#modules/services';
 import { createInMemoryWorkerRepository } from '#modules/workers';
@@ -11,6 +13,7 @@ import { NO_HIRING_EVENTS, type NegotiationChat } from '../domain/hiring-events'
 import { NO_VERIFIED_WORKERS } from '../domain/worker-verification';
 import type { HiringModuleDeps } from '../hiring.module';
 import { createInMemoryApplicationRepository } from '../infra/in-memory-application.repository';
+import { createInMemoryInviteRepository } from '../infra/in-memory-invite.repository';
 import { createInMemoryPaymentRepository } from '../infra/in-memory-payment.repository';
 import { createInMemoryProposalRepository } from '../infra/in-memory-proposal.repository';
 
@@ -27,6 +30,8 @@ export interface HiringTestbed extends HiringModuleDeps {
   pushes: SentPush[];
   // As conversas que o módulo de conversas mostraria (id -> conversa).
   openChats: Map<number, NegotiationChat>;
+  // Quem o catálogo diria que está no catálogo de qualquer vaga (o catálogo de verdade é do módulo de vagas para você).
+  catalogListed: Set<number>;
 }
 
 export function hiringTestbed(): HiringTestbed {
@@ -37,13 +42,16 @@ export function hiringTestbed(): HiringTestbed {
   const push = recordingPush();
   const stores = {
     services: createInMemoryServiceRepository(), applications: createInMemoryApplicationRepository(),
-    payments: createInMemoryPaymentRepository(), proposals: createInMemoryProposalRepository()
+    payments: createInMemoryPaymentRepository(), proposals: createInMemoryProposalRepository(), invites: createInMemoryInviteRepository()
   };
   const openChats = new Map<number, NegotiationChat>();
+  const catalogListed = new Set<number>();
   return {
     ...stores,
     transaction: directTransaction(stores),
     workers,
+    farmers: createInMemoryFarmerRepository(),
+    farms: createInMemoryFarmRepository(),
     accounts,
     clock,
     changes,
@@ -51,6 +59,8 @@ export function hiringTestbed(): HiringTestbed {
     events: NO_HIRING_EVENTS,
     chats: { find: (id) => Promise.resolve(openChats.get(id) ?? null) },
     openChats,
+    catalogListed,
+    catalog: { listed: (_service, workerId) => Promise.resolve(catalogListed.has(workerId)) },
     // Sem avaliações: todo candidato sai com a reputação vazia.
     reputation: { forWorkers: (ids) => Promise.resolve(new Map(ids.map((id) => [id, workerReputation([])]))) },
     verification: NO_VERIFIED_WORKERS,
@@ -83,7 +93,7 @@ export function givenApplication(
   status: ApplicationStatus = 'Pending',
   extra: Partial<ServiceApplication> = {}
 ): Promise<ServiceApplication> {
-  return t.applications.create({ service_id: service.id, worker_id: worker.id, status, insertion_date: NOW, ...extra });
+  return t.applications.create({ service_id: service.id, worker_id: worker.id, status, invited: false, insertion_date: NOW, ...extra });
 }
 
 export async function statusesOf(t: HiringTestbed, service: Service): Promise<[number, ApplicationStatus, boolean | undefined][]> {

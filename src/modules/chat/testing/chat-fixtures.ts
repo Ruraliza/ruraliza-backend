@@ -78,7 +78,7 @@ export async function givenNegotiation(t: ChatTestbed): Promise<Negotiation> {
   const hiring = await givenHiring(t);
   const service = { ...hiring.service, status: 'Pending' as const, worker_id: null };
   await t.services.update(service);
-  const application = await t.applications.create({ service_id: service.id, worker_id: hiring.worker.id, status: 'Pending', insertion_date: NOW });
+  const application = await t.applications.create({ invited: false, service_id: service.id, worker_id: hiring.worker.id, status: 'Pending', insertion_date: NOW });
   return { ...hiring, service, application };
 }
 
@@ -88,6 +88,6 @@ export async function givenOtherApplicant(t: ChatTestbed, service: Service): Pro
     email: 'pedro@exemplo.com', name: 'Pedro Diarista', phone: '24966666666', cpf: '71428793860',
     bio: null, certificates: null, courses: null, experience: null, photo_url: null, resume_url: null, insertion_date: NOW
   });
-  const application = await t.applications.create({ service_id: service.id, worker_id: worker.id, status: 'Pending', insertion_date: NOW });
+  const application = await t.applications.create({ invited: false, service_id: service.id, worker_id: worker.id, status: 'Pending', insertion_date: NOW });
   return { worker, application };
 }

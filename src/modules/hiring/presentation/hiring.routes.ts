@@ -8,6 +8,8 @@ import type { HiringSchemaName } from './hiring.schemas';
 const serviceId = pathParam('id', 'ID do serviço.');
 const chatId = pathParam('id', 'ID da conversa.');
 const jobId = pathParam('id', 'ID do serviço (vaga).');
+const workerId = pathParam('id', 'ID do trabalhador.');
+const inviteId = pathParam('id', 'ID do convite.');
 const hiringOperation = operation<HiringSchemaName | ServiceSchemaName>;
 
 export interface HiringRoutes {
@@ -106,9 +108,55 @@ export function hiringRoutes(hiring: HiringController, access: AccessPolicies): 
         body: 'PaymentInput',
         success: { status: 200, description: 'Pagamento registrado e serviço concluído.', schema: 'PaymentResponse' },
         errors: { 400: '`value` faltando, zero ou negativo.', 404: 'Serviço não encontrado.', 409: 'O serviço não está `In Progress`.' }
+      }), access.farmerOfService()),
+
+      route('post', '/services/:id/invites', hiring.inviteWorker, hiringOperation({
+        tag: TAGS.farmerServices,
+        summary: 'Convidar do catálogo',
+        description:
+          'Convida um trabalhador do catálogo da vaga (`GET /api/farmers/services/{id}/catalog`). A API confere de novo, na hora, que ele ' +
+          'está no catálogo. Um convite por vaga e trabalhador; no máximo 20 por vaga (contam todos os estados). O trabalhador recebe push ' +
+          'que abre os convites dele.',
+        params: [serviceId],
+        body: 'InviteInput',
+        success: { status: 201, description: 'Convite `Pending` criado.', schema: 'InviteResponse' },
+        errors: {
+          400: '`worker_id` faltando ou inválido.',
+          404: 'Serviço ou trabalhador não encontrados.',
+          409: 'A vaga não está `Pending` ou passou do prazo; a pessoa já foi convidada (ou recusou) para esta vaga; o limite de convites ' +
+            'da vaga foi atingido; a pessoa não está no catálogo da vaga (desligou o catálogo, mudou de categoria, está fora do raio, já se candidatou).'
+        }
       }), access.farmerOfService())
     ],
     worker: [
+      route('get', '/:id/invites', hiring.listWorkerInvites, hiringOperation({
+        tag: TAGS.jobs,
+        summary: 'Convites recebidos',
+        description: 'Os pendentes primeiro, depois os mais recentes, com a vaga. Os pendentes de vagas fechadas ou vencidas aparecem como `Expired`.',
+        params: [workerId],
+        success: { status: 200, description: 'Convites com a vaga.', schema: { listOf: 'InviteWithService' } },
+        errors: { 404: 'Trabalhador não encontrado.' }
+      }), access.ownWorker()),
+
+      route('patch', '/invites/:id', hiring.answerInvite, hiringOperation({
+        tag: TAGS.jobs,
+        summary: 'Aceitar ou recusar convite',
+        description:
+          'Só o convidado responde, e uma vez.\n\n' +
+          '**Accept**: com as mesmas regras da candidatura, cria a candidatura (`Pending`, `invited: true`) e o convite vira `Accepted`, juntos. ' +
+          'A conversa com o produtor abre sozinha (`chat_id`) e o produtor recebe push.\n\n' +
+          '**Decline**: o convite vira `Declined`, o produtor é avisado e a pessoa não pode ser convidada de novo para a vaga.',
+        params: [inviteId],
+        body: 'InviteAnswerInput',
+        success: { status: 200, description: 'Convite respondido. No Accept, traz a candidatura e a conversa.', schema: 'InviteAnswerResponse' },
+        errors: {
+          400: "`action` diferente de 'Accept'/'Decline'.",
+          403: 'O convite é de outra pessoa.',
+          404: 'Convite ou serviço não encontrados.',
+          409: 'O convite expirou ou já foi respondido; Accept com a vaga fechada ou vencida, com candidatura recusada ou já existente.'
+        }
+      }), access.worker()),
+
       route('post', '/services/:id/apply', hiring.applyForService, hiringOperation({
         tag: TAGS.jobs,
         summary: 'Candidatar-se (RF02)',

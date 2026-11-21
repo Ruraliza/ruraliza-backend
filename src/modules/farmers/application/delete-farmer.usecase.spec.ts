@@ -27,7 +27,7 @@ describe('DeleteFarmerUseCase', () => {
     const farmer = await givenFarmer(t, { photo_url: t.images.urlFor(profileId) });
     const farm = await givenFarm(t, farmer, { photos: [{ id: photoId, url: t.images.urlFor(photoId) }] });
     const serviceId = await serviceOf(farmer.id, farm.id, 'Pending');
-    await t.applications.create({ service_id: serviceId, worker_id: 7, status: 'Pending', insertion_date: NOW });
+    await t.applications.create({ invited: false, service_id: serviceId, worker_id: 7, status: 'Pending', insertion_date: NOW });
     await t.accounts.create({ email: farmer.email, password_hash: 'h', reset_token_digest: null, reset_expires_at: null, farmer_id: farmer.id, worker_id: null, last_role: 'farmer' });
 
     unwrap(await remove.execute({ farmerId: farmer.id }));

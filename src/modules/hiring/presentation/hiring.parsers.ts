@@ -5,7 +5,7 @@ import type { Body } from '#shared/infra/http/body';
 import type { Principal } from '#shared/infra/http/types';
 import { MAX_HIRING_NOTE } from '../domain/hiring.rules';
 import type { NegotiationViewer } from '../application/negotiation';
-import type { AnalyzeAction, AnalyzeInput, ApplyInput, PaymentInput, ProposalAnswerInput, ProposalInput, WorkerActionInput } from '../hiring.contract';
+import type { AnalyzeAction, AnalyzeInput, ApplyInput, InviteAnswerInput, InviteInput, PaymentInput, ProposalAnswerInput, ProposalInput, WorkerActionInput } from '../hiring.contract';
 
 // Formato dos corpos das rotas de contratação (400). Regras que dependem dos dados ficam nos casos de uso.
 
@@ -71,6 +71,18 @@ export function parsePaymentInput(body: Body): Result<PaymentInput> {
 }
 
 export function parseProposalAnswer(body: Body): Result<ProposalAnswerInput> {
+  const action = body['action'];
+  if (action !== 'Accept' && action !== 'Decline') return invalid("A ação deve ser 'Accept' ou 'Decline'.");
+  return ok({ action });
+}
+
+export function parseInviteInput(body: Body): Result<InviteInput> {
+  const workerId = Number(body['worker_id']);
+  if (!Number.isInteger(workerId) || workerId <= 0) return invalid('Informe o worker_id de quem você quer convidar.');
+  return ok({ worker_id: workerId });
+}
+
+export function parseInviteAnswer(body: Body): Result<InviteAnswerInput> {
   const action = body['action'];
   if (action !== 'Accept' && action !== 'Decline') return invalid("A ação deve ser 'Accept' ou 'Decline'.");
   return ok({ action });

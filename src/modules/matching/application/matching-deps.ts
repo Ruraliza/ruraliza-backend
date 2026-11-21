@@ -1,11 +1,12 @@
 import { type AccountRepository, findAccountOf } from '#modules/accounts';
 import type { FarmRepository } from '#modules/farms';
-import type { ApplicationRepository } from '#modules/hiring';
+import type { ApplicationRepository, InviteRepository, WorkerReputationReader, WorkerVerificationReader } from '#modules/hiring';
 import type { PushNotifier } from '#modules/notifications';
 import type { FarmReputationReader, FarmerVerificationReader, ServiceRepository } from '#modules/services';
 import { TRACK_STATUS, type EnrollmentRepository, type TrackRepository } from '#modules/tracks';
 import type { WorkerRepository } from '#modules/workers';
 import type { Clock } from '#shared/domain/clock';
+import type { CatalogNoticeStore } from '../domain/catalog-notice';
 import type { JobAlertRepository } from '../domain/job-alert';
 import type { JobPreferencesRecord, JobPreferencesRepository } from '../domain/job-preferences';
 import type { WorkerInterests } from '../domain/match';
@@ -16,12 +17,18 @@ export interface MatchingDeps {
   services: ServiceRepository;
   farms: FarmRepository;
   applications: ApplicationRepository;
+  invites: InviteRepository;
   tracks: TrackRepository;
   enrollments: EnrollmentRepository;
   workers: WorkerRepository;
   accounts: AccountRepository;
   reputation: FarmReputationReader;
   verification: FarmerVerificationReader;
+  // Reputação e selo dos trabalhadores, para o catálogo das vagas.
+  workerReputation: WorkerReputationReader;
+  workerVerification: WorkerVerificationReader;
+  // Quem ainda não recebeu o aviso único do catálogo (contas de antes do catálogo).
+  catalogNotices: CatalogNoticeStore;
   clock: Clock;
   push: PushNotifier;
 }

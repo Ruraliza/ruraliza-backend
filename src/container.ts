@@ -141,12 +141,14 @@ export function createContainer(options: ContainerOptions = {}): Container {
   });
   const cleanup: ProfileCleanup = {
     farmerRemoved: async (id) => {
+      await hiringUseCases.cleanup.farmerRemoved(id); // convites
       await chatUseCases.cleanup.farmerRemoved(id);
       await reviewUseCases.cleanup.farmerRemoved(id);
       await notificationUseCases.removeFor('farmer', id);
       await verificationUseCases.removeFor('farmer', id);
     },
     workerRemoved: async (id) => {
+      await hiringUseCases.cleanup.workerRemoved(id); // convites
       await chatUseCases.cleanup.workerRemoved(id);
       await reviewUseCases.cleanup.workerRemoved(id);
       await notificationUseCases.removeFor('worker', id);
@@ -156,15 +158,18 @@ export function createContainer(options: ContainerOptions = {}): Container {
   const reputation = reviewUseCases.getReputation;
   // O pagamento de cada serviço, que só o trabalhador aceito vê junto do serviço dele.
   const servicePayments = servicePaymentReader(payments);
-  // A contratação lê e grava as propostas; a conversa abre, fecha e mostra cada etapa.
-  const hiringUseCases = createHiringUseCases({
-    services, applications, payments, proposals: repos.proposals, transaction, workers, accounts, clock, changes, push: notifier,
-    events: chatUseCases.hiringEvents, chats: chatUseCases.negotiationChats, reputation, verification: verificationUseCases.reader
-  });
-  // Vagas para você: as recomendações e os avisos de vaga nova (ligados na publicação das vagas).
+  // Vagas para você: as recomendações, os avisos de vaga nova (ligados na publicação das vagas) e o catálogo de prestadores.
   const matchingUseCases = createMatchingUseCases({
-    jobPreferences: repos.jobPreferences, jobAlerts: repos.jobAlerts, services, farms, applications, tracks, enrollments, workers, accounts,
-    reputation, verification: verificationUseCases.reader, clock, push: notifier
+    jobPreferences: repos.jobPreferences, jobAlerts: repos.jobAlerts, catalogNotices: repos.catalogNotices, services, farms, applications,
+    invites: repos.invites, tracks, enrollments, workers, accounts, reputation, verification: verificationUseCases.reader,
+    workerReputation: reputation, workerVerification: verificationUseCases.reader, clock, push: notifier
+  });
+  // A contratação lê e grava as propostas e os convites; a conversa abre, fecha e mostra cada etapa; o catálogo
+  // diz quem pode ser convidado.
+  const hiringUseCases = createHiringUseCases({
+    services, applications, payments, proposals: repos.proposals, invites: repos.invites, transaction, workers, farmers, farms, accounts, clock,
+    changes, push: notifier, events: chatUseCases.hiringEvents, chats: chatUseCases.negotiationChats, reputation,
+    verification: verificationUseCases.reader, catalog: matchingUseCases.catalog
   });
   const farmerUseCases = createFarmerUseCases({ farmers, workers, farms, services, applications, accounts, pushSubscriptions, clock, images, passwords, changes, cleanup });
   const workerUseCases = createWorkerUseCases({ servicePayments, workers, farmers, farms, services, applications, accounts, pushSubscriptions, clock, images, documents, passwords, changes, cleanup });
