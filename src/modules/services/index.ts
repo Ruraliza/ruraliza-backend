@@ -1,6 +1,6 @@
 // API pública do módulo de serviços (vagas): o único arquivo que outros módulos enxergam (#modules/services).
 export type * from './service.contract';
-export { PRICE_UNITS, describeTerms, isPriceUnit, money } from './domain/agreement';
+export { PRICE_UNITS, describeEstimate, describeHours, describeTerms, isPriceUnit, money } from './domain/agreement';
 export type { ServicePaymentReader } from './domain/service-payment';
 export { CATEGORIES, CATEGORY_GROUPS, isCategory } from './domain/categories';
 export type { FarmReputationReader } from './domain/farm-reputation';

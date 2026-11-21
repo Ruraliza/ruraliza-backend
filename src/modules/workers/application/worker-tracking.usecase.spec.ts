@@ -19,8 +19,8 @@ describe('acompanhamento do trabalhador', () => {
     const farm = await givenFarm(t);
     const open = await givenService(t, farm);
     const taken = await givenService(t, farm, { status: 'In Progress', worker_id: worker.id });
-    await t.applications.create({ service_id: open.id, worker_id: worker.id, status: 'Pending', insertion_date: NOW });
-    await t.applications.create({ service_id: taken.id, worker_id: worker.id, status: 'Accepted', insertion_date: NOW });
+    await t.applications.create({ invited: false, service_id: open.id, worker_id: worker.id, status: 'Pending', insertion_date: NOW });
+    await t.applications.create({ invited: false, service_id: taken.id, worker_id: worker.id, status: 'Accepted', insertion_date: NOW });
 
     const items = unwrap(await new ListWorkerApplicationsUseCase(t).execute({ workerId: worker.id }));
 

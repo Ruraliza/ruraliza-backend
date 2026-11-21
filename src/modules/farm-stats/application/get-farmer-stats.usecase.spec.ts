@@ -82,8 +82,8 @@ describe('Painel da fazenda', () => {
   it('a nota junta as fazendas pesando pela quantidade de avaliações; vagas abertas e candidaturas esperando', async () => {
     const open = await service({});
     await service({ expires_at: '2026-10-01' }); // vencida: não conta
-    await deps.applications.create({ service_id: open.id, worker_id: 1, status: 'Pending', insertion_date: NOW });
-    await deps.applications.create({ service_id: open.id, worker_id: 2, status: 'Rejected', insertion_date: NOW });
+    await deps.applications.create({ invited: false, service_id: open.id, worker_id: 1, status: 'Pending', insertion_date: NOW });
+    await deps.applications.create({ invited: false, service_id: open.id, worker_id: 2, status: 'Rejected', insertion_date: NOW });
 
     const s = unwrap(await stats.execute({ farmerId: 1 }));
 

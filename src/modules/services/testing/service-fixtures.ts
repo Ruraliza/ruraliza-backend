@@ -72,5 +72,5 @@ export function givenApplication(
   workerId: number,
   status: ApplicationStatus = 'Pending'
 ): Promise<ServiceApplication> {
-  return t.applications.create({ service_id: service.id, worker_id: workerId, status, insertion_date: NOW });
+  return t.applications.create({ invited: false, service_id: service.id, worker_id: workerId, status, insertion_date: NOW });
 }

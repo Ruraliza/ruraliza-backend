@@ -11,6 +11,10 @@ import { createApi } from '../../app';
 import { createContainer } from '../../src/container';
 import type {
   AccountPreferences,
+  CatalogWorker,
+  InviteAnswerResponse,
+  InviteResponse,
+  InviteWithService,
   ApplicationResponse,
   ApplicationWithService,
   ApplicationWithWorker,
@@ -806,7 +810,8 @@ async function run(): Promise<void> {
   console.log('\nVagas para você');
   actAs(bruno);
   const prefsUrl = `/workers/${worker.id}/job-preferences`;
-  await step<JobPreferences>('preferências vazias', 'GET', prefsUrl, undefined, 200, (b) => assert.deepEqual(b, { categories: [], near: null, alerts: false }));
+  await step<JobPreferences>('preferências vazias', 'GET', prefsUrl, undefined, 200, (b) => assert.deepEqual(b, { categories: [], near: null, alerts: false, catalog: true }));
+  await step('catálogo que não é true/false', 'PUT', prefsUrl, { categories: [], near: null, alerts: false, catalog: 'sim' }, 400);
   await step('categoria desconhecida', 'PUT', prefsUrl, { categories: ['Pescaria'], near: null, alerts: true }, 400);
   await step('raio pequeno demais', 'PUT', prefsUrl, { categories: [], near: { latitude: -22.1, longitude: -43.2, radius_km: 1 }, alerts: true }, 400);
   await step('preferências sem "perto de mim"', 'PUT', prefsUrl, { categories: [], alerts: true }, 400);
@@ -860,6 +865,41 @@ async function run(): Promise<void> {
   await step('limite de recomendações inválido', 'GET', `/workers/${worker.id}/recommended-jobs?limit=99`, undefined, 400);
   await step<NotificationsPage>('aviso na hora da vaga nova que combina', 'GET', `/workers/${worker.id}/notifications`, undefined, 200,
     (b) => assert.ok(b.items.some((n) => n.title === 'Vaga nova perto de você' && n.url === `trabalhador/vagas/${ordenha.id}`)));
+
+  console.log('\nCatálogo de prestadores e convites');
+  actAs(ana);
+  const catalogUrl = `/farmers/services/${ordenha.id}/catalog`;
+  await step<CatalogWorker[]>('catálogo: quem escolheu a categoria, sem contato nem localização', 'GET', catalogUrl, undefined, 200, (b) => {
+    const listed = b.find((w) => w.id === worker.id);
+    assert.deepEqual(listed?.reasons.slice(0, 2), ['Escolheu Manejo de gado', 'Até 5 km da fazenda']);
+    for (const field of ['cpf', 'phone', 'email', 'latitude', 'longitude', 'distance_km']) assert.equal(Object.keys(listed).includes(field), false, field);
+    assert.equal(b.some((w) => w.id === worker2.id), false); // sem categorias escolhidas
+  });
+  await step('catálogo de vaga cancelada', 'GET', `/farmers/services/${editable.id}/catalog`, undefined, 409);
+  await step('convite sem worker_id', 'POST', `/farmers/services/${ordenha.id}/invites`, {}, 400);
+  await step('convidar quem não está no catálogo', 'POST', `/farmers/services/${ordenha.id}/invites`, { worker_id: worker2.id }, 409);
+  const { invite } = await step<InviteResponse>('convidar do catálogo', 'POST', `/farmers/services/${ordenha.id}/invites`, { worker_id: worker.id }, 201,
+    (b) => assert.equal(b.invite.status, 'Pending'));
+  await step('convite repetido', 'POST', `/farmers/services/${ordenha.id}/invites`, { worker_id: worker.id }, 409);
+  await step<CatalogWorker[]>('convidado sai do catálogo', 'GET', catalogUrl, undefined, 200, (b) => assert.equal(b.some((w) => w.id === worker.id), false));
+  actAs(bruno);
+  await step('catálogo de vaga de outro produtor', 'GET', catalogUrl, undefined, 403);
+  actAs(carla);
+  await step('convites de outro trabalhador', 'GET', `/workers/${worker.id}/invites`, undefined, 403);
+  await step('responder convite de outra pessoa', 'PATCH', `/workers/invites/${invite.id}`, { action: 'Accept' }, 403);
+  actAs(bruno);
+  await step<InviteWithService[]>('convites do trabalhador, com a vaga', 'GET', `/workers/${worker.id}/invites`, undefined, 200,
+    (b) => assert.deepEqual([b[0]?.id, b[0]?.status, b[0]?.service.id], [invite.id, 'Pending', ordenha.id]));
+  await step('resposta desconhecida', 'PATCH', `/workers/invites/${invite.id}`, { action: 'Talvez' }, 400);
+  const accepted = await step<InviteAnswerResponse>('aceitar o convite', 'PATCH', `/workers/invites/${invite.id}`, { action: 'Accept' }, 200, (b) => {
+    assert.deepEqual([b.invite.status, b.application?.status, b.application?.invited], ['Accepted', 'Pending', true]);
+    assert.ok(b.chat_id !== undefined);
+  });
+  await step('responder de novo', 'PATCH', `/workers/invites/${invite.id}`, { action: 'Decline' }, 409);
+  await step<ChatDetail>('a conversa abriu para o trabalhador', 'GET', `/chats/${accepted.chat_id ?? 0}`, undefined, 200, (b) => assert.equal(b.open, true));
+  actAs(ana);
+  await step<ApplicationWithWorker[]>('candidato "Convidado" na lista', 'GET', `/farmers/services/${ordenha.id}/applications`, undefined, 200,
+    (b) => assert.equal(b.find((a) => a.worker_id === worker.id)?.invited, true));
 
   const invalidJson = await call('POST', '/farmers', undefined, '{ invalido');
   assert.equal(invalidJson.status, 400);

@@ -33,7 +33,7 @@ O servidor carrega **dados de teste** ao subir, também em produção (`npm star
 
 Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, cada um de um tipo de serviço diferente e com estimativas em unidades variadas (por dia, hectare, metro, hora e empreitada; a vaga 6 é uma vaga antiga, sem valor), publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o seed roda: a cada subida em memória; no PostgreSQL, só na primeira subida de cada banco.
 
-Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a [conversa](#conversas) (`src/seed-history.ts`): os serviços 8 a 10 já pagos (com estimativa, proposta aceita e um total coerente com o combinado) e avaliados pelos dois lados (as duas fazendas e a Maria têm nota; o Pedro tem uma nota mediana), o 11 pago há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida), o 12 pago ontem, sem avaliações e com a conversa ainda aberta, e o 13 em andamento com a Maria, contratado por uma proposta aceita na conversa (a última mensagem do produtor ainda não lida por ela). A vaga 1 tem dois candidatos, cada um com a mensagem da candidatura: o Pedro (com nota), com quem a conversa está em negociação (ele propôs um valor e o produtor ainda não respondeu), e o Carlos (sem avaliações). A **central de notificações** do João e da Maria já vem com os avisos que essa história geraria (candidaturas, proposta, avaliação, mensagens, pagamento), alguns lidos e outros não.
+Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a [conversa](#conversas) (`src/seed-history.ts`): os serviços 8 a 10 já pagos (com estimativa, proposta aceita e um total coerente com o combinado) e avaliados pelos dois lados (as duas fazendas e a Maria têm nota; o Pedro tem uma nota mediana), o 11 pago há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida), o 12 pago ontem, sem avaliações e com a conversa ainda aberta, e o 13 em andamento com a Maria, contratado por uma proposta aceita na conversa (a última mensagem do produtor ainda não lida por ela). A vaga 1 tem dois candidatos, cada um com a mensagem da candidatura: o Pedro (com nota), com quem a conversa está em negociação (ele propôs um valor e o produtor ainda não respondeu), e o Carlos (sem avaliações). O **catálogo de prestadores** (`src/seed-catalog.ts`) traz 7 trabalhadores sem conta de acesso, com interesses e regiões variadas (um fora do raio das fazendas e dois com o catálogo desligado), e um convite em cada estado: pendente para a Maria (vaga 6), recusado (vaga 2), expirado (vaga 7, vencida) e aceito pelo Severino na vaga 3, que virou candidato "Convidado" com a conversa aberta. A **central de notificações** do João e da Maria já vem com os avisos que essa história geraria (candidaturas, proposta, avaliação, mensagens, pagamento), alguns lidos e outros não.
 
 ### Usuários de teste
 
@@ -384,8 +384,23 @@ Com os avisos ligados, quem combina com uma vaga nova (pela categoria escolhida 
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET / PUT | `/api/workers/:id/job-preferences` | `{ categories, near: { latitude, longitude, radius_km } \| null, alerts }`; o PUT troca tudo (raio de 5 a 300 km) |
+| GET / PUT | `/api/workers/:id/job-preferences` | `{ categories, near: { latitude, longitude, radius_km } \| null, alerts, catalog }`; o PUT troca tudo (raio de 5 a 300 km). `catalog` começa `true` e, se faltar no PUT, fica como estava |
 | GET | `/api/workers/:id/recommended-jobs?limit=` | As vagas que combinam (1 a 30; padrão 10), da que mais combina para a que menos |
+
+### Catálogo de prestadores e convites
+
+Assim que publica uma vaga, o produtor vê o **catálogo**: os trabalhadores que escolheram a categoria da vaga nas preferências e deixaram o catálogo ligado (`catalog`, que começa **ligado** para todos, inclusive para quem já tinha conta ou nunca salvou preferências). Ficam de fora quem está fora do próprio raio de "perto de mim", o perfil de trabalhador do próprio produtor e quem já se candidatou, foi recusado ou foi convidado para a vaga. A ordem usa os mesmos sinais das vagas para você, no sentido inverso (trilha na categoria, histórico, faixa de distância, nota e selo), e cada pessoa vem com os motivos (`reasons`: "Escolheu Colheita", "De 5 a 15 km da fazenda", "Nota 4,8", "Verificado"). Só sai o que a lista de candidatos já mostra (nome, foto, apresentação, experiência, certificados, reputação, selo) e a **faixa** de distância (até 5, 5 a 15, 15 a 30, 30 a 60 e mais de 60 km): nada de CPF, telefone, e-mail, localização ou o km exato, que permitiria ao produtor triangular a região da pessoa com vagas em fazendas diferentes. Até 20 pessoas, sem paginação.
+
+O produtor **convida** quem está no catálogo (a API confere de novo na hora; até 20 convites por vaga, contando todos os estados). O trabalhador recebe "Convite para <serviço>" no sino e no push e responde uma vez só: **aceitar** cria a candidatura (`Pending`, `invited: true`, com as mesmas regras da candidatura) e marca o convite `Accepted` juntos; depois a conversa abre sozinha, com o aviso da plataforma, e o produtor recebe "<Nome> aceitou seu convite". **Recusar** avisa o produtor e impede um novo convite para a mesma vaga. Os convites pendentes viram `Expired` quando a vaga sai de `Pending` (aceite de alguém, cancelamento) ou passa do prazo (conferido ao ler e ao responder). Quem se candidata direto com um convite pendente aceita o convite junto.
+
+Quem já tinha conta quando o catálogo chegou recebe **um aviso único** (central e push) que leva às preferências: o passo `004` do banco marca essas contas e a API, ao subir, reserva e envia os que faltam, uma vez só.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/farmers/services/:id/catalog` | (dono da vaga) O catálogo da vaga `Pending` e no prazo; fora disso, 409 |
+| POST | `/api/farmers/services/:id/invites` | (dono da vaga) `{ worker_id }`. 409 fora do catálogo, repetido, recusado antes ou acima do limite |
+| GET | `/api/workers/:id/invites` | (o próprio trabalhador) Os convites com a vaga (`OpenService`), os pendentes primeiro |
+| PATCH | `/api/workers/invites/:id` | (o convidado) `{ action: 'Accept' \| 'Decline' }`; o Accept devolve a candidatura e o `chat_id`. 409 se expirou ou já foi respondido |
 
 ### Painel da fazenda
 

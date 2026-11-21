@@ -9,7 +9,7 @@ export {
   type PushNotifier,
   type PushSender,
   type PushSubscriptionRecord,
-  WORKER_APPLICATIONS_URL,
+  WORKER_APPLICATIONS_URL, WORKER_INVITES_URL, WORKER_PREFERENCES_URL,
   WORKER_HOME_URL,
   chatUrl,
   farmerServiceUrl,

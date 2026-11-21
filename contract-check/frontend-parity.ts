@@ -103,6 +103,8 @@ export type ContractParity = [
   Expect<Equals<Api.JobPreferences, FrontMatching.JobPreferences>>,
   Expect<Equals<Api.JobPreferencesResponse, FrontMatching.JobPreferencesResponse>>,
   Expect<Equals<Api.RecommendedJob, FrontMatching.RecommendedJob>>,
+  Expect<Equals<Api.JobPreferencesInput, FrontMatching.JobPreferencesInput>>,
+  Expect<Equals<Api.CatalogWorker, FrontMatching.CatalogWorker>>,
 
   Expect<Equals<Api.FarmerStatsRating, FrontFarmStats.FarmerStatsRating>>,
   Expect<Equals<Api.FarmerStatsMonth, FrontFarmStats.FarmerStatsMonth>>,
@@ -155,6 +157,14 @@ export type ContractParity = [
   Expect<Equals<Api.ProposalAnswer, FrontApplication.ProposalAnswer>>,
   Expect<Equals<Api.ProposalAnswerInput, FrontApplication.ProposalAnswerInput>>,
   Expect<Equals<Api.ProposalResponse, FrontApplication.ProposalResponse>>,
+  Expect<Equals<Api.InviteStatus, FrontApplication.InviteStatus>>,
+  Expect<Equals<Api.Invite, FrontApplication.Invite>>,
+  Expect<Equals<Api.InviteInput, FrontApplication.InviteInput>>,
+  Expect<Equals<Api.InviteResponse, FrontApplication.InviteResponse>>,
+  Expect<Equals<Api.InviteWithService, FrontApplication.InviteWithService>>,
+  Expect<Equals<Api.InviteAnswer, FrontApplication.InviteAnswer>>,
+  Expect<Equals<Api.InviteAnswerInput, FrontApplication.InviteAnswerInput>>,
+  Expect<Equals<Api.InviteAnswerResponse, FrontApplication.InviteAnswerResponse>>,
 
 
   Expect<Equals<Api.WorkerReviewScores, FrontReview.WorkerReviewScores>>,

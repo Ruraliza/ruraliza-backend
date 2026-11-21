@@ -55,7 +55,9 @@ describe('PostgreSQL: esquema e seed', () => {
     // O id da foto do documento é sorteado em cada armazenamento; importa se há foto ou não.
     const comparable = (rows: object[]): object[] => rows.map((row) => ('document_id' in row ? { ...row, document_id: row.document_id !== null } : row));
     const empty: string[] = [];
-    for (const name of Object.keys(memory) as (keyof Repositories)[]) {
+    // catalog_notices não é um repositório (só reserva avisos): fica com o teste da migração.
+    const names = (Object.keys(memory) as (keyof Repositories)[]).filter((n): n is Exclude<keyof Repositories, 'catalogNotices'> => n !== 'catalogNotices');
+    for (const name of names) {
       const [expected, actual] = await Promise.all([memory[name].find(), storage.repos[name].find()]);
       assert.deepEqual(comparable(actual), comparable(expected), `repositório ${name}`);
       if (expected.length === 0) empty.push(name);
@@ -101,7 +103,7 @@ describe('PostgreSQL: repositório', () => {
     assert.equal(open.duration, 2.5);
     assert.deepEqual([open.price, open.price_unit], [199.9, 'hour']);
 
-    const application = await repos.applications.create({ service_id: open.id, worker_id: 7, status: 'Pending', insertion_date: NOW });
+    const application = await repos.applications.create({ invited: false, service_id: open.id, worker_id: 7, status: 'Pending', insertion_date: NOW });
     assert.equal('auto_rejected' in application, false);
     await repos.applications.update({ ...application, auto_rejected: true });
     assert.equal((await repos.applications.findById(application.id))?.auto_rejected, true);
@@ -117,7 +119,7 @@ describe('PostgreSQL: repositório', () => {
 
   it('as restrições barram o duplicado que passaria por duas requisições ao mesmo tempo', async () => {
     const { storage: { repos } } = await database();
-    const application = { service_id: 1, worker_id: 1, status: 'Pending' as const, insertion_date: NOW };
+    const application = { service_id: 1, worker_id: 1, status: 'Pending' as const, invited: false, insertion_date: NOW };
     await repos.applications.create(application);
     await rejectsWithUnique(repos.applications.create(application));
 

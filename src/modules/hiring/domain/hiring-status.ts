@@ -1,4 +1,4 @@
-import type { ApplicationStatus, PaymentStatus, ProposalStatus } from '../hiring.contract';
+import type { ApplicationStatus, InviteStatus, PaymentStatus, ProposalStatus } from '../hiring.contract';
 
 // Status em inglês na API; a tradução acontece só na UI.
 export const APPLICATION_STATUS = Object.freeze({
@@ -17,3 +17,10 @@ export const PROPOSAL_STATUS = Object.freeze({
   DECLINED: 'Declined',
   SUPERSEDED: 'Superseded'
 } as const satisfies Record<string, ProposalStatus>);
+
+export const INVITE_STATUS = Object.freeze({
+  PENDING: 'Pending',
+  ACCEPTED: 'Accepted',
+  DECLINED: 'Declined',
+  EXPIRED: 'Expired'
+} as const satisfies Record<string, InviteStatus>);

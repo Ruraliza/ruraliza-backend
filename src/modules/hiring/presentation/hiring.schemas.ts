@@ -1,7 +1,7 @@
 import type { ReviewSchemaName } from '#modules/reviews';
 import { type ServiceSchemaName, agreementTermsProps, agreementTermsRequired } from '#modules/services';
 import { type Properties, type RefTo, type Schema, id, input, isoDate, object, refTo } from '#shared/infra/docs/schema-kit';
-import { APPLICATION_STATUS, PAYMENT_STATUS, PROPOSAL_STATUS } from '../domain/hiring-status';
+import { APPLICATION_STATUS, INVITE_STATUS, PAYMENT_STATUS, PROPOSAL_STATUS } from '../domain/hiring-status';
 import { MAX_HIRING_NOTE } from '../domain/hiring.rules';
 
 // Schemas OpenAPI da contratação (contrato em ../hiring.contract.ts). Registrados em src/docs/schemas.ts.
@@ -10,7 +10,8 @@ export type HiringSchemaName =
   | 'Proposal' | 'ProposalInput' | 'ProposalAnswerInput' | 'ProposalResponse'
   | 'ServiceApplication' | 'ApplicationWithWorker' | 'ApplicationWithService' | 'Payment' | 'PaymentInput'
   | 'AnalyzeInput' | 'WorkerActionInput' | 'ApplyInput'
-  | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse';
+  | 'ApplicationResponse' | 'AnalyzeResponse' | 'PaymentResponse'
+  | 'InviteStatus' | 'Invite' | 'InviteInput' | 'InviteResponse' | 'InviteWithService' | 'InviteAnswer' | 'InviteAnswerInput' | 'InviteAnswerResponse';
 
 // 'Worker' ainda é do registro legado (sai quando o módulo de trabalhadores migrar).
 const ref: RefTo<HiringSchemaName | ServiceSchemaName | ReviewSchemaName | 'Worker'> = refTo;
@@ -22,9 +23,16 @@ const applicationProps: Properties = {
   status: ref('ApplicationStatus'),
   auto_rejected: { type: 'boolean', description: 'Recusada pelo aceite de outro candidato; volta a Pending se o aceito desistir.' },
   message: { type: 'string', maxLength: MAX_HIRING_NOTE, example: 'Já colhi café 3 safras, posso a partir de segunda.', description: 'Apresentação do trabalhador. Telefone e e-mail saem como `[número oculto]` e `[e-mail oculto]`.' },
+  invited: { type: 'boolean', example: false, description: 'Nasceu de um convite do produtor (etiqueta "Convidado").' },
   insertion_date: isoDate
 };
-const applicationRequired = ['id', 'service_id', 'worker_id', 'status', 'insertion_date'];
+const applicationRequired = ['id', 'service_id', 'worker_id', 'status', 'invited', 'insertion_date'];
+
+const inviteProps: Properties = {
+  id, service_id: id, farmer_id: id, worker_id: id, status: ref('InviteStatus'), insertion_date: isoDate,
+  answered_at: { ...isoDate, nullable: true, description: 'Quando foi aceito ou recusado.' }
+};
+const inviteRequired = ['id', 'service_id', 'farmer_id', 'worker_id', 'status', 'insertion_date', 'answered_at'];
 
 // Também aparece como `nullable` em ApplicationWithWorker.accepted_proposal (allOf + nullable não aceita null).
 const proposalSchema: Schema = object(
@@ -102,5 +110,21 @@ export const hiringSchemas = {
   PaymentResponse: object(
     { message: { type: 'string', example: 'Payment released and service completed successfully!' }, service: ref('Service'), payment: ref('Payment') },
     ['message', 'service', 'payment']
+  ),
+  InviteStatus: { type: 'string', enum: Object.values(INVITE_STATUS), example: 'Pending' },
+  Invite: object(inviteProps, inviteRequired, 'Convite do produtor a um trabalhador do catálogo da vaga.'),
+  InviteInput: input({ worker_id: id }, ['worker_id'], 'Quem convidar (um trabalhador do catálogo da vaga).'),
+  InviteResponse: object({ message: { type: 'string', example: 'Invite sent.' }, invite: ref('Invite') }, ['message', 'invite']),
+  InviteWithService: object({ ...inviteProps, service: ref('OpenService') }, [...inviteRequired, 'service']),
+  InviteAnswer: { type: 'string', enum: ['Accept', 'Decline'] },
+  InviteAnswerInput: input({ action: ref('InviteAnswer') }, ['action'], 'Accept vira candidato, com a conversa aberta; Decline recusa.'),
+  InviteAnswerResponse: object(
+    {
+      message: { type: 'string', example: 'Invite accepted.' },
+      invite: ref('Invite'),
+      application: { allOf: [ref('ServiceApplication')], description: 'Só no Accept: a candidatura criada.' },
+      chat_id: { ...id, description: 'Só no Accept: a conversa aberta com o produtor.' }
+    },
+    ['message', 'invite']
   )
 } satisfies Record<HiringSchemaName, Schema>;

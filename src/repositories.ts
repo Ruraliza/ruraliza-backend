@@ -15,13 +15,15 @@ import { createInMemoryFarmRepository, createPgFarmRepository } from '#modules/f
 import type { FarmRepository } from '#modules/farms';
 import {
   createInMemoryApplicationRepository,
+  createInMemoryInviteRepository,
   createInMemoryPaymentRepository,
   createInMemoryProposalRepository,
   createPgApplicationRepository,
+  createPgInviteRepository,
   createPgPaymentRepository,
   createPgProposalRepository
 } from '#modules/hiring';
-import type { ApplicationRepository, PaymentRepository, ProposalRepository } from '#modules/hiring';
+import type { ApplicationRepository, InviteRepository, PaymentRepository, ProposalRepository } from '#modules/hiring';
 import {
   createInMemoryNotificationRepository,
   createInMemoryPushSubscriptionRepository,
@@ -30,10 +32,13 @@ import {
 } from '#modules/notifications';
 import type { NotificationRepository, PushSubscriptionRepository } from '#modules/notifications';
 import {
+  type CatalogNoticeStore,
   type JobAlertRepository,
   type JobPreferencesRepository,
+  createInMemoryCatalogNoticeStore,
   createInMemoryJobAlertRepository,
   createInMemoryJobPreferencesRepository,
+  createPgCatalogNoticeStore,
   createPgJobAlertRepository,
   createPgJobPreferencesRepository
 } from '#modules/matching';
@@ -77,6 +82,7 @@ export interface Repositories {
   applications: ApplicationRepository;
   payments: PaymentRepository;
   proposals: ProposalRepository;
+  invites: InviteRepository;
   accounts: AccountRepository;
   pushSubscriptions: PushSubscriptionRepository;
   notifications: NotificationRepository;
@@ -93,6 +99,7 @@ export interface Repositories {
   verifications: VerificationRepository;
   jobPreferences: JobPreferencesRepository;
   jobAlerts: JobAlertRepository;
+  catalogNotices: CatalogNoticeStore;
   sponsors: SponsorRepository;
 }
 
@@ -106,6 +113,7 @@ export function createInMemoryRepositories(): Repositories {
     applications: createInMemoryApplicationRepository(),
     payments: createInMemoryPaymentRepository(),
     proposals: createInMemoryProposalRepository(),
+    invites: createInMemoryInviteRepository(),
     accounts: createInMemoryAccountRepository(),
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
     notifications: createInMemoryNotificationRepository(),
@@ -122,6 +130,7 @@ export function createInMemoryRepositories(): Repositories {
     verifications: createInMemoryVerificationRepository(),
     jobPreferences: createInMemoryJobPreferencesRepository(),
     jobAlerts: createInMemoryJobAlertRepository(),
+    catalogNotices: createInMemoryCatalogNoticeStore(),
     sponsors: createInMemorySponsorRepository()
   };
 }
@@ -136,6 +145,7 @@ export function createPostgresRepositories(db: Database): Repositories {
     applications: createPgApplicationRepository(db),
     payments: createPgPaymentRepository(db),
     proposals: createPgProposalRepository(db),
+    invites: createPgInviteRepository(db),
     accounts: createPgAccountRepository(db),
     pushSubscriptions: createPgPushSubscriptionRepository(db),
     notifications: createPgNotificationRepository(db),
@@ -152,6 +162,7 @@ export function createPostgresRepositories(db: Database): Repositories {
     verifications: createPgVerificationRepository(db),
     jobPreferences: createPgJobPreferencesRepository(db),
     jobAlerts: createPgJobAlertRepository(db),
+    catalogNotices: createPgCatalogNoticeStore(db),
     sponsors: createPgSponsorRepository(db)
   };
 }

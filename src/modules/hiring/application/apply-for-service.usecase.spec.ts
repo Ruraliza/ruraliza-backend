@@ -19,12 +19,25 @@ describe('ApplyForServiceUseCase', () => {
 
     const application = unwrap(await apply.execute({ serviceId: service.id, workerId: worker.id }));
 
-    assert.deepEqual(application, { id: application.id, service_id: service.id, worker_id: worker.id, status: 'Pending', insertion_date: NOW });
+    assert.deepEqual(application, { id: application.id, service_id: service.id, worker_id: worker.id, status: 'Pending', invited: false, insertion_date: NOW });
     assert.deepEqual(t.published, [[`service:${service.id}:applications`, `worker:${worker.id}:applications`]]);
     assert.deepEqual(t.pushes, [{
       role: 'farmer', profileId: FARMER_ID,
       message: { title: 'Nova candidatura', body: 'Maria se candidatou a Capina.', url: `produtor/servicos/${service.id}` }
     }]);
+  });
+
+  it('com um convite pendente para a vaga, a candidatura direta aceita o convite junto (sai "Convidado")', async () => {
+    const service = await givenService(t);
+    const worker = await givenWorker(t);
+    const invite = await t.invites.create({
+      service_id: service.id, farmer_id: FARMER_ID, worker_id: worker.id, status: 'Pending', insertion_date: NOW, answered_at: null
+    });
+
+    const application = unwrap(await apply.execute({ serviceId: service.id, workerId: worker.id }));
+
+    assert.equal(application.invited, true);
+    assert.deepEqual(await t.invites.findById(invite.id), { ...invite, status: 'Accepted', answered_at: NOW });
   });
 
   it('não repete candidatura; recusada não pode se candidatar de novo', async () => {

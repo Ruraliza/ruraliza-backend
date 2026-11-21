@@ -113,7 +113,7 @@ describe('conversa antes do aceite (negociação)', () => {
     const first = unwrap(await open.execute({ serviceId: n.service.id, applicationId: n.application.id })).chat;
     await chatHiringEvents(t).withdrawn(n.service, n.worker.id, []);
     await t.applications.delete(n.application.id);
-    const again = await t.applications.create({ service_id: n.service.id, worker_id: n.worker.id, status: 'Pending', insertion_date: n.application.insertion_date });
+    const again = await t.applications.create({ invited: false, service_id: n.service.id, worker_id: n.worker.id, status: 'Pending', insertion_date: n.application.insertion_date });
 
     const reopened = unwrap(await open.execute({ serviceId: n.service.id, applicationId: again.id }));
 

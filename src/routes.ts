@@ -56,7 +56,8 @@ export function createRouteGroups({ useCases, repos, tokens, changes }: Pick<Con
       prefix: '/api/farmers',
       routes: [
         ...services.services, // publicar, ver, editar e cancelar
-        ...hiring.farmer, // candidaturas, avisos, aceite e pagamento
+        ...hiring.farmer, // candidaturas, avisos, aceite, pagamento e convites
+        ...matching.farmer, // catálogo de prestadores da vaga
         ...reviews.farmer, // avaliar o trabalhador e o que falta avaliar
         ...chat.farmer, // conversas do produtor
         ...live.farmer, // avisos em tempo real: um stream só por aba
@@ -77,11 +78,11 @@ export function createRouteGroups({ useCases, repos, tokens, changes }: Pick<Con
       routes: [
         ...services.jobs, // buscar e ver vagas
         ...tracks.learning, // trilhas de estudo: lista, detalhe e matrícula
-        ...hiring.worker, // candidatura e desistência
+        ...hiring.worker, // candidatura, desistência e convites
         ...reviews.worker, // avaliar a fazenda e o que falta avaliar
         ...chat.worker, // conversas do trabalhador
         ...live.worker, // avisos em tempo real: um stream só por aba
-        ...matching, // vagas para você: preferências e recomendações
+        ...matching.worker, // vagas para você: preferências e recomendações
         ...notifications.worker, // central de notificações
         ...reports.worker, // denunciar uma vaga ou um produtor
         ...verification.worker, // verificação de identidade

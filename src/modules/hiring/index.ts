@@ -1,9 +1,13 @@
 // API pública do módulo de contratação: o único arquivo que outros módulos enxergam (#modules/hiring).
 export type * from './hiring.contract';
 export type { ApplicationRepository } from './domain/application.repository';
-export { type HiringEvents, NO_HIRING_EVENTS, type NegotiationChat, type NegotiationChats, type WorkerReputationReader } from './domain/hiring-events';
+export { type CatalogCheck, type HiringEvents, NO_HIRING_EVENTS, type NegotiationChat, type NegotiationChats, type WorkerReputationReader } from './domain/hiring-events';
 export { NO_VERIFIED_WORKERS, type WorkerVerificationReader } from './domain/worker-verification';
-export { APPLICATION_STATUS, PAYMENT_STATUS, PROPOSAL_STATUS } from './domain/hiring-status';
+export { APPLICATION_STATUS, INVITE_STATUS, PAYMENT_STATUS, PROPOSAL_STATUS } from './domain/hiring-status';
+export { MAX_INVITES_PER_SERVICE } from './domain/hiring.rules';
+export type { InviteRepository } from './domain/invite.repository';
+export { createInMemoryInviteRepository } from './infra/in-memory-invite.repository';
+export { createPgInviteRepository } from './infra/pg-invite.repository';
 export type { PaymentRepository } from './domain/payment.repository';
 export { createInMemoryPaymentRepository } from './infra/in-memory-payment.repository';
 export { createPgPaymentRepository } from './infra/pg-payment.repository';

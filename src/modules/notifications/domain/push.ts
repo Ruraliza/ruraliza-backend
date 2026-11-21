@@ -21,6 +21,10 @@ export interface PushMessage {
 
 // Telas do frontend que as notificações abrem.
 export const WORKER_APPLICATIONS_URL = 'trabalhador/candidaturas';
+// Convites dos produtores para o trabalhador.
+export const WORKER_INVITES_URL = 'trabalhador/convites';
+// Preferências de vaga do trabalhador (no perfil), onde fica a opção do catálogo.
+export const WORKER_PREFERENCES_URL = 'trabalhador/perfil';
 // Início do trabalhador (onde ficam as vagas recomendadas).
 export const WORKER_HOME_URL = 'trabalhador';
 

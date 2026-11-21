@@ -5,7 +5,7 @@
 // alguns dias, vence hoje e já vencida). As contas de teste entram com a senha SEED_PASSWORD:
 // uma só de produtor, uma só de trabalhador e uma com os dois perfis; e, na equipe, um administrador
 // e um tutor (com as trilhas de demonstração de src/seed-tracks.ts). Depois das vagas abertas vem o
-// histórico das avaliações e da conversa (src/seed-history.ts).
+// histórico das avaliações e da conversa (src/seed-history.ts) e o catálogo com os convites (src/seed-catalog.ts).
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
 import type { ImageStore } from '#shared/domain/images';
@@ -14,6 +14,7 @@ import type { Repositories } from './repositories';
 import { type PriceUnit, SERVICE_STATUS } from '#modules/services';
 import { createAccount } from '#modules/accounts';
 import { createDefaultHelpArticles } from '#modules/help';
+import { seedCatalog } from './seed-catalog';
 import { seedHistory } from './seed-history';
 import { seedTracks } from './seed-tracks';
 import { seedVerifications } from './seed-verification';
@@ -170,8 +171,10 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   // conta a partir de agora).
   await repos.jobPreferences.create({
     worker_id: worker.id, categories: ['Colheita', 'Manejo de gado', 'Ordenha'], near: { latitude: -22.12, longitude: -43.21, radius_km: 50 },
-    alerts: true, last_digest_at: now
+    alerts: true, catalog: true, last_digest_at: now
   });
+  // Catálogo de prestadores e um convite em cada estado (src/seed-catalog.ts).
+  await seedCatalog(repos, now, { farmerId: farmer.id, mariaId: worker.id });
   // Patrocínios de EXEMPLO (anunciantes fictícios), um para produtores do RJ e um para trabalhadores.
   const sponsor = { text: null, image_url: null, categories: [], starts_on: null, ends_on: null, active: true, impressions: 0, clicks: 0, updated_at: now };
   await repos.sponsors.create({

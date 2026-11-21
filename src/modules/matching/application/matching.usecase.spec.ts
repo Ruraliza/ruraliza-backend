@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { type Account, createInMemoryAccountRepository } from '#modules/accounts';
 import { createInMemoryFarmRepository } from '#modules/farms';
-import { createInMemoryApplicationRepository } from '#modules/hiring';
+import { NO_VERIFIED_WORKERS, createInMemoryApplicationRepository, createInMemoryInviteRepository } from '#modules/hiring';
+import { workerReputation } from '#modules/reviews';
 import { NO_VERIFIED_FARMERS, type Service, createInMemoryServiceRepository } from '#modules/services';
 import { createInMemoryEnrollmentRepository, createInMemoryTrackRepository } from '#modules/tracks';
 import { createInMemoryWorkerRepository } from '#modules/workers';
 import { type SentPush, adjustableClock, recordingPush } from '#shared/testing/recorders';
 import { unwrap } from '#shared/testing/unwrap';
-import { createInMemoryJobAlertRepository, createInMemoryJobPreferencesRepository } from '../infra/in-memory-matching.repositories';
+import { createInMemoryCatalogNoticeStore, createInMemoryJobAlertRepository, createInMemoryJobPreferencesRepository } from '../infra/in-memory-matching.repositories';
 import { GetJobPreferencesUseCase } from './get-job-preferences.usecase';
 import { JobAlerts } from './job-alerts';
 import type { MatchingDeps } from './matching-deps';
@@ -42,12 +43,16 @@ describe('Vagas para você', () => {
       services: createInMemoryServiceRepository(),
       farms: createInMemoryFarmRepository(),
       applications: createInMemoryApplicationRepository(),
+      invites: createInMemoryInviteRepository(),
       tracks: createInMemoryTrackRepository(),
       enrollments: createInMemoryEnrollmentRepository(),
       workers: createInMemoryWorkerRepository(),
       accounts: createInMemoryAccountRepository(),
       reputation: { forFarms: () => Promise.resolve(new Map()) },
       verification: NO_VERIFIED_FARMERS,
+      workerReputation: { forWorkers: (ids) => Promise.resolve(new Map(ids.map((id) => [id, workerReputation([])]))) },
+      workerVerification: NO_VERIFIED_WORKERS,
+      catalogNotices: createInMemoryCatalogNoticeStore(),
       clock: adjustableClock(NOW),
       push
     };
@@ -68,11 +73,11 @@ describe('Vagas para você', () => {
 
   it('sem nada salvo, as preferências vêm vazias; a região é guardada aproximada', async () => {
     const get = new GetJobPreferencesUseCase(deps);
-    assert.deepEqual(unwrap(await get.execute({ workerId: 1 })), { categories: [], near: null, alerts: false });
+    assert.deepEqual(unwrap(await get.execute({ workerId: 1 })), { categories: [], near: null, alerts: false, catalog: true });
 
     const saved = unwrap(await save.execute({ workerId: 1, input: { categories: ['Colheita', 'Colheita'], near: NEAR_TRES_RIOS, alerts: false } }));
 
-    assert.deepEqual(saved, { categories: ['Colheita'], near: { latitude: -22.12, longitude: -43.22, radius_km: 30 }, alerts: false });
+    assert.deepEqual(saved, { categories: ['Colheita'], near: { latitude: -22.12, longitude: -43.22, radius_km: 30 }, alerts: false, catalog: true });
   });
 
   it('recomenda o que combina, a mais forte primeiro, sem as vagas em que já se candidatou', async () => {
@@ -81,7 +86,7 @@ describe('Vagas para você', () => {
     const colheita = await publish('Colheita de café', 'Colheita');
     await publish('Conserto de cerca', 'Manutenção');
     const applied = await publish('Colheita de laranja', 'Colheita');
-    await deps.applications.create({ service_id: applied.id, worker_id: 1, status: 'Pending', insertion_date: NOW });
+    await deps.applications.create({ invited: false, service_id: applied.id, worker_id: 1, status: 'Pending', insertion_date: NOW });
     const track = await deps.tracks.create({
       title: 'Colheita do café', description: 'x', categories: ['Colheita'], tutor_ids: [1], status: 'published', modules: [], last_item_id: 0, created_by: 1,
       insertion_date: NOW, updated_at: NOW, published_at: NOW

@@ -5,8 +5,8 @@ import type { JobPreferencesRepository } from '../domain/job-preferences';
 
 export function createPgJobPreferencesRepository(db: Database): JobPreferencesRepository {
   return new PgRepository(db, 'job_preferences', {
-    worker_id: 'value', categories: 'value', near: 'json', alerts: 'value', last_digest_at: 'value'
-  }, ['worker_id', 'alerts']);
+    worker_id: 'value', categories: 'value', near: 'json', alerts: 'value', catalog: 'value', last_digest_at: 'value'
+  }, ['worker_id', 'alerts', 'catalog']);
 }
 
 export function createPgJobAlertRepository(db: Database): JobAlertRepository {

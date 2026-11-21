@@ -199,6 +199,8 @@ async function main(): Promise<void> {
   setInterval(() => {
     container.useCases.matching.alerts.sendWeeklyDigest().catch((error: unknown) => console.error('Falha no resumo semanal de vagas:', error));
   }, 60 * 60 * 1000).unref();
+  // Aviso único do catálogo de prestadores para as contas de antes dele (o passo 004 marcou quem; sai uma vez só).
+  container.useCases.matching.sendCatalogNotices().catch((error: unknown) => console.error('Falha no aviso do catálogo de prestadores:', error));
 
   const PORT = serverPort();
   app.listen(PORT, () => {

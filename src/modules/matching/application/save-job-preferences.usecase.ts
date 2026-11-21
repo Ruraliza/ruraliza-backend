@@ -1,23 +1,25 @@
 import { type Result, notFound, ok } from '#shared/domain/result';
-import { COORDINATE_DECIMALS } from '../domain/job-preferences';
-import type { JobPreferences } from '../matching.contract';
+import { COORDINATE_DECIMALS, DEFAULT_JOB_PREFERENCES } from '../domain/job-preferences';
+import type { JobPreferences, JobPreferencesInput } from '../matching.contract';
 import { type MatchingDeps, findPreferences } from './matching-deps';
 
 const round = (value: number): number => Number(value.toFixed(COORDINATE_DECIMALS));
 
 // Troca as preferências. A região fica arredondada (cerca de 1 km). Ligar os avisos marca o início da
-// contagem do resumo semanal, para o primeiro não chegar no mesmo dia.
+// contagem do resumo semanal, para o primeiro não chegar no mesmo dia. Desligar o catálogo tira a pessoa
+// na hora de todos os catálogos (eles são montados a cada leitura).
 export class SaveJobPreferencesUseCase {
   constructor(private readonly deps: MatchingDeps) {}
 
-  async execute({ workerId, input }: { workerId: number; input: JobPreferences }): Promise<Result<JobPreferences>> {
+  async execute({ workerId, input }: { workerId: number; input: JobPreferencesInput }): Promise<Result<JobPreferences>> {
     const { jobPreferences, workers, clock } = this.deps;
     if (!(await workers.findById(workerId))) return notFound('Trabalhador não encontrado.');
     const current = await findPreferences(this.deps, workerId);
     const preferences: JobPreferences = {
       categories: [...new Set(input.categories)],
       near: input.near && { latitude: round(input.near.latitude), longitude: round(input.near.longitude), radius_km: input.near.radius_km },
-      alerts: input.alerts
+      alerts: input.alerts,
+      catalog: input.catalog ?? current?.catalog ?? DEFAULT_JOB_PREFERENCES.catalog
     };
     const turnedOn = preferences.alerts && !current?.alerts;
     const lastDigest = turnedOn ? clock.now() : current?.last_digest_at ?? null;

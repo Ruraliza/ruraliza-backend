@@ -1,3 +1,4 @@
+import type { WorkerReputation } from '#modules/reviews';
 import type { OpenService } from '#modules/services';
 import type { MessageResponse } from '#shared/contracts/api';
 
@@ -17,7 +18,11 @@ export interface JobPreferences {
   categories: string[]; // categorias de serviço que a pessoa quer (GET /api/categories)
   near: JobPreferencesNear | null;
   alerts: boolean; // avisar quando abrir vaga que combina (e o resumo semanal)
+  catalog: boolean; // aparecer no catálogo das vagas das categorias escolhidas (começa ligado)
 }
+
+// O PUT aceita sem `catalog` (apps antigos): fica como estava.
+export type JobPreferencesInput = Omit<JobPreferences, 'catalog'> & { catalog?: boolean };
 
 export interface JobPreferencesResponse extends MessageResponse {
   preferences: JobPreferences;
@@ -27,4 +32,20 @@ export interface JobPreferencesResponse extends MessageResponse {
 export interface RecommendedJob extends OpenService {
   reasons: string[]; // ex.: "Você escolheu Colheita", "Você concluiu a trilha Manejo de gado", "A 12 km de você"
   distance_km: number | null; // distância aproximada até a fazenda, em linha reta (só com "perto de mim")
+}
+
+// GET /farmers/services/:id/catalog: um trabalhador que escolheu a categoria da vaga e deixou o catálogo ligado.
+// Só o que a lista de candidatos já mostra; nada de CPF, telefone, e-mail ou localização (só a faixa de distância).
+export interface CatalogWorker {
+  id: number; // worker_id, para convidar
+  name: string;
+  photo_url: string | null;
+  bio: string | null;
+  experience: string | null;
+  certificates: string | null;
+  reputation: WorkerReputation;
+  verified: boolean;
+  // ex.: "Escolheu Colheita", "Concluiu a trilha Manejo de gado", "De 5 a 15 km da fazenda", "Nota 4,8", "Verificado".
+  // A distância vem só em faixas (até 5, 5 a 15, 15 a 30, 30 a 60 e mais de 60 km), e só quando o trabalhador marcou "perto de mim".
+  reasons: string[];
 }

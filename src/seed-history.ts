@@ -70,7 +70,7 @@ export async function seedHistory(repos: Repositories, now: string, passwords: P
       name: job.name, description: null, category: job.category, duration: job.duration, price: job.estimate, price_unit: job.unit,
       expires_at: null, status: SERVICE_STATUS.COMPLETED, insertion_date: shift(-job.paidDaysAgo - 5)
     });
-    const application = await repos.applications.create({ service_id: service.id, worker_id: job.workerId, status: 'Accepted', insertion_date: shift(-job.paidDaysAgo - 4.5) });
+    const application = await repos.applications.create({ invited: false, service_id: service.id, worker_id: job.workerId, status: 'Accepted', insertion_date: shift(-job.paidDaysAgo - 4.5) });
     const terms = { amount: job.amount, unit: job.unit, notes: null } as const;
     const proposal = await repos.proposals.create({
       ...terms, application_id: application.id, service_id: service.id, farmer_id: farmerId, worker_id: job.workerId,
@@ -139,7 +139,7 @@ export async function seedHistory(repos: Repositories, now: string, passwords: P
     duration: 24, expires_at: null, status: SERVICE_STATUS.IN_PROGRESS, insertion_date: shift(-6)
   });
   const curralApp = await repos.applications.create({
-    service_id: curral.id, worker_id: mariaId, status: 'Accepted', message: 'Já reformei dois currais. Levo minhas ferramentas.', insertion_date: shift(-5)
+    invited: false, service_id: curral.id, worker_id: mariaId, status: 'Accepted', message: 'Já reformei dois currais. Levo minhas ferramentas.', insertion_date: shift(-5)
   });
   const hours = (h: number): string => new Date(Date.parse(now) - h * 3_600_000).toISOString();
   const agreed = await repos.proposals.create({
@@ -175,9 +175,9 @@ export async function seedHistory(repos: Repositories, now: string, passwords: P
   // Dois candidatos na vaga 1 (Colheita de café): o Pedro, com nota, e o Carlos, ainda sem avaliações.
   // Com o Pedro, a conversa está em negociação: ele propôs e o produtor ainda não respondeu.
   const pedroApp = await repos.applications.create({
-    service_id: 1, worker_id: pedro.id, status: 'Pending', message: 'Já colhi café 3 safras. Posso a partir de segunda.', insertion_date: shift(-1)
+    invited: false, service_id: 1, worker_id: pedro.id, status: 'Pending', message: 'Já colhi café 3 safras. Posso a partir de segunda.', insertion_date: shift(-1)
   });
-  await repos.applications.create({ service_id: 1, worker_id: carlosWorkerId, status: 'Pending', insertion_date: shift(0) });
+  await repos.applications.create({ invited: false, service_id: 1, worker_id: carlosWorkerId, status: 'Pending', insertion_date: shift(0) });
   const pedroChat = await repos.chats.create({
     service_id: 1, farmer_id: farmerId, worker_id: pedro.id, farmer_shares_phone: false, worker_shares_phone: false,
     farmer_read_up_to: 0, worker_read_up_to: 0, closes_at: null, insertion_date: hours(20)

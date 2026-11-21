@@ -10,6 +10,7 @@ import type { Clock } from '#shared/domain/clock';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
 import type { AnalyzeInput, ServiceApplication } from '../hiring.contract';
 import { publishApplicationChanges, rejectedMessage } from './hiring-notifications';
+import { expirePendingInvites } from './invite-expiry';
 import { acceptedProposal, agreementOf, supersedePending } from './negotiation';
 
 export interface AnalyzeApplicationDeps {
@@ -35,7 +36,7 @@ export interface AnalyzeOutcome {
 // RF03 - Aceita ou recusa uma candidatura.
 // Accept: exige uma proposta aceita pelos dois na conversa (ela é a confirmação do trabalhador). O serviço vai
 // para In Progress com o combinado, e as demais pendentes são recusadas (auto_rejected), tudo junto.
-// As propostas pendentes das candidaturas recusadas deixam de valer (Superseded).
+// As propostas pendentes das candidaturas recusadas deixam de valer (Superseded), e os convites pendentes expiram.
 // A conversa da candidatura recusada (e as dos recusados pelo aceite) é encerrada.
 export class AnalyzeApplicationUseCase {
   constructor(private readonly deps: AnalyzeApplicationDeps) {}
@@ -85,6 +86,7 @@ export class AnalyzeApplicationUseCase {
       service.agreement = agreementOf(agreed, this.deps.clock.now());
       service.status = SERVICE_STATUS.IN_PROGRESS;
       await stores.services.update(service);
+      await expirePendingInvites(stores.invites, service.id); // a vaga saiu de Pending
       return rejected;
     });
     await this.deps.events.accepted(service, autoRejected); // avisa na conversa do aceito e encerra as dos outros

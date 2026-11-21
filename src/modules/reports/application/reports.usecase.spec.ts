@@ -57,7 +57,7 @@ describe('Denúncias', () => {
       category: 'Manutenção', duration: 4, expires_at: null, status: 'Pending', insertion_date: NOW
     });
     serviceId = service.id;
-    await deps.applications.create({ service_id: service.id, worker_id: maria.id, status: 'Pending', insertion_date: NOW });
+    await deps.applications.create({ invited: false, service_id: service.id, worker_id: maria.id, status: 'Pending', insertion_date: NOW });
     create = new CreateReportUseCase(deps);
     list = new ListReportsUseCase(deps);
     review = new ReviewReportUseCase(deps);

@@ -1,7 +1,7 @@
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import type { Handler, IdParams } from '#shared/infra/http/types';
-import type { JobPreferences, JobPreferencesResponse, RecommendedJob } from '../matching.contract';
+import type { CatalogWorker, JobPreferences, JobPreferencesResponse, RecommendedJob } from '../matching.contract';
 import type { MatchingUseCases } from '../matching.module';
 import { parseJobPreferences, parseRecommendationLimit } from './matching.parsers';
 
@@ -10,6 +10,7 @@ export interface MatchingController {
   getJobPreferences: Handler<JobPreferences, IdParams>;
   saveJobPreferences: Handler<JobPreferencesResponse, IdParams>;
   recommendedJobs: Handler<RecommendedJob[], IdParams>;
+  serviceCatalog: Handler<CatalogWorker[], IdParams>;
 }
 
 export function createMatchingController(matching: MatchingUseCases): MatchingController {
@@ -38,5 +39,12 @@ export function createMatchingController(matching: MatchingUseCases): MatchingCo
     res.status(200).json(result.value);
   };
 
-  return { getJobPreferences, saveJobPreferences, recommendedJobs };
+  // GET /api/farmers/services/:id/catalog - Trabalhadores interessados na categoria da vaga
+  const serviceCatalog: Handler<CatalogWorker[], IdParams> = async (req, res) => {
+    const result = await matching.catalog.execute({ serviceId: toId(req.params.id) });
+    if (!result.ok) { sendFailure(res, result); return; }
+    res.status(200).json(result.value);
+  };
+
+  return { getJobPreferences, saveJobPreferences, recommendedJobs, serviceCatalog };
 }
