@@ -14,6 +14,14 @@ export interface FarmParams {
 export interface FarmPhotoParams extends FarmParams {
   photoId: string;
 }
+export interface ApplicationParams {
+  id: string;
+  applicationId: string;
+}
+export interface ProposalParams {
+  id: string;
+  proposalId: string;
+}
 export interface ImageParams {
   id: string;
 }

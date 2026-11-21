@@ -48,7 +48,10 @@ export class UpdateServiceUseCase {
     if (changes.description !== undefined) service.description = changes.description;
     if (changes.category !== undefined) service.category = changes.category;
     if (changes.duration !== undefined) service.duration = changes.duration;
-    if (changes.price !== undefined) service.price = changes.price;
+    if (changes.price !== undefined && changes.price_unit !== undefined) {
+      service.price = changes.price;
+      service.price_unit = changes.price_unit;
+    }
     await this.deps.services.update(service);
     await notifyApplicants(this.deps, service.id);
 

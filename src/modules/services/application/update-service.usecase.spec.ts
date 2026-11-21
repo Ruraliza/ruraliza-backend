@@ -18,9 +18,9 @@ describe('UpdateServiceUseCase', () => {
     const before = await givenService(t, farm);
     await givenApplication(t, before, 7);
 
-    const service = unwrap(await update.execute({ serviceId: before.id, changes: { price: 250, description: 'Levar enxada' } }));
+    const service = unwrap(await update.execute({ serviceId: before.id, changes: { duration: 6, description: 'Levar enxada' } }));
 
-    assert.deepEqual(service, { ...before, price: 250, description: 'Levar enxada' });
+    assert.deepEqual(service, { ...before, duration: 6, description: 'Levar enxada' });
     assert.deepEqual(await t.services.findById(before.id), service);
     assert.deepEqual(t.published, [[`service:${before.id}:applications`, 'worker:7:applications']]);
   });
@@ -52,15 +52,15 @@ describe('UpdateServiceUseCase', () => {
     it(`serviço ${status} não pode ser editado`, async () => {
       const service = await givenService(t, await givenFarm(t, await givenFarmer(t)), { status });
 
-      const result = await update.execute({ serviceId: service.id, changes: { price: 999 } });
+      const result = await update.execute({ serviceId: service.id, changes: { duration: 99 } });
 
       assert.equal(result.ok ? 'ok' : result.kind, 'conflict');
-      assert.equal((await t.services.findById(service.id))?.price, 200);
+      assert.equal((await t.services.findById(service.id))?.duration, 4);
     });
   }
 
   it('serviço inexistente dá not_found', async () => {
-    const result = await update.execute({ serviceId: 99, changes: { price: 1 } });
+    const result = await update.execute({ serviceId: 99, changes: { duration: 1 } });
 
     assert.equal(result.ok ? 'ok' : result.kind, 'not_found');
   });

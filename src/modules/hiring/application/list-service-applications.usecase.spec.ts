@@ -26,7 +26,8 @@ describe('ListServiceApplicationsUseCase', () => {
       ...application,
       worker: { ...maria, cpf: '***.444.777-**', phone: '(24) *****-**66', email: 'm***@exemplo.com' },
       reputation: { average: null, count: 0, score: 3.5, punctuality: null, effort: null, quality: null },
-      verified: false
+      verified: false,
+      accepted_proposal: null
     }]);
   });
 

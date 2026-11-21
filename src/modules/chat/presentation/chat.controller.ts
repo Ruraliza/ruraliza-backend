@@ -2,7 +2,7 @@ import type { MessageResponse } from '#shared/contracts/api';
 import { toBody } from '#shared/infra/http/body';
 import { sendFailure, toId } from '#shared/infra/http/respond';
 import { CHATS_CHANGED_EVENT, CHAT_CHANGED_EVENT, openEventStream, sendEvent } from '#shared/infra/http/sse';
-import type { Handler, IdParams } from '#shared/infra/http/types';
+import type { ApplicationParams, Handler, IdParams } from '#shared/infra/http/types';
 import type { Chat, ChatDetail, ChatMessageResponse, ChatResponse } from '../chat.contract';
 import type { ChatUseCases } from '../chat.module';
 import { parseChatMessage, parseChatPhone, viewerOf } from './chat.parsers';
@@ -10,6 +10,7 @@ import { parseChatMessage, parseChatPhone, viewerOf } from './chat.parsers';
 // HTTP das conversas: a lista de cada perfil (com avisos em tempo real), a conversa, enviar,
 // marcar como lida e liberar o WhatsApp.
 export interface ChatController {
+  openChat: Handler<ChatResponse, ApplicationParams>;
   farmerChats: Handler<Chat[], IdParams>;
   farmerChatEvents: Handler<never, IdParams>;
   workerChats: Handler<Chat[], IdParams>;
@@ -22,6 +23,14 @@ export interface ChatController {
 }
 
 export function createChatController(chat: ChatUseCases): ChatController {
+  // POST /api/farmers/services/:id/applications/:applicationId/chat - O produtor abre (ou reabre) a conversa com o candidato
+  const openChat: Handler<ChatResponse, ApplicationParams> = async (req, res) => {
+    const result = await chat.openChat.execute({ serviceId: toId(req.params.id), applicationId: toId(req.params.applicationId) });
+    if (!result.ok) { sendFailure(res, result); return; }
+    const { chat: opened, created } = result.value;
+    res.status(200).json({ message: created ? 'Chat opened.' : 'Chat already open.', chat: opened });
+  };
+
   // GET /api/farmers/:id/chats - Conversas do produtor
   const farmerChats: Handler<Chat[], IdParams> = async (req, res) => {
     res.status(200).json(await chat.listChats.forFarmer({ farmerId: toId(req.params.id) }));
@@ -86,5 +95,5 @@ export function createChatController(chat: ChatUseCases): ChatController {
     res.status(200).json({ message: input.value.share ? 'Phone shared.' : 'Phone hidden.', chat: result.value });
   };
 
-  return { farmerChats, farmerChatEvents, workerChats, workerChatEvents, getChat, chatEvents, sendMessage, markRead, sharePhone };
+  return { openChat, farmerChats, farmerChatEvents, workerChats, workerChatEvents, getChat, chatEvents, sendMessage, markRead, sharePhone };
 }

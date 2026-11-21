@@ -13,8 +13,15 @@ import { type HelpArticleRepository, createInMemoryHelpArticleRepository, create
 import type { FarmerRepository } from '#modules/farmers';
 import { createInMemoryFarmRepository, createPgFarmRepository } from '#modules/farms';
 import type { FarmRepository } from '#modules/farms';
-import { createInMemoryApplicationRepository, createInMemoryPaymentRepository, createPgApplicationRepository, createPgPaymentRepository } from '#modules/hiring';
-import type { ApplicationRepository, PaymentRepository } from '#modules/hiring';
+import {
+  createInMemoryApplicationRepository,
+  createInMemoryPaymentRepository,
+  createInMemoryProposalRepository,
+  createPgApplicationRepository,
+  createPgPaymentRepository,
+  createPgProposalRepository
+} from '#modules/hiring';
+import type { ApplicationRepository, PaymentRepository, ProposalRepository } from '#modules/hiring';
 import {
   createInMemoryNotificationRepository,
   createInMemoryPushSubscriptionRepository,
@@ -69,6 +76,7 @@ export interface Repositories {
   services: ServiceRepository;
   applications: ApplicationRepository;
   payments: PaymentRepository;
+  proposals: ProposalRepository;
   accounts: AccountRepository;
   pushSubscriptions: PushSubscriptionRepository;
   notifications: NotificationRepository;
@@ -97,6 +105,7 @@ export function createInMemoryRepositories(): Repositories {
     services: createInMemoryServiceRepository(),
     applications: createInMemoryApplicationRepository(),
     payments: createInMemoryPaymentRepository(),
+    proposals: createInMemoryProposalRepository(),
     accounts: createInMemoryAccountRepository(),
     pushSubscriptions: createInMemoryPushSubscriptionRepository(),
     notifications: createInMemoryNotificationRepository(),
@@ -126,6 +135,7 @@ export function createPostgresRepositories(db: Database): Repositories {
     services: createPgServiceRepository(db),
     applications: createPgApplicationRepository(db),
     payments: createPgPaymentRepository(db),
+    proposals: createPgProposalRepository(db),
     accounts: createPgAccountRepository(db),
     pushSubscriptions: createPgPushSubscriptionRepository(db),
     notifications: createPgNotificationRepository(db),

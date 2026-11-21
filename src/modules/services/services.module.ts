@@ -15,6 +15,7 @@ import { UpdateServiceUseCase } from './application/update-service.usecase';
 import type { FarmReputationReader } from './domain/farm-reputation';
 import type { FarmerVerificationReader } from './domain/farmer-verification';
 import type { JobEvents } from './domain/job-events';
+import type { ServicePaymentReader } from './domain/service-payment';
 import type { ServiceRepository } from './domain/service.repository';
 import { createJobController } from './presentation/job.controller';
 import { createServiceController } from './presentation/service.controller';
@@ -31,6 +32,8 @@ export interface ServicesModuleDeps {
   reputation: FarmReputationReader;
   verification: FarmerVerificationReader;
   jobEvents: JobEvents;
+  // O pagamento do serviço, mostrado ao trabalhador aceito (módulo de contratação).
+  servicePayments: ServicePaymentReader;
 }
 
 export interface ServiceUseCases {

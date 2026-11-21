@@ -1,7 +1,7 @@
 import type { FarmReputation, FarmReview, FarmReviewScores, WorkerReputation, WorkerReview, WorkerReviewScores } from '../reviews.contract';
 import type { Visibility } from './review.repository';
 
-// Prazo para avaliar, contado do pagamento. Depois dele ninguém avalia mais e o que foi
+// Prazo para avaliar, contado do pagamento (que conclui o serviço). Depois dele ninguém avalia mais e o que foi
 // escrito aparece mesmo que o outro lado não tenha avaliado.
 export const REVIEW_WINDOW_DAYS = 14;
 export const MAX_REVIEW_COMMENT = 500;

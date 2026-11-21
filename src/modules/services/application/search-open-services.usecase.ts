@@ -25,8 +25,6 @@ const byRecent = (a: OpenService, b: OpenService): number =>
 
 const SORTERS: Record<NonNullable<JobFilters['sort']>, (a: OpenService, b: OpenService) => number> = {
   recent: byRecent,
-  price_desc: (a, b) => b.price - a.price || byRecent(a, b),
-  price_asc: (a, b) => a.price - b.price || byRecent(a, b),
   duration_asc: (a, b) => a.duration - b.duration || byRecent(a, b),
   duration_desc: (a, b) => b.duration - a.duration || byRecent(a, b),
   // Média ponderada pela quantidade de avaliações (uma nota 5 sozinha não passa na frente de vinte notas 4,8).

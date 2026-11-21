@@ -7,6 +7,7 @@ import type { HiringEvents } from '../domain/hiring-events';
 import type { HiringTransaction } from '../domain/hiring-transaction';
 import { APPLICATION_STATUS } from '../domain/hiring-status';
 import { notifyWithdrawal, publishApplicationChanges } from './hiring-notifications';
+import { supersedePending } from './negotiation';
 
 export interface WithdrawFromServiceDeps {
   services: ServiceRepository;
@@ -29,6 +30,7 @@ export type WithdrawOutcome = { undone: 'application' | 'service'; service: Serv
 // - candidatura Pending: é removida (pode se candidatar de novo depois);
 // - já aceito (serviço In Progress): o serviço volta a Pending sem trabalhador e as
 //   candidaturas recusadas pelo aceite voltam a Pending para o produtor escolher outro, tudo junto.
+// A conversa de quem desistiu é encerrada; as das candidaturas que voltaram a Pending reabrem.
 export class WithdrawFromServiceUseCase {
   constructor(private readonly deps: WithdrawFromServiceDeps) {}
 
@@ -41,7 +43,11 @@ export class WithdrawFromServiceUseCase {
     if (!application) return notFound('Você não tem candidatura neste serviço.');
 
     if (application.status === APPLICATION_STATUS.PENDING && service.status === SERVICE_STATUS.PENDING) {
-      await applications.delete(application.id);
+      await this.deps.transaction(async (stores) => {
+        await stores.applications.delete(application.id);
+        await supersedePending(stores.proposals, { application_id: application.id });
+      });
+      await this.deps.events.withdrawn(service, workerId, []); // encerra a conversa
       publishApplicationChanges(changes, service.id, [workerId]);
       notifyWithdrawal(push, service);
       return ok({ undone: 'application', service });
@@ -59,11 +65,13 @@ export class WithdrawFromServiceUseCase {
           restored.push(other.worker_id);
         }
         service.worker_id = null;
+        service.proposal_id = null;
+        service.agreement = null;
         service.status = SERVICE_STATUS.PENDING;
         await stores.services.update(service);
         return restored;
       });
-      await this.deps.events.withdrawn(service, workerId); // encerra a conversa
+      await this.deps.events.withdrawn(service, workerId, affected.slice(1)); // encerra a conversa dele e reabre as dos outros
       publishApplicationChanges(changes, service.id, affected);
       notifyWithdrawal(push, service);
       return ok({ undone: 'service', service });

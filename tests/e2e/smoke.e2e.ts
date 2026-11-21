@@ -18,6 +18,8 @@ import type {
   ChatDetail,
   ChatMessageResponse,
   ChatResponse,
+  PaymentResponse,
+  ProposalResponse,
   FarmReviewsPage,
   FarmerReviewResponse,
   FarmerServiceReviews,
@@ -41,7 +43,6 @@ import type {
   CategoryGroup,
   OpenService,
   PasswordResetRequestResponse,
-  PaymentResponse,
   PreferencesResponse,
   ServiceResponse,
   ServiceWithFarm,
@@ -155,6 +156,19 @@ async function step<T = unknown>(
 }
 
 // Envia um arquivo como corpo (image/* ou application/pdf) e confere a resposta contra o OpenAPI.
+// A negociação antes do aceite: o produtor abre a conversa com o candidato, o trabalhador propõe e o produtor
+// aceita a proposta. Termina agindo como o produtor. Devolve a conversa.
+async function negotiate(label: string, farmerToken: string, workerToken: string, serviceId: number, applicationId: number): Promise<number> {
+  actAs(farmerToken);
+  const { chat } = await step<ChatResponse>(`${label}: produtor abre a conversa`, 'POST', `/farmers/services/${serviceId}/applications/${applicationId}/chat`, undefined, 200);
+  actAs(workerToken);
+  const { proposal } = await step<ProposalResponse>(`${label}: trabalhador propõe`, 'POST', `/chats/${chat.id}/proposals`,
+    { amount: 150, unit: 'day' }, 201);
+  actAs(farmerToken);
+  await step<ProposalResponse>(`${label}: produtor aceita a proposta`, 'PATCH', `/chats/${chat.id}/proposals/${proposal.id}`, { action: 'Accept' }, 200);
+  return chat.id;
+}
+
 async function upload<T = unknown>(
   title: string,
   path: string,
@@ -274,7 +288,7 @@ async function run(): Promise<void> {
     (b) => assert.deepEqual([b.farm.latitude, b.farm.longitude], [-22.1165, -43.2092]));
 
   const { service } = await step<ServiceResponse>('publicar serviço', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita de café', category: 'Colheita', duration: 16, price: 900 }, 201,
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita de café', category: 'Colheita', duration: 16, price: 150, price_unit: 'day' }, 201,
     (b) => assert.equal(b.service.status, 'Pending'));
 
   const { worker, user: workerSession, token: bruno } = await step<WorkerSignupResponse>('cadastrar trabalhador', 'POST', '/workers',
@@ -305,9 +319,14 @@ async function run(): Promise<void> {
   await step<FarmerServiceItem[]>('serviços do produtor com pendentes', 'GET', `/farmers/${farmer.id}/services`, undefined, 200,
     (b) => assert.equal(b[0]?.applications_pending, 2));
 
+  await step('aceitar sem proposta aceita', 'PATCH', `/farmers/services/${service.id}/analyze`, { application_id: application.id, action: 'Accept' }, 409);
+  await negotiate('combinar o valor', ana, bruno, service.id, application.id);
+  await step<ApplicationWithWorker[]>('candidatura com a proposta aceita', 'GET', `/farmers/services/${service.id}/applications`, undefined, 200,
+    (b) => assert.deepEqual(b.map((a) => a.accepted_proposal?.amount ?? null), [150, null]));
   await step<ApplicationResponse & ServiceResponse>('aceitar trabalhador', 'PATCH', `/farmers/services/${service.id}/analyze`, { application_id: application.id, action: 'Accept' }, 200, (b) => {
     assert.equal(b.service.status, 'In Progress');
     assert.equal(b.service.worker_id, worker.id);
+    assert.deepEqual([b.service.agreement?.amount, b.service.agreement?.unit], [150, 'day']);
   });
   actAs(carla);
   await step<ApplicationWithService[]>('outra candidatura foi recusada', 'GET', `/workers/${worker2.id}/applications`, undefined, 200,
@@ -336,12 +355,23 @@ async function run(): Promise<void> {
   await step<OpenService>('outro trabalhador não vê o ponto', 'GET', `/workers/services/${service.id}?worker_id=${worker2.id}`, undefined, 200,
     (b) => assert.equal(b.farm.latitude, undefined));
 
+  actAs(bruno);
+  await step('trabalhador não libera o pagamento', 'POST', `/farmers/services/${service.id}/payment`, { value: 900 }, 403);
   actAs(ana);
-  await step<PaymentResponse>('liberar pagamento', 'POST', `/farmers/services/${service.id}/payment`, undefined, 200, (b) => {
-    assert.equal(b.service.status, 'Completed');
-    assert.equal(b.payment.value, 900);
-    assert.equal(b.service.payment_id, b.payment.id);
+  await step('pagamento sem valor', 'POST', `/farmers/services/${service.id}/payment`, {}, 400);
+  await step('pagamento com valor zero', 'POST', `/farmers/services/${service.id}/payment`, { value: 0 }, 400);
+  await step('pagamento com valor negativo', 'POST', `/farmers/services/${service.id}/payment`, { value: -5 }, 400);
+  await step<PaymentResponse>('liberar pagamento do total', 'POST', `/farmers/services/${service.id}/payment`, { value: 900 }, 200, (b) => {
+    assert.deepEqual([b.service.status, b.service.payment_id, b.payment.value], ['Completed', b.payment.id, 900]);
+    assert.notEqual(b.service.completed_at, null);
   });
+  actAs(bruno);
+  await step<OpenService>('o trabalhador vê o pagamento no serviço dele', 'GET', `/workers/services/${service.id}?worker_id=${worker.id}`, undefined, 200,
+    (b) => assert.equal(b.payment?.value, 900));
+  actAs(carla);
+  await step<OpenService>('outro trabalhador não vê o pagamento', 'GET', `/workers/services/${service.id}?worker_id=${worker2.id}`, undefined, 200,
+    (b) => assert.equal(b.payment, null));
+  actAs(ana);
   await step<FarmerServiceItem[]>('filtrar concluídos', 'GET', `/farmers/${farmer.id}/services?status=Completed`, undefined, 200,
     (b) => assert.equal(b.length, 1));
   await step<FarmerStats>('painel da fazenda: horas, pagamento e quem passou por aqui', 'GET', `/farmers/${farmer.id}/stats`, undefined, 200, (b) => {
@@ -371,7 +401,7 @@ async function run(): Promise<void> {
     { name: 'Outro', email: 'outro@exemplo.com', phone: '1', cpf: '11144477735', password: PW, accept_terms: true }, 201);
   actAs(outro);
   await step('fazenda de outro produtor', 'POST', '/farmers/services',
-    { farmer_id: other.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 400);
+    { farmer_id: other.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 150, price_unit: 'day' }, 400);
   await step('serviço de outro produtor', 'GET', `/farmers/services/${service.id}`, undefined, 403);
   await step('perfil de outro produtor', 'PATCH', `/farmers/${farmer.id}`, { name: 'Invasor' }, 403);
   actAs(bruno);
@@ -391,24 +421,36 @@ async function run(): Promise<void> {
   passed++;
   console.log('  ok  401 — só o 401 de sessão traz WWW-Authenticate (exposto no CORS)');
   actAs(ana);
-  await step('valor zero', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 0 }, 400);
+  await step('duração zero', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 0, price: 150, price_unit: 'day' }, 400);
+  await step('publicar sem valor estimado', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price_unit: 'day' }, 400);
+  await step('publicar sem unidade', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 100 }, 400);
+  await step('valor estimado zero', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 0, price_unit: 'day' }, 400);
+  await step('valor estimado negativo', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: -10, price_unit: 'day' }, 400);
+  await step('unidade inválida', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 10, price_unit: 'semana' }, 400);
   await step('publicar em nome de outro produtor', 'POST', '/farmers/services',
-    { farmer_id: 999, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 403);
+    { farmer_id: 999, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 150, price_unit: 'day' }, 403);
   await step('serviço sem campos', 'POST', '/farmers/services', { farmer_id: farmer.id }, 400);
   await step('categoria fora da lista', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'Pesca', category: 'Pescaria', duration: 1, price: 1 }, 400);
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Pesca', category: 'Pescaria', duration: 1, price: 150, price_unit: 'day' }, 400);
   await step('grupo no lugar do serviço', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'Cerca', category: 'Cercas e construções', duration: 1, price: 1 }, 400);
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Cerca', category: 'Cercas e construções', duration: 1, price: 150, price_unit: 'day' }, 400);
   await step('categoria fora da lista (edição)', 'PATCH', `/farmers/services/${service.id}`, { category: 'Motosserra' }, 400);
   await step('palavrão no nome do serviço', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita da p0rra', category: 'Outros', duration: 1, price: 1 }, 400);
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita da p0rra', category: 'Outros', duration: 1, price: 150, price_unit: 'day' }, 400);
   await step('palavrão na descrição (edição)', 'PATCH', `/farmers/services/${service.id}`, { description: 'Vai tomar no cu' }, 400);
 
   const { service: open } = await step<ServiceResponse>('publicar 2º serviço', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'Plantio', category: 'Plantio', duration: 8, price: 300 }, 201);
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Plantio', category: 'Plantio', duration: 8, price: 150, price_unit: 'day' }, 201);
   actAs(bruno);
   await step('candidatar em serviço inexistente', 'POST', '/workers/services/999/apply', { worker_id: worker.id }, 404);
+  await step('mensagem da candidatura longa demais', 'POST', '/workers/services/999/apply', { worker_id: worker.id, message: 'a'.repeat(301) }, 400);
+  await step('palavrão na mensagem da candidatura', 'POST', '/workers/services/999/apply', { worker_id: worker.id, message: 'que p0rra' }, 400);
   await step('candidatar em nome de outro trabalhador', 'POST', `/workers/services/${open.id}/apply`, { worker_id: worker2.id }, 403);
   actAs(carla);
   const { application: openApp } = await step<ApplicationResponse>('candidatar no 2º serviço', 'POST', `/workers/services/${open.id}/apply`, { worker_id: worker2.id }, 201);
@@ -425,8 +467,15 @@ async function run(): Promise<void> {
     (b) => assert.equal(b.application.status, 'Rejected'));
   await step('recusar de novo', 'PATCH', `/farmers/services/${open.id}/analyze`, { application_id: openApp.id, action: 'Reject' }, 409);
 
-  await step('pagar serviço não iniciado', 'POST', `/farmers/services/${open.id}/payment`, undefined, 409);
-  await step('pagar duas vezes', 'POST', `/farmers/services/${service.id}/payment`, undefined, 409);
+  await step('pagar serviço não iniciado', 'POST', `/farmers/services/${open.id}/payment`, { value: 100 }, 409);
+  await step('pagar duas vezes', 'POST', `/farmers/services/${service.id}/payment`, { value: 100 }, 409);
+  await step('editar a estimativa de serviço concluído', 'PATCH', `/farmers/services/${service.id}`, { price: 200, price_unit: 'day' }, 409);
+  await step('rota de concluir não existe mais', 'POST', `/farmers/services/${service.id}/complete`, undefined, 404);
+  await step('rota de "paguei" não existe mais', 'POST', `/farmers/services/${service.id}/paid`, undefined, 404);
+  actAs(bruno);
+  await step('rota de concluir do trabalhador não existe mais', 'POST', `/workers/services/${service.id}/complete`, { worker_id: worker.id }, 404);
+  await step('rota de "recebi" não existe mais', 'POST', `/workers/services/${service.id}/received`, { worker_id: worker.id }, 404);
+  actAs(ana);
   await step('status de filtro inválido', 'GET', `/farmers/${farmer.id}/services?status=Foo`, undefined, 400);
   await step('serviço inexistente', 'GET', '/farmers/services/999', undefined, 404);
   await step('rota inexistente', 'GET', '/nada', undefined, 404);
@@ -515,18 +564,18 @@ async function run(): Promise<void> {
   await step('editar para e-mail em uso', 'PATCH', `/farmers/${fd.id}`, { email: 'ana@exemplo.com' }, 409);
 
   const { service: fdService } = await step<ServiceResponse>('serviço a remover', 'POST', '/farmers/services',
-    { farmer_id: fd.id, farm_id: fdFarm.id, name: 'Roçada', category: 'Outros', duration: 4, price: 200 }, 201);
+    { farmer_id: fd.id, farm_id: fdFarm.id, name: 'Roçada', category: 'Outros', duration: 4, price: 150, price_unit: 'day' }, 201);
   const { worker: wd, token: eli } = await step<WorkerSignupResponse>('trabalhador a remover', 'POST', '/workers',
     { name: 'Eli', email: 'eli@exemplo.com', phone: '1', cpf: '93541134780', password: PW, accept_terms: true }, 201);
   actAs(eli);
   const { application: wdApp } = await step<ApplicationResponse>('candidatura a remover', 'POST', `/workers/services/${fdService.id}/apply`, { worker_id: wd.id }, 201);
-  actAs(dora);
+  await negotiate('serviço a remover', dora, eli, fdService.id, wdApp.id);
   await step('aceitar para ficar em andamento', 'PATCH', `/farmers/services/${fdService.id}/analyze`, { application_id: wdApp.id, action: 'Accept' }, 200);
   await step('remover produtor com serviço em andamento', 'DELETE', `/farmers/${fd.id}`, undefined, 409);
   actAs(eli);
   await step('remover trabalhador com serviço em andamento', 'DELETE', `/workers/${wd.id}`, undefined, 409);
   actAs(dora);
-  await step('pagar para concluir', 'POST', `/farmers/services/${fdService.id}/payment`, undefined, 200);
+  await step('pagar para concluir', 'POST', `/farmers/services/${fdService.id}/payment`, { value: 150 }, 200);
 
   actAs(eli);
   await step('remover trabalhador', 'DELETE', `/workers/${wd.id}`, undefined, 200);
@@ -542,15 +591,16 @@ async function run(): Promise<void> {
 
   console.log('\nEdição e cancelamento de serviço');
   const { service: editable } = await step<ServiceResponse>('serviço a editar', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'Poda', category: 'Manutenção', duration: 6, price: 250 }, 201);
-  await step<ServiceResponse>('editar serviço', 'PATCH', `/farmers/services/${editable.id}`, { name: 'Poda de café', price: 320 }, 200, (b) => {
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Poda', category: 'Manutenção', duration: 6, price: 150, price_unit: 'day' }, 201);
+  await step<ServiceResponse>('editar serviço e a estimativa', 'PATCH', `/farmers/services/${editable.id}`, { name: 'Poda de café', duration: 7, price: 35, price_unit: 'hour' }, 200, (b) => {
     assert.equal(b.service.name, 'Poda de café');
-    assert.equal(b.service.price, 320);
-    assert.equal(b.service.duration, 6);
+    assert.deepEqual([b.service.duration, b.service.price, b.service.price_unit], [7, 35, 'hour']);
   });
-  await step('editar com valor inválido', 'PATCH', `/farmers/services/${editable.id}`, { price: -1 }, 400);
+  await step('editar o valor sem a unidade', 'PATCH', `/farmers/services/${editable.id}`, { price: 40 }, 400);
+  await step('editar com duração inválida', 'PATCH', `/farmers/services/${editable.id}`, { duration: -1 }, 400);
   await step('editar status direto', 'PATCH', `/farmers/services/${editable.id}`, { status: 'Completed' }, 400);
   actAs(outro);
+  await step('outro produtor não libera o pagamento', 'POST', `/farmers/services/${service.id}/payment`, { value: 900 }, 403);
   const { farm: otherFarm } = await step<FarmResponse>('fazenda de outro produtor', 'POST', `/farmers/${other.id}/farms`, { address: 'a', city: 'b', state: 'MG', latitude: -22.1165, longitude: -43.2092 }, 201);
   actAs(ana);
   await step('editar para fazenda de outro', 'PATCH', `/farmers/services/${editable.id}`, { farm_id: otherFarm.id }, 400);
@@ -574,7 +624,7 @@ async function run(): Promise<void> {
 
   console.log('\nDesistência do trabalhador');
   const { service: ws } = await step<ServiceResponse>('serviço para desistência', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'Capina', category: 'Manutenção', duration: 5, price: 150 }, 201);
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Capina', category: 'Manutenção', duration: 5, price: 150, price_unit: 'day' }, 201);
   const { worker: worker3, token: davi } = await step<WorkerSignupResponse>('cadastrar 3º trabalhador', 'POST', '/workers',
     { name: 'Davi', email: 'davi@exemplo.com', phone: '1', cpf: '71428793860', password: PW, accept_terms: true }, 201);
   const farmerEvents = await openEvents('produtor acompanha as candidaturas (SSE)', `/farmers/services/${ws.id}/events`);
@@ -601,6 +651,7 @@ async function run(): Promise<void> {
   const worker2Live = await openEvents('2º candidato acompanha o perfil, um stream só (SSE)', `/workers/${worker2.id}/live`);
   actAs(ana);
   await step('produtor recusa o 3º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa3.id, action: 'Reject' }, 200);
+  await negotiate('desistência', ana, bruno, ws.id, wa1.id);
   await step('produtor aceita o 1º', 'PATCH', `/farmers/services/${ws.id}/analyze`, { application_id: wa1.id, action: 'Accept' }, 200);
   await worker2Events.expectEvent('2º candidato avisado da recusa pelo aceite', 'applications');
   await worker2Live.expectEvent('o stream do perfil também traz as candidaturas', 'applications');
@@ -644,7 +695,7 @@ async function run(): Promise<void> {
   await step('fazenda inexistente', 'DELETE', `/farmers/${farmer.id}/farms/999`, undefined, 404);
 
   const { service: f2Service } = await step<ServiceResponse>('serviço na 2ª fazenda', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: f2.id, name: 'Cerca', category: 'Manutenção', duration: 3, price: 120 }, 201);
+    { farmer_id: farmer.id, farm_id: f2.id, name: 'Cerca', category: 'Manutenção', duration: 3, price: 150, price_unit: 'day' }, 201);
   await step('remover fazenda com serviço aberto', 'DELETE', `/farmers/${farmer.id}/farms/${f2.id}`, undefined, 409);
   await step('cancelar serviço da fazenda', 'PATCH', `/farmers/services/${f2Service.id}/cancel`, undefined, 200);
   await step('remover fazenda', 'DELETE', `/farmers/${farmer.id}/farms/${f2.id}`, undefined, 200);
@@ -655,7 +706,7 @@ async function run(): Promise<void> {
   await step('editar fazenda removida', 'PATCH', `/farmers/${farmer.id}/farms/${f2.id}`, { city: 'X' }, 404);
   await step('remover de novo', 'DELETE', `/farmers/${farmer.id}/farms/${f2.id}`, undefined, 404);
   await step('publicar em fazenda removida', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: f2.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 404);
+    { farmer_id: farmer.id, farm_id: f2.id, name: 'X', category: 'Outros', duration: 1, price: 150, price_unit: 'day' }, 404);
   await step('mover serviço para fazenda removida', 'PATCH', `/farmers/services/${ws.id}`, { farm_id: f2.id }, 404);
 
   console.log('\nFotos');
@@ -726,15 +777,15 @@ async function run(): Promise<void> {
   console.log('\nDescrição, validade e exclusão');
   actAs(ana);
   const { service: described } = await step<ServiceResponse>('serviço com descrição e validade', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'Roçada de pasto', description: '  Roçar 2 ha com roçadeira costal.  ', category: 'Manutenção', duration: 12, price: 600, expires_at: brDay(10) }, 201,
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Roçada de pasto', description: '  Roçar 2 ha com roçadeira costal.  ', category: 'Manutenção', duration: 12, price: 150, price_unit: 'day', expires_at: brDay(10) }, 201,
     (b) => {
       assert.equal(b.service.description, 'Roçar 2 ha com roçadeira costal.');
       assert.equal(b.service.expires_at, brDay(10));
     });
   await step('validade no passado', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1, expires_at: brDay(-1) }, 400);
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 150, price_unit: 'day', expires_at: brDay(-1) }, 400);
   await step('validade em formato errado', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1, expires_at: '31/10/2026' }, 400);
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 150, price_unit: 'day', expires_at: '31/10/2026' }, 400);
   await step('data que não existe', 'PATCH', `/farmers/services/${described.id}`, { expires_at: '2026-02-30' }, 400);
   await step<ServiceResponse>('validade vence hoje ainda vale', 'PATCH', `/farmers/services/${described.id}`, { expires_at: brDay(0) }, 200);
   actAs(bruno);
@@ -767,12 +818,12 @@ async function run(): Promise<void> {
   actAs(ana);
 
   console.log('\nFiltros de vagas');
-  const post = (name: string, description: string, category: string, duration: number, price: number): Promise<ServiceResponse> =>
-    step<ServiceResponse>(`publicar "${name}"`, 'POST', '/farmers/services', { farmer_id: farmer.id, farm_id: farm.id, name, description, category, duration, price }, 201);
-  const cafe = (await post('Colheita de Café', 'Café arábica em terreno inclinado', 'Colheita', 30, 1500)).service;
-  const ordenha = (await post('Ordenha', 'Ordenha mecânica às 5h', 'Manejo de gado', 6, 300)).service;
-  const leite = (await post('Ordenha da tarde', 'Ordenha manual de 20 vacas', 'Ordenha', 4, 200)).service;
-  const trator = (await post('Gradear área', 'Trator próprio da fazenda, precisa de CNH', 'Operação de máquinas', 16, 900)).service;
+  const post = (name: string, description: string, category: string, duration: number): Promise<ServiceResponse> =>
+    step<ServiceResponse>(`publicar "${name}"`, 'POST', '/farmers/services', { farmer_id: farmer.id, farm_id: farm.id, name, description, category, duration, price: 150, price_unit: 'day' }, 201);
+  const cafe = (await post('Colheita de Café', 'Café arábica em terreno inclinado', 'Colheita', 30)).service;
+  const ordenha = (await post('Ordenha', 'Ordenha mecânica às 5h', 'Manejo de gado', 6)).service;
+  const leite = (await post('Ordenha da tarde', 'Ordenha manual de 20 vacas', 'Ordenha', 4)).service;
+  const trator = (await post('Gradear área', 'Trator próprio da fazenda, precisa de CNH', 'Operação de máquinas', 16)).service;
   const ids = (b: OpenService[]): number[] => b.map((j) => j.id);
   actAs(bruno);
 
@@ -793,8 +844,7 @@ async function run(): Promise<void> {
   await step<OpenService[]>('publicadas hoje', 'GET', `/workers/services?from=${brDay(0)}&to=${brDay(0)}`, undefined, 200,
     (b) => assert.ok(ids(b).includes(cafe.id)));
   await step<OpenService[]>('publicadas amanhã em diante', 'GET', `/workers/services?from=${brDay(1)}`, undefined, 200, (b) => assert.deepEqual(b, []));
-  await step<OpenService[]>('ordem: maior valor primeiro', 'GET', '/workers/services?sort=price_desc', undefined, 200,
-    (b) => assert.ok(b.every((j, i) => i === 0 || (b[i - 1]?.price ?? 0) >= j.price)));
+  await step('ordem por valor não existe mais', 'GET', '/workers/services?sort=price_desc', undefined, 400);
   await step<OpenService[]>('ordem: menos horas primeiro', 'GET', '/workers/services?sort=duration_asc', undefined, 200,
     (b) => assert.ok(b.every((j, i) => i === 0 || (b[i - 1]?.duration ?? 0) <= j.duration)));
   await step('mínimo maior que o máximo', 'GET', '/workers/services?min_hours=20&max_hours=10', undefined, 400);
@@ -827,32 +877,39 @@ async function run(): Promise<void> {
   const { farm: rosaFarm } = await step<FarmResponse>('fazenda da produtora', 'POST', `/farmers/${rosaFarmer.id}/farms`,
     { address: 'Sítio Bela Vista', city: 'Vassouras', state: 'RJ', latitude: -22.4039, longitude: -43.6628 }, 201);
   const { service: hired } = await step<ServiceResponse>('serviço para conversar e avaliar', 'POST', '/farmers/services',
-    { farmer_id: rosaFarmer.id, farm_id: rosaFarm.id, name: 'Colheita de feijão', category: 'Colheita', duration: 8, price: 350 }, 201);
+    { farmer_id: rosaFarmer.id, farm_id: rosaFarm.id, name: 'Colheita de feijão', category: 'Colheita', duration: 8, price: 150, price_unit: 'day' }, 201);
   actAs(null);
   const { worker: tiagoWorker, token: tiago } = await step<WorkerSignupResponse>('cadastrar trabalhador da conversa', 'POST', '/workers',
     { name: 'Tiago Lima', email: 'tiago@exemplo.com', phone: '24988881111', cpf: '25836914737', password: PW, accept_terms: true }, 201);
   actAs(tiago);
-  const { application: tiagoApp } = await step<ApplicationResponse>('candidatar-se', 'POST', `/workers/services/${hired.id}/apply`, { worker_id: tiagoWorker.id }, 201);
+  const { application: tiagoApp } = await step<ApplicationResponse>('candidatar-se com mensagem', 'POST', `/workers/services/${hired.id}/apply`,
+    { worker_id: tiagoWorker.id, message: 'Já colhi feijão 2 safras. Zap 24 98888-1111' }, 201,
+    (b) => assert.equal(b.application.message, 'Já colhi feijão 2 safras. Zap [número oculto]'));
   actAs(rosa);
-  await step<ApplicationWithWorker[]>('candidato com contato mascarado e reputação', 'GET', `/farmers/services/${hired.id}/applications`, undefined, 200, (b) => {
+  await step<ApplicationWithWorker[]>('candidato com contato mascarado, mensagem e reputação', 'GET', `/farmers/services/${hired.id}/applications`, undefined, 200, (b) => {
     assert.deepEqual([b[0]?.worker.phone, b[0]?.worker.email, b[0]?.worker.cpf], ['(24) *****-**11', 't***@exemplo.com', '***.369.147-**']);
     assert.deepEqual([b[0]?.reputation.count, b[0]?.reputation.average], [0, null]);
+    assert.equal(b[0]?.message, 'Já colhi feijão 2 safras. Zap [número oculto]');
   });
-  await step<Chat[]>('sem conversa antes do aceite', 'GET', `/farmers/${rosaFarmer.id}/chats`, undefined, 200, (b) => assert.equal(b.length, 0));
+  await step<Chat[]>('sem conversa antes de a produtora abrir', 'GET', `/farmers/${rosaFarmer.id}/chats`, undefined, 200, (b) => assert.equal(b.length, 0));
   const rosaChats = await openEvents('produtora acompanha as conversas (SSE)', `/farmers/${rosaFarmer.id}/chats/events`);
-  await step('aceitar trabalhador', 'PATCH', `/farmers/services/${hired.id}/analyze`, { application_id: tiagoApp.id, action: 'Accept' }, 200);
-  await rosaChats.expectEvent('conversa aberta no aceite', 'chats');
-  const [opened] = await step<Chat[]>('conversa aberta no aceite', 'GET', `/farmers/${rosaFarmer.id}/chats`, undefined, 200, (b) => {
-    assert.equal(b.length, 1);
-    assert.deepEqual([b[0]?.service_id, b[0]?.open, b[0]?.unread, b[0]?.farmer.phone, b[0]?.worker.phone], [hired.id, true, 0, null, null]);
-    assert.equal(b[0]?.last_message?.sender, 'system');
+  const openChatPath = `/farmers/services/${hired.id}/applications/${tiagoApp.id}/chat`;
+  actAs(tiago);
+  await step('trabalhador não abre a conversa', 'POST', openChatPath, undefined, 403);
+  actAs(rosa);
+  const { chat: opened } = await step<ChatResponse>('produtora abre a conversa com o candidato', 'POST', openChatPath, undefined, 200, (b) => {
+    assert.deepEqual([b.chat.service_id, b.chat.open, b.chat.unread, b.chat.farmer.phone, b.chat.worker.phone], [hired.id, true, 0, null, null]);
+    assert.equal(b.chat.last_message?.sender, 'system');
   });
-  assert.ok(opened);
+  await rosaChats.expectEvent('conversa aberta antes do aceite', 'chats');
+  await step<ChatResponse>('abrir de novo devolve a mesma conversa', 'POST', openChatPath, undefined, 200, (b) => assert.equal(b.chat.id, opened.id));
+  await step('candidatura inexistente', 'POST', `/farmers/services/${hired.id}/applications/999/chat`, undefined, 404);
   actAs(tiago);
   await step<Chat[]>('trabalhador vê a mesma conversa', 'GET', `/workers/${tiagoWorker.id}/chats`, undefined, 200,
     (b) => assert.deepEqual(b.map((c) => [c.id, c.farmer.name]), [[opened.id, 'Rosa Produtora']]));
   const tiagoChat = await openEvents('trabalhador acompanha a conversa (SSE)', `/chats/${opened.id}/events`);
   const tiagoLive = await openEvents('trabalhador acompanha o perfil, um stream só (SSE)', `/workers/${tiagoWorker.id}/live`);
+  await step('WhatsApp não é liberado antes do aceite', 'PATCH', `/chats/${opened.id}/phone`, { share: true }, 409);
   actAs(rosa);
   await step<ChatMessageResponse>('telefone na mensagem sai oculto', 'POST', `/chats/${opened.id}/messages`,
     { body: 'Pode chegar às 7h? Meu número é (24) 99999-1111' }, 201, (b) => {
@@ -870,7 +927,45 @@ async function run(): Promise<void> {
   });
   await step('marcar como lida', 'POST', `/chats/${opened.id}/read`, undefined, 200);
   await step<Chat[]>('contador zerado', 'GET', `/workers/${tiagoWorker.id}/chats`, undefined, 200, (b) => assert.equal(b[0]?.unread, 0));
-  await step<ChatResponse>('trabalhador libera o WhatsApp', 'PATCH', `/chats/${opened.id}/phone`, { share: true }, 200,
+  actAs(rosa);
+  actAs(tiago);
+  const { proposal: tiagoProposal } = await step<ProposalResponse>('trabalhador propõe na conversa', 'POST', `/chats/${opened.id}/proposals`,
+    { amount: 200, unit: 'day', notes: 'Levo minha enxada. Zap 24 98888-1111' }, 201,
+    (b) => assert.deepEqual([b.proposal.status, b.proposal.proposed_by, b.proposal.notes], ['Pending', 'worker', 'Levo minha enxada. Zap [número oculto]']));
+  await tiagoChat.expectEvent('a proposta aparece na conversa', 'chat');
+  await step('quem propôs não aceita a própria proposta', 'PATCH', `/chats/${opened.id}/proposals/${tiagoProposal.id}`, { action: 'Accept' }, 409);
+  await step('proposta com valor zero', 'POST', `/chats/${opened.id}/proposals`, { amount: 0, unit: 'day' }, 400);
+  await step('proposta com unidade inválida', 'POST', `/chats/${opened.id}/proposals`, { amount: 10, unit: 'semana' }, 400);
+  actAs(rosa);
+  const { proposal: counter } = await step<ProposalResponse>('produtora faz uma contraproposta', 'POST', `/chats/${opened.id}/proposals`,
+    { amount: 180, unit: 'day' }, 201);
+  await tiagoChat.expectEvent('a contraproposta aparece na conversa', 'chat');
+  actAs(tiago);
+  await step<ChatDetail>('a primeira proposta foi substituída', 'GET', `/chats/${opened.id}`, undefined, 200, (b) => {
+    assert.deepEqual(b.proposals.map((p) => [p.id, p.status]), [[tiagoProposal.id, 'Superseded'], [counter.id, 'Pending']]);
+    assert.equal(b.application_id, tiagoApp.id);
+    assert.deepEqual(b.estimate, { price: 150, price_unit: 'day' }); // a estimativa da vaga, para o app pré-preencher
+    assert.equal(b.messages.at(-1)?.proposal_id, counter.id);
+  });
+  await step<ProposalResponse>('trabalhador aceita a contraproposta', 'PATCH', `/chats/${opened.id}/proposals/${counter.id}`, { action: 'Accept' }, 200,
+    (b) => assert.equal(b.proposal.status, 'Accepted'));
+  await tiagoChat.expectEvent('o aceite da proposta aparece na conversa', 'chat');
+  await step('proposta depois de uma aceita', 'POST', `/chats/${opened.id}/proposals`, { amount: 10, unit: 'day' }, 409);
+  actAs(bruno);
+  await step('quem não é da conversa não propõe', 'POST', `/chats/${opened.id}/proposals`, { amount: 10, unit: 'day' }, 403);
+  actAs(rosa);
+  await step('aceitar trabalhador', 'PATCH', `/farmers/services/${hired.id}/analyze`, { application_id: tiagoApp.id, action: 'Accept' }, 200);
+  await tiagoChat.expectEvent('aviso da contratação na conversa', 'chat');
+  actAs(tiago);
+  await step<OpenService>('o aceito vê o combinado na vaga', 'GET', `/workers/services/${hired.id}?worker_id=${tiagoWorker.id}`, undefined, 200,
+    (b) => assert.deepEqual([b.agreement?.amount, b.agreement?.unit, b.payment], [180, 'day', null]));
+  actAs(bruno);
+  await step<OpenService>('outro trabalhador não vê o combinado', 'GET', `/workers/services/${hired.id}`, undefined, 200,
+    (b) => assert.deepEqual([b.agreement, b.proposal_id], [null, null]));
+  actAs(rosa);
+  await step('conversa de candidatura já analisada', 'POST', openChatPath, undefined, 409);
+  actAs(tiago);
+  await step<ChatResponse>('trabalhador libera o WhatsApp depois do aceite', 'PATCH', `/chats/${opened.id}/phone`, { share: true }, 200,
     (b) => assert.deepEqual([b.chat.worker_shares_phone, b.chat.farmer.phone, b.chat.worker.phone], [true, null, null]));
   await tiagoChat.expectEvent('aviso de WhatsApp liberado na conversa', 'chat');
   actAs(rosa);
@@ -897,7 +992,7 @@ async function run(): Promise<void> {
   await step<FarmerServiceReviews>('antes de concluir não há o que avaliar', 'GET', `/farmers/services/${hired.id}/reviews`, undefined, 200,
     (b) => assert.deepEqual([b.can_review, b.window_ends_at, b.given, b.received], [false, null, null, null]));
   await step('avaliar antes de concluir', 'POST', `/farmers/services/${hired.id}/review`, { punctuality: 5, effort: 5, quality: 5 }, 409);
-  await step('liberar pagamento', 'POST', `/farmers/services/${hired.id}/payment`, undefined, 200);
+  await step('liberar pagamento', 'POST', `/farmers/services/${hired.id}/payment`, { value: 180 }, 200);
   await step<ChatDetail>('a conversa continua aberta por 7 dias', 'GET', `/chats/${opened.id}`, undefined, 200, (b) => {
     assert.equal(b.open, true);
     assert.notEqual(b.closes_at, null);
@@ -937,7 +1032,7 @@ async function run(): Promise<void> {
   await step<FarmerServiceReviews>('a produtora vê a avaliação da fazenda', 'GET', `/farmers/services/${hired.id}/reviews`, undefined, 200,
     (b) => assert.equal(b.received?.conditions, 5));
   const { service: nextJob } = await step<ServiceResponse>('nova vaga na fazenda avaliada', 'POST', '/farmers/services',
-    { farmer_id: rosaFarmer.id, farm_id: rosaFarm.id, name: 'Plantio de feijão', category: 'Plantio', duration: 6, price: 250 }, 201);
+    { farmer_id: rosaFarmer.id, farm_id: rosaFarm.id, name: 'Plantio de feijão', category: 'Plantio', duration: 6, price: 150, price_unit: 'day' }, 201);
   actAs(tiago);
   await step<OpenService[]>('vagas por avaliação: a fazenda avaliada primeiro', 'GET', '/workers/services?sort=rating', undefined, 200, (b) => {
     assert.equal(b[0]?.id, nextJob.id);
@@ -1116,10 +1211,10 @@ async function administration({ ana, outro, carla, bruno, farmer, other, worker,
   // Serviço em andamento bloqueia a remoção (de um perfil e da conta inteira).
   actAs(ana);
   const { service: busy } = await step<ServiceResponse>('serviço em andamento para a administração', 'POST', '/farmers/services',
-    { farmer_id: farmer.id, farm_id: farmId, name: 'Adubação', category: 'Outros', duration: 4, price: 200 }, 201);
+    { farmer_id: farmer.id, farm_id: farmId, name: 'Adubação', category: 'Outros', duration: 4, price: 150, price_unit: 'day' }, 201);
   actAs(carla);
   const { application: busyApp } = await step<ApplicationResponse>('candidata ao serviço', 'POST', `/workers/services/${busy.id}/apply`, { worker_id: worker2.id }, 201);
-  actAs(ana);
+  await negotiate('serviço em andamento', ana, carla, busy.id, busyApp.id);
   await step('aceita a candidata', 'PATCH', `/farmers/services/${busy.id}/analyze`, { application_id: busyApp.id, action: 'Accept' }, 200);
   actAs(admin);
   const carlaAccount = account('carla@exemplo.com');

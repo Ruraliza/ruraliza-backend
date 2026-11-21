@@ -11,6 +11,6 @@ export function createPgChatRepository(db: Database): ChatRepository {
 
 export function createPgChatMessageRepository(db: Database): ChatMessageRepository {
   return new PgRepository(db, 'chat_messages', {
-    chat_id: 'value', sender: 'value', body: 'value', insertion_date: 'value'
+    chat_id: 'value', sender: 'value', body: 'value', proposal_id: 'value?', insertion_date: 'value'
   }, ['chat_id']);
 }

@@ -112,7 +112,7 @@ export function workerRoutes(workers: WorkerController, resumes: ResumeControlle
           'Server-Sent Events (`text/event-stream`), para usar com `EventSource` no navegador. A conexão fica aberta e ' +
           '`event: applications` (com `data: {}`) chega a cada mudança; o aviso não traz dados: busque a lista de novo em `GET /api/workers/{id}/applications`. ' +
           'Avisa quando uma candidatura do trabalhador é aceita, recusada (pelo produtor ou pelo aceite de outro), volta a `Pending` ' +
-          'ou some, e quando o serviço é editado, cancelado ou pago. A cada 25 s vai um comentário (`: ping`) para manter a conexão viva.',
+          'ou some, e quando chega ou é respondida uma proposta e quando o serviço é editado, cancelado ou pago. A cada 25 s vai um comentário (`: ping`) para manter a conexão viva.',
         params: [workerId],
         success: { status: 200, description: 'Stream de eventos aberto.', eventStream: true },
         errors: { 404: 'Trabalhador não encontrado.' }

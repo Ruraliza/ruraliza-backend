@@ -14,13 +14,13 @@ Tudo pelo celular, pensado para quem está no campo, com sinal fraco e sol forte
 
 ## 3. O problema
 
-**Para o produtor rural:** colheita, plantio e aplicação têm janela curta. Achar gente de última hora é difícil, e serviço fora de hora afeta a safra e o planejamento da fazenda.
+**Para o produtor rural:** colheita, plantio e aplicação têm janela curta. Achar gente de última hora é difícil, e serviço fora de hora afeta a safra e o planejamento da fazenda. Os trabalhos simples do dia a dia também esperam: uma cerca arrebentada, uma caixa d'água para limpar, um pasto para roçar ou um curral para reformar. São serviços curtos, que nem sempre compensam contratar alguém fixo, e é difícil achar quem faça na hora certa.
 
 **Para o trabalhador rural, o prestador e o estudante:** quem tem experiência ou certificado depende do boca a boca para achar serviço. Falta um lugar com vagas claras e um jeito de mostrar o que sabe fazer.
 
 **Em comum:** falta confiança entre as partes. Quem é essa pessoa? Essa fazenda paga direito? Como combinar sem expor o telefone para qualquer um?
 
-Público-alvo exato (tamanho das propriedades, culturas, perfil dos trabalhadores) e região de atuação: Goiás.
+Público-alvo exato (tamanho das propriedades, culturas, perfil dos trabalhadores) e região de atuação: Pequenas e média fazendas, Goiás.
 
 Origem da ideia e contexto em que o projeto nasceu: A falta de mão de obra qualificada no mercado de trabalho do agro.
 
@@ -29,14 +29,15 @@ Origem da ideia e contexto em que o projeto nasceu: A falta de mão de obra qual
 ### Produtor rural
 
 - Cadastra as fazendas, com fotos e o ponto marcado no mapa.
-- Publica vagas dizendo o que precisa, em qual fazenda, quantas horas e quanto paga.
+- Publica vagas dizendo o que precisa, em qual fazenda, quantas horas e quanto paga. Pode contratar desde serviços do dia a dia até grandes trabalhos, em sete grupos: lavoura e horta, cercas e construções, água, pasto e terreno, animais, máquinas e outros.
 - Vê os candidatos, com experiência, certificados informados no perfil, selo de verificado e avaliações, e escolhe quem vai trabalhar.
 - Conversa com o trabalhador escolhido, libera o pagamento (hoje simulado) e avalia o serviço.
 - Acompanha tudo num painel da fazenda: o que está aguardando, em andamento e concluído.
 
 ### Trabalhador rural, prestador ou estudante
 
-- Busca vagas por tipo de serviço e cidade, vendo local, horas e valor antes de se candidatar.
+- Busca vagas por grupo, tipo de serviço e cidade, vendo local, horas e valor antes de se candidatar.
+- Pode atuar em serviços de qualquer um dos grupos: lavoura e horta, cercas e construções, água, pasto e terreno, animais, máquinas e outros. Nas preferências, escolhe os serviços que quer fazer ou marca um grupo inteiro.
 - Recebe vagas recomendadas conforme os interesses e a distância, e avisos de vaga nova.
 - Se candidata com um toque e acompanha a resposta do produtor.
 - Conversa com o produtor depois de aceito e avalia a fazenda ao final.
@@ -60,9 +61,9 @@ A equipe não tem cadastro público; as contas são criadas por um administrador
 
 ## 5. Como funciona na prática
 
-Seu Antônio tem uma fazenda e o café está no ponto. Ele abre o Ruraliza no celular e publica uma vaga: colheita de café, 40 horas, com o valor que paga. [Personagens e números ilustrativos.]
+Seu Antônio tem uma fazenda, e a cerca do pasto arrebentou: o gado está escapando. Ele abre o Ruraliza no celular e publica uma vaga: conserto de cerca, 8 horas, com o valor que paga. [Personagens e números ilustrativos.]
 
-A vaga aparece para quem procura serviço. Maria, que mora perto e já fez colheita antes, recebe um aviso de vaga nova. Ela vê o local, as horas e o valor, e se candidata com um toque.
+A vaga aparece para quem procura serviço. Maria, que mora perto e já consertou cerca antes, recebe um aviso de vaga nova. Ela vê o local, as horas e o valor, e se candidata com um toque.
 
 Seu Antônio vê os candidatos, com a experiência, os certificados informados, o selo de verificado e as avaliações de cada um. Ele aceita a Maria. As outras candidaturas são recusadas automaticamente, e cada pessoa recebe um aviso.
 
@@ -77,8 +78,8 @@ Por fim, os dois se avaliam. Seu Antônio avalia pontualidade, empenho e qualida
 ### Contratação
 
 - Publicação de vagas em dois passos, com prazo para encerrar.
-- Tipos de serviço em sete grupos: lavoura e horta, cercas e construções, água, pasto e terreno, animais, máquinas e outros. São trabalhos do dia a dia da fazenda que não exigem curso nem certificação.
-- Busca de vagas com filtros, e vagas recomendadas para cada trabalhador.
+- Vagas organizadas por tipo e grupo de serviço: quem publica escolhe primeiro o grupo e depois o serviço (veja a seção Tipos de serviço).
+- Busca de vagas com filtros por grupo, por tipo de serviço, por horas, por data e pela nota da fazenda, e vagas recomendadas para cada trabalhador.
 - Candidatura, desistência, aceite e recusa automática das demais candidaturas.
 - Pagamento liberado pelo produtor ao final do serviço (simulado).
 - Painel da fazenda com o andamento dos serviços.
@@ -115,7 +116,63 @@ Por fim, os dois se avaliam. Seu Antônio avalia pontualidade, empenho e qualida
 - Pode ser instalado no celular como um aplicativo, direto do navegador.
 - Tudo em português do Brasil.
 
-## 7. Diferenciais
+## 7. Tipos de serviço
+
+São trabalhos do dia a dia da fazenda que não exigem curso nem certificação obrigatória, organizados em sete grupos.
+
+**Lavoura e horta**
+
+- Colheita
+- Plantio
+- Pulverização
+- Capina
+- Preparo de canteiro
+- Ensacamento e seleção de grãos
+
+**Cercas e construções**
+
+- Conserto de cerca
+- Construção de cerca
+- Troca de mourões e esticadores
+- Porteiras e colchetes
+- Curral, brete e tronco
+- Reforma de galpão, paiol e cocho
+- Pequenas obras de alvenaria
+- Manutenção
+
+**Água**
+
+- Encanamento e caixa d'água
+- Limpeza de represa, açude e cisterna
+- Instalação e manutenção de irrigação
+- Conserto de roda d'água e carneiro hidráulico
+
+**Pasto e terreno**
+
+- Roçada manual
+- Limpeza de pasto
+- Aceiro manual
+- Conservação de estrada interna
+- Poda manual
+
+**Animais**
+
+- Manejo de gado
+- Vaqueiro e peão
+- Ordenha
+- Trato de animais
+- Casqueamento e ferrageamento
+- Doma e lida com cavalos
+
+**Máquinas**
+
+- Operação de máquinas
+
+**Outros**
+
+- Outros
+
+## 8. Diferenciais
 
 - **Vaga e capacitação no mesmo lugar:** quem procura trabalho também pode estudar e ganhar um certificado que qualquer pessoa consegue validar pelo código.
 - **Confiança dos dois lados:** verificação de identidade, avaliações cegas e denúncias protegem produtor e trabalhador.
@@ -123,8 +180,9 @@ Por fim, os dois se avaliam. Seu Antônio avalia pontualidade, empenho e qualida
 - **Feito para o campo:** funciona com sinal fraco, tem alto contraste para o sol e letras maiores.
 - **Avisos que chegam:** notificações no celular para vaga nova, candidatura, aceite, mensagem e pagamento.
 - **Ciclo completo:** da vaga à avaliação, sem precisar de outra ferramenta no meio.
+- **Do pequeno serviço à safra:** atende desde serviços simples do dia a dia, como consertar uma cerca ou limpar uma caixa d'água, até grandes trabalhos, como a colheita.
 
-## 8. Sustentabilidade do projeto
+## 9. Sustentabilidade do projeto
 
 **Custo baixo:** o projeto roda em serviços com planos gratuitos, escolhidos por custo-benefício. Hoje não há custo mensal de hospedagem.
 
@@ -137,9 +195,9 @@ Por fim, os dois se avaliam. Seu Antônio avalia pontualidade, empenho e qualida
 - O pagamento: o produtor "libera" o pagamento e ele fica registrado, mas nenhum dinheiro é movimentado.
 - As contas de teste: o sistema sobe com contas e dados de demonstração para quem quer experimentar.
 
-## 9. Situação atual e próximos passos
+## 10. Situação atual e próximos passos
 
-**Hoje:** o Ruraliza é uma versão de demonstração e testes. O ciclo completo de contratação, as trilhas com certificado, a conversa, os avisos, a verificação, as denúncias e os patrocínios já funcionam.
+**Hoje:** o Ruraliza é uma versão de demonstração e testes. O ciclo completo de contratação, os tipos de serviço organizados em sete grupos, as trilhas com certificado, a conversa, os avisos, a verificação, as denúncias e os patrocínios já funcionam.
 
 O site pede para não usar dados reais por enquanto. Os termos de uso e a política de privacidade ainda não passaram por revisão jurídica e precisam ser atualizados.
 
@@ -158,3 +216,4 @@ O site pede para não usar dados reais por enquanto. Os termos de uso e a polít
 - Na conversa: denunciar e bloquear, limite de mensagens e envio de foto.
 - Reputação também com sinais objetivos, como desistências depois do aceite.
 - Revisão jurídica dos termos e uma nova identidade visual.
+- Uso de inteligência artificial para fazer a triagem das denúncias e colocar na frente as que podem envolver crime, para ação imediata, já que trabalhador e produtor passam a ver informações um do outro. A decisão final continua com a equipe.

@@ -1,16 +1,19 @@
 import type { FarmerRepository } from '#modules/farmers';
+import type { ApplicationRepository, ProposalRepository } from '#modules/hiring';
 import type { ServiceRepository } from '#modules/services';
 import type { WorkerRepository } from '#modules/workers';
 import { type ChangeFeed, chatMessages, profileChats } from '#shared/domain/changes';
 import { requireFound } from '#shared/domain/result';
 import type { Chat, ChatDetail, ChatMessage } from '../chat.contract';
 import type { ChatMessageRepository, ChatRecord, ChatRepository } from '../domain/chat.repository';
-import { type ChatSide, bothSharePhone, isOpen } from '../domain/chat.rules';
+import { type ChatSide, bothSharePhone, isHired, isOpen } from '../domain/chat.rules';
 
 export interface ChatViewDeps {
   chats: ChatRepository;
   chatMessages: ChatMessageRepository;
   services: ServiceRepository;
+  applications: ApplicationRepository;
+  proposals: ProposalRepository;
   farmers: FarmerRepository;
   workers: WorkerRepository;
 }
@@ -42,6 +45,7 @@ export async function toChat(deps: ChatViewDeps, chat: ChatRecord, side: ChatSid
     worker: { name: worker.name, photo_url: worker.photo_url, phone: showPhones ? worker.phone : null },
     farmer_shares_phone: chat.farmer_shares_phone,
     worker_shares_phone: chat.worker_shares_phone,
+    hired: isHired(chat, service),
     open: isOpen(chat, now),
     closes_at: chat.closes_at,
     unread: all.filter((m) => m.id > lastRead && m.sender !== side).length,
@@ -50,23 +54,33 @@ export async function toChat(deps: ChatViewDeps, chat: ChatRecord, side: ChatSid
   };
 }
 
+// Com as mensagens, a candidatura em negociação e as propostas dela (o app desenha o cartão da proposta
+// a partir do `proposal_id` da mensagem).
 export async function toChatDetail(deps: ChatViewDeps, chat: ChatRecord, side: ChatSide, now: string): Promise<ChatDetail> {
   const messages = await messagesOf(deps, chat.id);
-  return { ...(await toChat(deps, chat, side, now, messages)), messages };
+  const [application] = await deps.applications.find({ service_id: chat.service_id, worker_id: chat.worker_id });
+  const proposals = application ? (await deps.proposals.find({ application_id: application.id })).sort((a, b) => a.id - b.id) : [];
+  const service = requireFound(await deps.services.findById(chat.service_id), `serviço da conversa ${chat.id}`);
+  const estimate = service.price !== null && service.price_unit !== null ? { price: service.price, price_unit: service.price_unit } : null;
+  return { ...(await toChat(deps, chat, side, now, messages)), messages, application_id: application?.id ?? null, proposals, estimate };
 }
 
 // Aviso da plataforma na conversa. Para quem causou o aviso (quem aceitou, pagou, desistiu ou liberou
-// o WhatsApp) ele já conta como lido, se essa pessoa estava em dia com a conversa. Devolve a conversa atualizada.
+// o WhatsApp) ele já conta como lido, se essa pessoa estava em dia com a conversa; `actor` null quando
+// foi outra pessoa (ex.: a desistência de outro candidato). Devolve a conversa atualizada.
 export async function addSystemMessage(
   deps: Pick<ChatViewDeps, 'chats' | 'chatMessages'>,
   chat: ChatRecord,
   body: string,
   now: string,
-  actor: ChatSide
+  actor: ChatSide | null,
+  proposalId?: number
 ): Promise<ChatRecord> {
   const lastBefore = (await messagesOf(deps, chat.id)).at(-1)?.id ?? 0;
-  const message = await deps.chatMessages.create({ chat_id: chat.id, sender: 'system', body, insertion_date: now });
-  if (readUpTo(chat, actor) < lastBefore) return chat;
+  const message = await deps.chatMessages.create({
+    chat_id: chat.id, sender: 'system', body, ...(proposalId === undefined ? {} : { proposal_id: proposalId }), insertion_date: now
+  });
+  if (actor === null || readUpTo(chat, actor) < lastBefore) return chat;
   const updated = actor === 'farmer' ? { ...chat, farmer_read_up_to: message.id } : { ...chat, worker_read_up_to: message.id };
   await deps.chats.update(updated);
   return updated;

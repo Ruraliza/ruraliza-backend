@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api-memoria",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["DATABASE_URL=", "npm", "run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "app",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd ../ruraliza-frontend && npm start"],
+      "port": 4200
+    }
+  ]
+}

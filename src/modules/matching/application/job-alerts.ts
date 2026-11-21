@@ -1,5 +1,5 @@
 import { WORKER_HOME_URL, type PushMessage, workerJobUrl } from '#modules/notifications';
-import type { Service } from '#modules/services';
+import { type Service, describeTerms } from '#modules/services';
 import { DIGEST_INTERVAL_DAYS, MAX_ALERTS_PER_DAY } from '../domain/job-alert';
 import { type JobMatch, matchJob } from '../domain/match';
 import type { RecommendedJob } from '../matching.contract';
@@ -8,19 +8,22 @@ import type { RecommendJobsUseCase } from './recommend-jobs.usecase';
 
 const DAY_MS = 86_400_000;
 
-function money(value: number): string {
-  return `R$ ${value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`;
-}
-
 function hours(value: number): string {
   return `${value.toLocaleString('pt-BR')} ${value === 1 ? 'hora' : 'horas'}`;
+}
+
+// "estimativa de R$ 150,00 por dia" ou, nas vagas antigas sem valor, "valor a combinar".
+function estimate(service: Service): string {
+  return service.price !== null && service.price_unit !== null
+    ? `estimativa de ${describeTerms({ amount: service.price, unit: service.price_unit })}`
+    : 'valor a combinar';
 }
 
 function newJobMessage(service: Service, place: string, match: JobMatch): PushMessage {
   const distance = match.distanceKm === null ? '' : ` (a ${match.distanceKm} km)`;
   return {
     title: match.distanceKm === null ? 'Vaga nova para você' : 'Vaga nova perto de você',
-    body: `${service.name} em ${place}${distance}: ${hours(service.duration)} por ${money(service.price)}.`,
+    body: `${service.name} em ${place}${distance}: ${hours(service.duration)}, ${estimate(service)}.`,
     url: workerJobUrl(service.id)
   };
 }

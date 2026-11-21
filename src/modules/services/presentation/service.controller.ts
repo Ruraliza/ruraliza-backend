@@ -8,7 +8,7 @@ import type { ServiceUseCases } from '../services.module';
 import { parseServiceInput, parseServiceUpdate } from './service.parsers';
 
 // HTTP dos serviços do lado do produtor: publicar, ver, editar, cancelar e listar os seus.
-// Candidaturas, aceite e pagamento ficam no HiringController.
+// Candidaturas, propostas, aceite e pagamento ficam no HiringController.
 export interface ServiceController {
   requestService: Handler<ServiceResponse>;
   getService: Handler<ServiceWithFarm, IdParams>;

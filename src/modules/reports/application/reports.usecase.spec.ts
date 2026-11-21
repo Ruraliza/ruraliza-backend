@@ -53,8 +53,8 @@ describe('Denúncias', () => {
     await deps.accounts.create(account({ worker_id: maria.id }, 'maria@exemplo.com'));
     await deps.accounts.create(account({ worker_id: 2 }, 'joao@exemplo.com'));
     const service = await deps.services.create({
-      farmer_id: ana.id, farm_id: 1, payment_id: null, worker_id: null, name: 'Capina', description: null,
-      category: 'Manutenção', duration: 4, price: 200, expires_at: null, status: 'Pending', insertion_date: NOW
+      farmer_id: ana.id, farm_id: 1, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 200, price_unit: 'fixed', worker_id: null, name: 'Capina', description: null,
+      category: 'Manutenção', duration: 4, expires_at: null, status: 'Pending', insertion_date: NOW
     });
     serviceId = service.id;
     await deps.applications.create({ service_id: service.id, worker_id: maria.id, status: 'Pending', insertion_date: NOW });
@@ -91,8 +91,8 @@ describe('Denúncias', () => {
     assert.ok(mariaAccount);
     await deps.accounts.update({ ...mariaAccount, farmer_id: mariaFarmer.id });
     const own = await deps.services.create({
-      farmer_id: mariaFarmer.id, farm_id: 2, payment_id: null, worker_id: null, name: 'Ordenha', description: null,
-      category: 'Pecuária', duration: 2, price: 100, expires_at: null, status: 'Pending', insertion_date: NOW
+      farmer_id: mariaFarmer.id, farm_id: 2, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 200, price_unit: 'fixed', worker_id: null, name: 'Ordenha', description: null,
+      category: 'Pecuária', duration: 2, expires_at: null, status: 'Pending', insertion_date: NOW
     });
 
     const results = await Promise.all([

@@ -82,15 +82,13 @@ describe('SearchOpenServicesUseCase', () => {
     assert.deepEqual(ids(await search.execute({ worker_id: 8 })).sort(), [rejectedHere.id, pendingHere.id].sort());
   });
 
-  it('ordena por mais recentes (padrão), por valor e por duração', async () => {
+  it('ordena por mais recentes (padrão) e por duração', async () => {
     const at = (day: number): string => `2026-09-${String(day).padStart(2, '0')}T15:00:00.000Z`;
-    const a: Service = await givenService(t, farm, { price: 300, duration: 8, insertion_date: at(28) });
-    const b: Service = await givenService(t, farm, { price: 100, duration: 16, insertion_date: at(30) });
-    const c: Service = await givenService(t, farm, { price: 200, duration: 4, insertion_date: at(29) });
+    const a: Service = await givenService(t, farm, { duration: 8, insertion_date: at(28) });
+    const b: Service = await givenService(t, farm, { duration: 16, insertion_date: at(30) });
+    const c: Service = await givenService(t, farm, { duration: 4, insertion_date: at(29) });
 
     assert.deepEqual(ids(await search.execute()), [b.id, c.id, a.id]);
-    assert.deepEqual(ids(await search.execute({ sort: 'price_desc' })), [a.id, c.id, b.id]);
-    assert.deepEqual(ids(await search.execute({ sort: 'price_asc' })), [b.id, c.id, a.id]);
     assert.deepEqual(ids(await search.execute({ sort: 'duration_asc' })), [c.id, a.id, b.id]);
     assert.deepEqual(ids(await search.execute({ sort: 'duration_desc' })), [b.id, a.id, c.id]);
   });

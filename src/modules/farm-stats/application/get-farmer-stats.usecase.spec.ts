@@ -16,12 +16,12 @@ describe('Painel da fazenda', () => {
   let stats: GetFarmerStatsUseCase;
 
   const service = (changes: Partial<Service>): Promise<Service> => deps.services.create({
-    farmer_id: 1, farm_id: 1, payment_id: null, worker_id: null, name: 'Serviço', description: null, category: 'Colheita',
-    duration: 8, price: 400, expires_at: null, status: 'Pending', insertion_date: '2026-06-01T12:00:00.000Z', ...changes
+    farmer_id: 1, farm_id: 1, payment_id: null, worker_id: null, proposal_id: null, agreement: null, completed_at: null, name: 'Serviço', description: null, category: 'Colheita',
+    duration: 8, price: 400, price_unit: 'fixed', expires_at: null, status: 'Pending', insertion_date: '2026-06-01T12:00:00.000Z', ...changes
   });
   const completed = async (workerId: number, paidAt: string, changes: Partial<Service> = {}): Promise<void> => {
     const done = await service({ status: 'Completed', worker_id: workerId, ...changes });
-    await deps.payments.create({ service_id: done.id, farmer_id: 1, worker_id: workerId, value: done.price, status: 'Completed', insertion_date: paidAt });
+    await deps.payments.create({ service_id: done.id, farmer_id: 1, worker_id: workerId, value: done.price ?? 0, status: 'Completed', insertion_date: paidAt });
   };
 
   beforeEach(async () => {

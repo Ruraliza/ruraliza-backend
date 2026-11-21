@@ -43,8 +43,8 @@ describe('políticas de acesso', () => {
     const account = await givenAccount(t, { farmer_id: 1 });
     const token = tokens.issue({ kind: 'account', id: account.id });
     const service = (farmer_id: number): Promise<{ id: number }> => t.services.create({
-      farmer_id, farm_id: 1, payment_id: null, worker_id: null, name: 'Capina', description: null,
-      category: 'Manutenção', duration: 4, price: 200, expires_at: null, status: 'Pending', insertion_date: NOW
+      farmer_id, farm_id: 1, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 200, price_unit: 'fixed', worker_id: null, name: 'Capina', description: null,
+      category: 'Manutenção', duration: 4, expires_at: null, status: 'Pending', insertion_date: NOW
     });
     const own = await service(1);
     const other = await service(2);

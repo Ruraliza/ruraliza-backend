@@ -8,16 +8,35 @@ export interface Service {
   id: number;
   farmer_id: number;
   farm_id: number;
-  payment_id: number | null;
+  payment_id: number | null; // o pagamento (simulado) que concluiu o serviço
   worker_id: number | null;
+  proposal_id: number | null; // a proposta aceita que valeu no aceite
+  agreement: ServiceAgreement | null; // o combinado (só para o produtor e o trabalhador aceito; null para os outros)
   name: string;
   description: string | null; // detalhes do serviço (o que fazer, o que levar, horário)
   category: string;
-  duration: number; // horas
-  price: number; // R$
+  duration: number; // horas estimadas
+  price: number | null; // estimativa do produtor em R$ por `price_unit`; null nas vagas antigas ("a combinar")
+  price_unit: PriceUnit | null;
   expires_at: string | null; // último dia (AAAA-MM-DD) para receber candidaturas; null = sem prazo
   status: ServiceStatus;
+  completed_at: string | null; // quando o produtor liberou o pagamento (e o serviço foi concluído)
   insertion_date: string;
+}
+
+// Unidade do valor: a da estimativa da vaga e a das propostas.
+export type PriceUnit = 'hour' | 'day' | 'meter' | 'hectare' | 'fixed'; // fixed: empreitada (valor fechado)
+
+// O combinado entre produtor e trabalhador, por proposta na conversa. O pagamento é pelo app, no fim do serviço.
+export interface AgreementTerms {
+  amount: number; // R$, maior que 0, por `unit`
+  unit: PriceUnit;
+  notes: string | null; // até 300 caracteres
+}
+
+// Cópia da proposta aceita, guardada no aceite (não muda mais).
+export interface ServiceAgreement extends AgreementTerms {
+  agreed_at: string; // quando a proposta foi aceita
 }
 
 // GET /categories/groups: os tipos de serviço por grupo (services.category guarda o serviço, não o grupo)
@@ -33,8 +52,9 @@ export interface ServiceInput {
   name: string;
   description?: string | null;
   category: string;
-  duration: number;
-  price: number;
+  duration: number; // horas estimadas
+  price: number; // estimativa em R$, maior que 0 (o valor final é combinado na conversa)
+  price_unit: PriceUnit;
   expires_at?: string | null;
 }
 
@@ -56,13 +76,26 @@ export interface FarmerServiceItem extends ServiceWithFarm {
   applications_pending: number;
 }
 
+// A estimativa da vaga (o ponto de partida da primeira proposta).
+export interface ServiceEstimate {
+  price: number;
+  price_unit: PriceUnit;
+}
+
+// O pagamento liberado, como o trabalhador aceito o vê no serviço dele.
+export interface ServicePayment {
+  value: number; // R$, o total informado pelo produtor
+  paid_at: string;
+}
+
 // GET /workers/services, /workers/services/:id, /workers/:id/services
 export interface OpenService extends Service {
   farm: FarmLocation;
+  payment: ServicePayment | null; // só para o trabalhador aceito, depois do pagamento
 }
 
 // GET /workers/services: filtros das vagas abertas (todos opcionais, combinados com E).
-export type JobSort = 'recent' | 'price_desc' | 'price_asc' | 'duration_asc' | 'duration_desc' | 'rating';
+export type JobSort = 'recent' | 'duration_asc' | 'duration_desc' | 'rating';
 
 export interface JobFilters {
   q?: string; // busca no nome, na descrição, na categoria e na cidade (sem acento/maiúscula)

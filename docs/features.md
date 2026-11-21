@@ -8,18 +8,19 @@ Os módulos citados ficam em `src/modules/<módulo>/`.
 
 O Ruraliza conecta produtores rurais a trabalhadores, prestadores e estudantes. A API cobre o caminho completo de uma contratação:
 
-1. O produtor cadastra a fazenda e publica uma vaga (serviço).
-2. O trabalhador encontra a vaga pela busca ou pelas recomendações e se candidata.
-3. O produtor aceita um candidato; o serviço entra em andamento e a conversa dos dois abre.
-4. O produtor libera o pagamento (simulado) e o serviço fica concluído.
-5. Os dois se avaliam, e as notas formam a reputação de cada um.
+1. O produtor cadastra a fazenda e publica uma vaga (serviço) com o valor estimado e a unidade (por hora, dia, metro, hectare ou empreitada).
+2. O trabalhador encontra a vaga pela busca ou pelas recomendações e se candidata, com uma mensagem opcional.
+3. O produtor abre a conversa com o candidato, e os dois combinam valor e forma de pagamento por proposta.
+4. Com a proposta aceita pelos dois, o produtor aceita a candidatura; o serviço entra em andamento e o WhatsApp pode ser liberado.
+5. O produtor libera o pagamento (simulado) do total e o serviço fica concluído.
+6. Os dois se avaliam, e as notas formam a reputação de cada um.
 
 Em volta desse caminho ficam a formação (trilhas e certificados), os avisos (central, push e tempo real), a segurança da plataforma (verificação de identidade, denúncias, filtro de palavrões) e as ferramentas da equipe (administração, central de ajuda, patrocínios).
 
 | Quem usa | O que faz |
 |---|---|
-| Produtor | Cadastra fazendas, publica vagas, analisa candidaturas, libera o pagamento, avalia o trabalhador e vê o painel da fazenda |
-| Trabalhador | Busca vagas, se candidata, conversa com o produtor, estuda trilhas, recebe certificados e avalia a fazenda |
+| Produtor | Cadastra fazendas, publica vagas, conversa com os candidatos e combina o valor, aceita, libera o pagamento, avalia o trabalhador e vê o painel da fazenda |
+| Trabalhador | Busca vagas, se candidata, combina o valor na conversa, vê o pagamento, estuda trilhas, recebe certificados e avalia a fazenda |
 | Equipe (`admin` e `tutor`) | Gerencia contas, equipe, trilhas, ajuda, patrocínios, denúncias e verificações |
 
 ## Contas e acesso
@@ -53,13 +54,13 @@ Em volta desse caminho ficam a formação (trilhas e certificados), os avisos (c
 - O produtor cadastra fazendas com endereço, cidade, UF e o ponto marcado no mapa (`/api/farmers/:id/farms`).
 - Cada fazenda aceita até 6 fotos; a primeira é a capa.
 - Remover uma fazenda a arquiva: ela some das listas, mas os serviços encerrados continuam com ela. Com serviço aberto ou em andamento, a remoção é recusada.
-- As coordenadas só chegam ao trabalhador aceito no serviço. Nas vagas abertas ele vê apenas cidade e UF.
+- As coordenadas (e o combinado) só chegam ao trabalhador aceito no serviço. Nas vagas abertas ele vê apenas cidade e UF.
 
 ### Vagas (`services`)
 
-- O produtor publica um serviço numa fazenda com nome, categoria, duração em horas, preço e, se quiser, descrição e prazo (`POST /api/farmers/services`).
+- O produtor publica um serviço numa fazenda com nome, categoria, duração estimada em horas, valor estimado e unidade (por hora, dia, metro, hectare ou empreitada) e, se quiser, descrição e prazo (`POST /api/farmers/services`). O valor final é combinado na conversa. Vagas antigas sem valor aparecem como "a combinar". Não há ordenação por valor, porque as unidades não se comparam.
 - Os tipos de serviço (categorias) são uma lista fixa em dois níveis, grupo > serviço: Lavoura e horta, Cercas e construções, Água, Pasto e terreno, Animais, Máquinas e Outros, cada um com os seus serviços (a lista completa está no [PRODUCT.md](../PRODUCT.md)). `GET /api/categories` devolve a lista plana dos serviços e `GET /api/categories/groups`, os grupos. A vaga guarda o serviço; publicar ou editar com um valor fora da lista dá 400.
-- Um serviço passa por `Pending` (aberto), `In Progress` (com trabalhador aceito), `Completed` (pago) ou `Cancelled`. Só dá para editar ou cancelar enquanto está `Pending`; cancelar recusa as candidaturas pendentes.
+- Um serviço passa por `Pending` (aberto), `In Progress` (com trabalhador aceito), `Completed` (pago) ou `Cancelled`. Só dá para editar ou cancelar enquanto está `Pending`; cancelar recusa as candidaturas pendentes e encerra as conversas da vaga.
 - Prazo (`expires_at`): a vaga aceita candidaturas até o fim desse dia no horário de Brasília. Vencida, some da busca e recusa candidaturas até o produtor renovar a data.
 
 ### Busca de vagas (`services`)
@@ -77,23 +78,27 @@ Em volta desse caminho ficam a formação (trilhas e certificados), os avisos (c
 
 ### Candidatura e aceite (`hiring`)
 
-- O trabalhador se candidata (`POST /api/workers/services/:id/apply`): uma candidatura por vaga, só em vaga aberta e dentro do prazo.
-- O produtor vê os candidatos com a reputação e o selo de verificado de cada um (`GET /api/farmers/services/:id/applications`). CPF, telefone e e-mail vêm mascarados.
-- O produtor aceita ou recusa (`PATCH /api/farmers/services/:id/analyze`). O aceite coloca o serviço em andamento e recusa as outras candidaturas.
+- O trabalhador se candidata (`POST /api/workers/services/:id/apply`): uma candidatura por vaga, só em vaga aberta e dentro do prazo, com uma mensagem opcional de até 300 caracteres (sem palavrões; telefone e e-mail saem ocultos).
+- O produtor vê os candidatos com a mensagem, a reputação, o selo de verificado e a proposta aceita de cada um (`GET /api/farmers/services/:id/applications`). CPF, telefone e e-mail vêm mascarados.
+- O produtor recusa ou aceita (`PATCH /api/farmers/services/:id/analyze`). O aceite exige uma proposta aceita na conversa (409 sem ela), guarda o combinado no serviço, coloca o serviço em andamento e recusa as outras candidaturas.
 - O trabalhador pode desistir (`PATCH /api/workers/services/:id/withdraw`) e volta uma etapa: a candidatura pendente é removida; se já tinha sido aceito, o serviço volta a `Pending` e as candidaturas recusadas pelo aceite voltam à fila.
-- Aceite, desistência e pagamento gravam tudo numa transação: ou tudo fica gravado, ou nada.
+- Aceite, recusa, desistência e propostas gravam tudo numa transação: ou tudo fica gravado, ou nada.
+
+### Proposta (`hiring`)
+
+Na conversa, qualquer lado propõe o valor (`amount`, por `unit`: hora, dia, metro, hectare ou empreitada), com observações opcionais. O app pré-preenche a primeira proposta com a estimativa da vaga (`POST /api/chats/:id/proposals`). Só o outro lado aceita ou recusa (`PATCH /api/chats/:id/proposals/:proposalId`). A proposta nova substitui a pendente; a aceita não muda mais e libera o aceite. As propostas pendentes deixam de valer quando a conversa fecha.
 
 ### Pagamento simulado (`hiring`)
 
-`POST /api/farmers/services/:id/payment` "libera" o pagamento de um serviço em andamento: cria o registro do pagamento e conclui o serviço. Não há dinheiro real. É esse momento que valida o trabalho no app e abre o prazo das avaliações.
+`POST /api/farmers/services/:id/payment` (`{ value }`) "libera" o pagamento de um serviço em andamento: o produtor dono informa o total, porque o combinado pode ser por unidade. A API cria o registro do pagamento e conclui o serviço (`payment_id`, `completed_at`) numa transação. Não há dinheiro real. É esse momento que valida o trabalho no app, abre o prazo das avaliações e deixa a conversa aberta por mais 7 dias. O trabalhador recebe push com o valor e vê o pagamento (valor e data) no serviço dele; ninguém mais vê.
 
 ### Conversa (`chat`)
 
-Conversa interna de cada contratação, para os dois combinarem o serviço sem expor o contato antes da hora.
+Conversa entre o produtor e cada candidato, para combinarem o valor e o serviço sem expor o contato antes da hora.
 
-- Abre no aceite, fecha se o trabalhador desistir e fica aberta por 7 dias depois do pagamento. Fechada, continua legível.
-- Só o produtor e o trabalhador daquela contratação leem e escrevem (`/api/chats/:id`, mensagens de até 1000 caracteres).
-- Consentimento duplo para o WhatsApp: cada lado libera o próprio número (`PATCH /api/chats/:id/phone`) e os números só aparecem quando os dois liberaram. Antes disso, telefones e e-mails escritos nas mensagens saem ocultos.
+- Só o produtor abre, a partir de uma candidatura pendente (`POST /api/farmers/services/:id/applications/:applicationId/chat`). Fecha na recusa, no aceite de outro, na desistência e no cancelamento da vaga; reabre se o aceito desistir; fica aberta por 7 dias depois do pagamento. Fechada, continua legível.
+- Só o produtor e aquele trabalhador leem e escrevem (`/api/chats/:id`, mensagens de até 1000 caracteres). As propostas aparecem como cartões na conversa.
+- Consentimento duplo para o WhatsApp, só depois do aceite: cada lado libera o próprio número (`PATCH /api/chats/:id/phone`) e os números só aparecem quando os dois liberaram. Antes disso, telefones e e-mails escritos nas mensagens saem ocultos.
 - Cada pessoa tem o seu contador de não lidas, e cada mensagem gera um aviso para a outra parte.
 
 ### Avaliações e reputação (`reviews`)
@@ -134,7 +139,7 @@ O histórico do sino do app (`/api/farmers/:id/notifications` e `/api/workers/:i
 
 ### Notificações push (`notifications`)
 
-Web Push para quem precisa agir com o app fechado. A conta inscreve cada navegador (`/api/accounts/:id/push-subscriptions`). O produtor é avisado de candidatura e desistência; o trabalhador, de aceite, recusa, cancelamento e pagamento; os dois, de mensagem nova, pedido de WhatsApp e avaliação recebida. O clique abre o app na tela certa. Depende das chaves VAPID no `.env`.
+Web Push para quem precisa agir com o app fechado. A conta inscreve cada navegador (`/api/accounts/:id/push-subscriptions`). O produtor é avisado de candidatura e desistência; o trabalhador, de conversa aberta, aceite, recusa e cancelamento; o trabalhador também de pagamento liberado (com o valor); os dois, de proposta (e resposta), mensagem nova, pedido de WhatsApp e avaliação recebida. O clique abre o app na tela certa. Depende das chaves VAPID no `.env`.
 
 ### Atualização em tempo real (`live` e streams dos módulos)
 
@@ -162,7 +167,7 @@ Títulos e descrições de vagas e os textos do perfil do trabalhador são recus
 ### Proteção de dados pessoais
 
 - CPF sai mascarado em listas e respostas embutidas.
-- Telefone e e-mail do trabalhador ficam ocultos para o produtor até os dois liberarem o WhatsApp na conversa.
+- Telefone e e-mail do trabalhador ficam ocultos para o produtor até os dois liberarem o WhatsApp na conversa, o que só é possível depois do aceite. Telefone e e-mail escritos na candidatura e nas propostas também saem ocultos.
 - As fotos enviadas perdem os metadados (EXIF e GPS).
 - Nenhum dado de quem usa o app vai para os anunciantes.
 

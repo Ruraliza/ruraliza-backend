@@ -1,4 +1,5 @@
 import { type Farmer, createInMemoryFarmerRepository } from '#modules/farmers';
+import { type ServiceApplication, createInMemoryApplicationRepository, createInMemoryProposalRepository } from '#modules/hiring';
 import { type Service, createInMemoryServiceRepository } from '#modules/services';
 import { type Worker, createInMemoryWorkerRepository } from '#modules/workers';
 import type { ChangeTopic } from '#shared/domain/changes';
@@ -26,6 +27,8 @@ export function chatTestbed(): ChatTestbed {
     chats: createInMemoryChatRepository(),
     chatMessages: createInMemoryChatMessageRepository(),
     services: createInMemoryServiceRepository(),
+    applications: createInMemoryApplicationRepository(),
+    proposals: createInMemoryProposalRepository(),
     farmers: createInMemoryFarmerRepository(),
     workers: createInMemoryWorkerRepository(),
     clock,
@@ -54,8 +57,8 @@ export async function givenHiring(t: ChatTestbed): Promise<Hiring> {
     bio: null, certificates: null, courses: null, experience: null, photo_url: null, resume_url: null, insertion_date: NOW
   });
   const service = await t.services.create({
-    farmer_id: farmer.id, farm_id: 1, payment_id: null, worker_id: worker.id, name: 'Colheita de café', description: null,
-    category: 'Colheita', duration: 8, price: 400, expires_at: null, status: 'In Progress', insertion_date: NOW
+    farmer_id: farmer.id, farm_id: 1, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 200, price_unit: 'fixed', worker_id: worker.id, name: 'Colheita de café', description: null,
+    category: 'Colheita', duration: 8, expires_at: null, status: 'In Progress', insertion_date: NOW
   });
   return {
     farmer,
@@ -64,4 +67,27 @@ export async function givenHiring(t: ChatTestbed): Promise<Hiring> {
     asFarmer: { farmerId: farmer.id, workerId: null },
     asWorker: { farmerId: null, workerId: worker.id }
   };
+}
+
+export interface Negotiation extends Hiring {
+  application: ServiceApplication;
+}
+
+// Vaga ainda aberta (Pending) com a candidatura pendente da Maria: a fase da negociação, antes do aceite.
+export async function givenNegotiation(t: ChatTestbed): Promise<Negotiation> {
+  const hiring = await givenHiring(t);
+  const service = { ...hiring.service, status: 'Pending' as const, worker_id: null };
+  await t.services.update(service);
+  const application = await t.applications.create({ service_id: service.id, worker_id: hiring.worker.id, status: 'Pending', insertion_date: NOW });
+  return { ...hiring, service, application };
+}
+
+// Outro candidato (Pedro) na mesma vaga.
+export async function givenOtherApplicant(t: ChatTestbed, service: Service): Promise<{ worker: Worker; application: ServiceApplication }> {
+  const worker = await t.workers.create({
+    email: 'pedro@exemplo.com', name: 'Pedro Diarista', phone: '24966666666', cpf: '71428793860',
+    bio: null, certificates: null, courses: null, experience: null, photo_url: null, resume_url: null, insertion_date: NOW
+  });
+  const application = await t.applications.create({ service_id: service.id, worker_id: worker.id, status: 'Pending', insertion_date: NOW });
+  return { worker, application };
 }

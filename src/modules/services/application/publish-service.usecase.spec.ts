@@ -17,7 +17,7 @@ describe('PublishServiceUseCase', () => {
   async function input(changes: Partial<ServiceInput> = {}): Promise<ServiceInput> {
     const farmer = await givenFarmer(t);
     const farm = await givenFarm(t, farmer);
-    return { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita', category: 'Colheita', duration: 8, price: 300, ...changes };
+    return { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita', category: 'Colheita', duration: 8, price: 150, price_unit: 'day', ...changes };
   }
 
   it('publica Pending, sem trabalhador nem pagamento, com a data do relógio', async () => {
@@ -26,8 +26,8 @@ describe('PublishServiceUseCase', () => {
     const service = unwrap(await publish.execute(data));
 
     assert.deepEqual(service, {
-      id: service.id, farmer_id: data.farmer_id, farm_id: data.farm_id, worker_id: null, payment_id: null,
-      name: 'Colheita', description: null, category: 'Colheita', duration: 8, price: 300,
+      id: service.id, farmer_id: data.farmer_id, farm_id: data.farm_id, worker_id: null, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 150, price_unit: 'day',
+      name: 'Colheita', description: null, category: 'Colheita', duration: 8,
       expires_at: null, status: 'Pending', insertion_date: NOW
     });
     assert.deepEqual(await t.services.findById(service.id), service);

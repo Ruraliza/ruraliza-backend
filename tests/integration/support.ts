@@ -36,6 +36,26 @@ export async function worker(c: Container, email: string, cpf: string): Promise<
 }
 
 export async function openService(c: Container, farmerId: number, farmId: number): Promise<number> {
-  const s = unwrap(await c.useCases.services.publishService.execute({ farmer_id: farmerId, farm_id: farmId, name: 'Capina', category: 'Capina', duration: 4, price: 200 }));
+  const s = unwrap(await c.useCases.services.publishService.execute({ farmer_id: farmerId, farm_id: farmId, name: 'Capina', category: 'Capina', duration: 4, price: 150, price_unit: 'day' }));
   return s.id;
+}
+
+// A negociação do jeito do app: o produtor abre a conversa, o trabalhador propõe e o produtor aceita a proposta.
+export async function agree(c: Container, serviceId: number, applicationId: number): Promise<void> {
+  const service = await c.repos.services.findById(serviceId);
+  const application = await c.repos.applications.findById(applicationId);
+  if (!service || !application) assert.fail('hire: serviço ou candidatura não existe');
+  const { hiring, chat } = c.useCases;
+  const opened = unwrap(await chat.openChat.execute({ serviceId, applicationId })).chat;
+  const proposal = unwrap(await hiring.propose.execute({
+    chatId: opened.id, viewer: { farmerId: null, workerId: application.worker_id },
+    terms: { amount: 150, unit: 'day', notes: null }
+  }));
+  unwrap(await hiring.answerProposal.execute({ chatId: opened.id, proposalId: proposal.id, viewer: { farmerId: service.farmer_id, workerId: null }, action: 'Accept' }));
+}
+
+// Contratação completa: a negociação e o aceite da candidatura. Devolve o resultado do aceite.
+export async function hire(c: Container, serviceId: number, applicationId: number): ReturnType<Container['useCases']['hiring']['analyzeApplication']['execute']> {
+  await agree(c, serviceId, applicationId);
+  return c.useCases.hiring.analyzeApplication.execute({ serviceId, application_id: applicationId, action: 'Accept' });
 }

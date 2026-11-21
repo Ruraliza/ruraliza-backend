@@ -20,7 +20,7 @@ function profileRoutes(controller: ProfileNotificationHandlers, who: 'produtor' 
       tag: TAGS.notifications,
       summary: `Central de notificações do ${who}`,
       description:
-        'Histórico dos avisos do perfil (candidaturas, aceites, pagamentos, mensagens, avaliações), os mais recentes primeiro. ' +
+        'Histórico dos avisos do perfil (candidaturas, propostas, aceites, pagamentos, mensagens, avaliações), os mais recentes primeiro. ' +
         'Tudo o que vira push também fica aqui, mesmo sem push ativado. Avisos iguais ainda não lidos são agrupados (`count`).',
       params: [profileId],
       success: { status: 200, description: 'Avisos e quantos faltam ler.', schema: 'NotificationsPage' }

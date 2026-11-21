@@ -2,6 +2,7 @@ import { type FarmLocation, type FarmRepository, farmOf } from '#modules/farms';
 import { isPastDay } from '#shared/domain/dates';
 import { type Result, invalid, ok } from '#shared/domain/result';
 import type { OpenService, Service } from '../service.contract';
+import type { ServicePaymentReader } from './service-payment';
 import { SERVICE_STATUS } from './service-status';
 
 // Vaga aberta cujo último dia para candidaturas já passou. Continua Pending (o produtor pode
@@ -19,8 +20,13 @@ export function checkExpiry(expiresAt: string | null | undefined, nowIso: string
 }
 
 // Cidade/UF e fotos da fazenda do serviço (o endereço completo não é exposto ao trabalhador).
-// O ponto no mapa só vai para o trabalhador aceito no serviço (`viewerWorkerId`).
-export async function toOpenService(farms: FarmRepository, service: Service, viewerWorkerId?: number): Promise<OpenService> {
+// O ponto no mapa, o combinado e o pagamento só vão para o trabalhador aceito no serviço (`viewerWorkerId`).
+export async function toOpenService(
+  farms: FarmRepository,
+  service: Service,
+  viewerWorkerId?: number,
+  payments?: ServicePaymentReader
+): Promise<OpenService> {
   const farm = await farmOf(farms, service);
   const location: FarmLocation = { city: farm.city, state: farm.state, photos: farm.photos.map((p) => p.url) };
   const isAssignee = viewerWorkerId !== undefined && service.worker_id === viewerWorkerId;
@@ -28,5 +34,7 @@ export async function toOpenService(farms: FarmRepository, service: Service, vie
     location.latitude = farm.latitude;
     location.longitude = farm.longitude;
   }
-  return { ...service, farm: location };
+  if (!isAssignee) return { ...service, proposal_id: null, agreement: null, farm: location, payment: null };
+  const payment = service.payment_id !== null && payments ? await payments.paymentOf(service.id) : null;
+  return { ...service, farm: location, payment };
 }

@@ -1,4 +1,3 @@
-import type { PaymentRepository } from '#modules/hiring';
 import { type PushNotifier, farmerServiceUrl, workerJobUrl } from '#modules/notifications';
 import { SERVICE_STATUS, type Service, type ServiceRepository } from '#modules/services';
 import { type ChangeFeed, serviceApplications, workerApplications } from '#shared/domain/changes';
@@ -12,7 +11,6 @@ import { farmerView, reviewWindow, workerStillExists, workerView } from './revie
 
 export interface SubmitReviewDeps {
   services: ServiceRepository;
-  payments: PaymentRepository;
   workerReviews: WorkerReviewRepository;
   farmReviews: FarmReviewRepository;
   workers: WorkerRepository;
@@ -22,14 +20,14 @@ export interface SubmitReviewDeps {
 }
 
 // Serviço concluído, dentro do prazo, ainda sem a avaliação deste lado. Devolve o fim do prazo.
-async function checkReviewable(
+function checkReviewable(
   deps: SubmitReviewDeps,
   service: Service,
   alreadyReviewed: boolean
-): Promise<Result<string>> {
-  const windowEnds = await reviewWindow(deps.payments, service);
+): Result<string> {
+  const windowEnds = reviewWindow(service);
   if (service.status !== SERVICE_STATUS.COMPLETED || windowEnds === null) {
-    return conflict('Só dá para avaliar depois que o serviço for concluído (pagamento liberado).');
+    return conflict('Só dá para avaliar depois que o serviço for concluído.');
   }
   if (alreadyReviewed) return conflict('Você já avaliou este serviço.');
   if (!isWindowOpen(windowEnds, deps.clock.now())) return conflict('O prazo para avaliar este serviço terminou.');
@@ -46,7 +44,7 @@ export class SubmitWorkerReviewUseCase {
     const service = await services.findById(serviceId);
     if (!service) return notFound('Serviço não encontrado.');
 
-    const reviewable = await checkReviewable(this.deps, service, (await workerReviews.find({ service_id: service.id })).length > 0);
+    const reviewable = checkReviewable(this.deps, service, (await workerReviews.find({ service_id: service.id })).length > 0);
     if (!reviewable.ok) return reviewable;
     const workerId = service.worker_id;
     if (workerId === null || !(await workerStillExists(this.deps.workers, service))) {
@@ -88,7 +86,7 @@ export class SubmitFarmReviewUseCase {
     if (!service) return notFound('Serviço não encontrado.');
     if (service.worker_id !== input.worker_id) return forbidden('Só quem fez o serviço pode avaliar a fazenda.');
 
-    const reviewable = await checkReviewable(this.deps, service, (await farmReviews.find({ service_id: service.id })).length > 0);
+    const reviewable = checkReviewable(this.deps, service, (await farmReviews.find({ service_id: service.id })).length > 0);
     if (!reviewable.ok) return reviewable;
 
     const [counterpart] = await workerReviews.find({ service_id: service.id });

@@ -15,8 +15,8 @@ describe('DeleteFarmerUseCase', () => {
 
   async function serviceOf(farmerId: number, farmId: number, status: 'Pending' | 'In Progress' | 'Completed'): Promise<number> {
     const s = await t.services.create({
-      farmer_id: farmerId, farm_id: farmId, payment_id: null, worker_id: null, name: 'Capina', description: null,
-      category: 'Manutenção', duration: 4, price: 200, expires_at: null, status, insertion_date: NOW
+      farmer_id: farmerId, farm_id: farmId, payment_id: null, proposal_id: null, agreement: null, completed_at: null, price: 200, price_unit: 'fixed', worker_id: null, name: 'Capina', description: null,
+      category: 'Manutenção', duration: 4, expires_at: null, status, insertion_date: NOW
     });
     return s.id;
   }

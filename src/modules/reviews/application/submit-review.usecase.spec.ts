@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { unwrap } from '#shared/testing/unwrap';
-import { PAID_AT, type ReviewsTestbed, givenCompletedService, givenFarm, givenWorker, reviewsTestbed } from '../testing/review-fixtures';
+import { DONE_AT, type ReviewsTestbed, givenCompletedService, givenFarm, givenWorker, reviewsTestbed } from '../testing/review-fixtures';
 import { GetReputationUseCase } from './get-reputation.usecase';
 import { GetServiceReviewsUseCase } from './get-service-reviews.usecase';
 import { SubmitFarmReviewUseCase, SubmitWorkerReviewUseCase } from './submit-review.usecase';
@@ -81,7 +81,7 @@ describe('avaliação dupla', () => {
 
   it('serviço que não foi concluído não pode ser avaliado', async () => {
     const maria = await givenWorker(t);
-    const service = await givenCompletedService(t, await givenFarm(t), maria, PAID_AT, { status: 'In Progress' });
+    const service = await givenCompletedService(t, await givenFarm(t), maria, DONE_AT, { status: 'In Progress' });
 
     const result = await reviewFarm.execute({ serviceId: service.id, input: { worker_id: maria.id, ...FARM_SCORES } });
 
