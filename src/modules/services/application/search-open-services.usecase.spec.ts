@@ -47,6 +47,19 @@ describe('SearchOpenServicesUseCase', () => {
     assert.deepEqual(ids(await search.execute({ q: 'cafe paraiba' })), []);
   });
 
+  it('filtra por grupo (qualquer serviço dele) e combina com categoria e busca', async () => {
+    const fence = await givenService(t, farm, { name: 'Cerca do pasto', category: 'Conserto de cerca' });
+    const corral = await givenService(t, farm, { name: 'Curral novo', category: 'Curral, brete e tronco' });
+    const old = await givenService(t, farm, { name: 'Reparos gerais', category: 'Manutenção' });
+    await givenService(t, farm, { name: 'Cerca viva no canteiro', category: 'Preparo de canteiro' });
+
+    assert.deepEqual(ids(await search.execute({ category_group: 'Cercas e construções' })).sort(), [fence.id, corral.id, old.id].sort());
+    assert.deepEqual(ids(await search.execute({ category_group: 'Cercas e construções', category: 'Curral, brete e tronco' })), [corral.id]);
+    assert.deepEqual(ids(await search.execute({ category_group: 'Cercas e construções', category: 'Colheita' })), []);
+    assert.deepEqual(ids(await search.execute({ category_group: 'Cercas e construções', q: 'cerca' })), [fence.id]);
+    assert.deepEqual(ids(await search.execute({ category_group: 'Água' })), []);
+  });
+
   it('filtra por categoria, carga horária e dia de publicação', async () => {
     const short = await givenService(t, farm, { category: 'Plantio', duration: 4, insertion_date: '2026-09-28T15:00:00.000Z' });
     const long = await givenService(t, farm, { category: 'Plantio', duration: 16, insertion_date: '2026-09-30T15:00:00.000Z' });

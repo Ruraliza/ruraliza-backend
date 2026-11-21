@@ -31,7 +31,7 @@ npm run check:contracts  # confere que o contrato bate com os models do frontend
 
 O servidor carrega **dados de teste** ao subir, também em produção (`npm start`), enquanto o app é só de demonstração e teste: as contas abaixo usam a senha pública (a tela de entrar do app só as mostra no build de desenvolvimento). `SEED_DEMO=false` desliga o seed fora do `--dev`; sem ele, a equipe entra pelo administrador de `ADMIN_EMAIL`/`ADMIN_PASSWORD` ou, sem eles, pelo administrador padrão `admin@ruraliza.app`, com a senha sorteada que aparece no log do servidor a cada subida. Desligue antes de haver dados de verdade.
 
-Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, um por categoria, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o seed roda: a cada subida em memória; no PostgreSQL, só na primeira subida de cada banco.
+Os dados de teste: 1 produtor (com 2 fazendas), 2 trabalhadores, 1 conta com os dois perfis e 7 serviços `Pending`, cada um de um tipo de serviço diferente, publicados nos últimos 12 dias e com todos os casos de prazo (sem prazo, vence em alguns dias, vence hoje e o serviço 7 já vencido, que só o produtor vê). As datas são relativas ao dia em que o seed roda: a cada subida em memória; no PostgreSQL, só na primeira subida de cada banco.
 
 Depois das vagas vem um **histórico** para as [avaliações](#avaliações) e a [conversa](#conversas) (`src/seed-history.ts`): os serviços 8 a 10 já concluídos e avaliados pelos dois lados (as duas fazendas e a Maria têm nota; o Pedro tem uma nota mediana), o 11 concluído há 3 dias que a Maria já avaliou e o produtor ainda não (a nota dela fica escondida), o 12 concluído ontem sem avaliações e com a conversa ainda aberta, e o 13 em andamento com a Maria, com conversa (a última mensagem do produtor ainda não lida por ela). A vaga 1 tem dois candidatos: o Pedro (com nota) e o Carlos (sem avaliações). A **central de notificações** do João e da Maria já vem com os avisos que essa história geraria (candidaturas, avaliação, mensagens, pagamento), alguns lidos e outros não.
 
@@ -241,7 +241,7 @@ Uma **conta por pessoa** (e-mail e CPF únicos), com senha de 8 a 128 caracteres
 
 **Token de sessão.** Login, redefinição de senha e cadastro devolvem `token` (assinado com HMAC-SHA256 e `AUTH_TOKEN_SECRET`, válido por 12 horas). Toda rota que não é pública exige `Authorization: Bearer <token>` e confere o dono: uma conta só mexe nos próprios perfis, fazendas, serviços e candidaturas (`farmer_id`/`worker_id` no corpo ou na query precisam ser os dela). Sem token ou com token inválido/vencido: **401**; token de outra pessoa ou de outro tipo de usuário: **403**. O token diz só quem entrou; conta e perfis são relidos a cada requisição, então uma conta removida perde o acesso na hora. As regras ficam em `src/modules/auth/presentation/access.ts` e cada rota declara a sua em `route()` (a documentação mostra o cadeado e quem pode).
 
-Rotas públicas: login e redefinição de senha, cadastro (`POST /api/farmers` e `POST /api/workers`), categorias, configuração, health, imagens e currículos (`/api/images/:id` e `/api/documents/:id`, lidos por `<img>` e links, com ids aleatórios). Nas duas rotas SSE o token também vale em `?access_token=`, porque o `EventSource` do navegador não envia cabeçalhos.
+Rotas públicas: login e redefinição de senha, cadastro (`POST /api/farmers` e `POST /api/workers`), categorias (`/api/categories` e `/api/categories/groups`), configuração, health, imagens e currículos (`/api/images/:id` e `/api/documents/:id`, lidos por `<img>` e links, com ids aleatórios). Nas duas rotas SSE o token também vale em `?access_token=`, porque o `EventSource` do navegador não envia cabeçalhos.
 
 | Método | Rota | Descrição |
 |---|---|---|
@@ -285,7 +285,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | POST | `/api/farmers/:id/farms/:farmId/photos` | Adiciona uma foto à fazenda (corpo = bytes da imagem); a primeira é a capa; 409 acima de 6 fotos |
 | DELETE | `/api/farmers/:id/farms/:farmId/photos/:photoId` | Remove uma foto da fazenda |
 | GET | `/api/farmers/:id/services?status=` | Serviços do produtor (com `farm` e `applications_pending`) |
-| POST | `/api/farmers/services` | Publica serviço (`farmer_id`, `farm_id`, `name`, `category`, `duration` em horas, `price`, opcionais `description` e `expires_at` no formato `AAAA-MM-DD`) |
+| POST | `/api/farmers/services` | Publica serviço (`farmer_id`, `farm_id`, `name`, `category` de `GET /api/categories`, `duration` em horas, `price`, opcionais `description` e `expires_at` no formato `AAAA-MM-DD`) |
 | GET | `/api/farmers/services/:id` | Serviço com a fazenda |
 | PATCH | `/api/farmers/services/:id` | Edita `farm_id`, `name`, `category`, `duration`, `price`, `description`, `expires_at` (`null` tira o prazo; data futura renova uma vaga vencida); 409 se não estiver `Pending` |
 | PATCH | `/api/farmers/services/:id/cancel` | Cancela (`Cancelled`) e recusa as candidaturas pendentes; 409 se não estiver `Pending` |
@@ -310,7 +310,7 @@ Quem tem os dois perfis **não pode se candidatar a um serviço que publicou** c
 | GET | `/api/workers/:id/applications` | Candidaturas com o serviço embutido (com o ponto da fazenda no mapa quando a candidatura foi aceita) |
 | GET | `/api/workers/:id/events` | Acompanha o status das candidaturas em tempo real (SSE, ver [abaixo](#atualização-em-tempo-real-sse)); 404 se o trabalhador não existe |
 | GET | `/api/workers/:id/services` | Serviços atribuídos ao trabalhador (com `farm.latitude`/`farm.longitude`) |
-| GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category`, `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `min_rating` (só fazendas com média publicada a partir desta nota), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`, `rating`); cada vaga traz `farm.reputation`; 400 se algum filtro for inválido |
+| GET | `/api/workers/services` | Vagas abertas e dentro do prazo (com cidade/UF e fotos da fazenda). Filtros combináveis: `q` (palavras no nome, descrição, categoria ou cidade, sem diferenciar acentos), `category` (o serviço), `category_group` (qualquer serviço do grupo), `min_hours`/`max_hours`, `from`/`to` (dia de publicação, `AAAA-MM-DD`), `min_rating` (só fazendas com média publicada a partir desta nota), `sort` (`recent`, `price_desc`, `price_asc`, `duration_asc`, `duration_desc`, `rating`); cada vaga traz `farm.reputation`; 400 se algum filtro for inválido |
 | GET | `/api/workers/services/:id?worker_id=` | Detalhe da vaga. Com `worker_id` do trabalhador aceito no serviço, inclui `farm.latitude`/`farm.longitude` |
 | POST | `/api/workers/services/:id/apply` | `{ worker_id }`; 409 se a vaga não está aberta, se o prazo terminou ou se já houve candidatura |
 | GET | `/api/workers/tracks?q=&category=&worker_id=` | Trilhas de estudo publicadas (e, com `worker_id`, as descontinuadas em que ele está matriculado), com carga horária, tutores e `progress`; em andamento primeiro |
@@ -462,7 +462,8 @@ Conversa interna de cada contratação, para **proteger o WhatsApp** dos dois at
 ### Outros
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/categories` | Lista fixa de categorias |
+| GET | `/api/categories` | Lista fixa e plana dos tipos de serviço (o valor gravado em `category`) |
+| GET | `/api/categories/groups` | Os mesmos tipos por grupo: `[{ name, services }]` |
 | GET | `/api/certificates/:code` | Validação pública de um certificado de conclusão (sem token), com o resumo SHA-256 dos dados (`data_hash`) |
 | GET | `/api/config/push` | Chave pública VAPID das notificações push; 503 se as chaves não estiverem no `.env` |
 | GET | `/api/config/maps` | Chave e Map ID do Google Maps (`.env`); 403 se o `Origin` não for do frontend, 503 se a chave não estiver configurada |

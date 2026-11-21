@@ -7,7 +7,7 @@ const DESCRIPTION = `
 API do **Ruraliza**: conecta produtores rurais a trabalhadores para serviços nas fazendas.
 
 - Os dados (e as fotos e currículos) ficam **em memória** e somem quando o servidor reinicia. Ao subir, há dados de teste
-  (produtor 1 com as fazendas 1 e 2, trabalhador 1, serviços 1 a 7: um por categoria, publicados em dias diferentes, com e sem prazo; o 7 já venceu).
+  (produtor 1 com as fazendas 1 e 2, trabalhador 1, serviços 1 a 7: cada um de um tipo de serviço, publicados em dias diferentes, com e sem prazo; o 7 já venceu).
 - **Sessão**: \`POST /api/auth/login\` (produtor/trabalhador) e \`POST /api/auth/system/login\` (equipe) devolvem um \`token\`
   que vale 12 horas. As rotas com cadeado exigem \`Authorization: Bearer <token>\` (botão **Authorize**) e só deixam
   cada conta mexer no que é dela. As contas de teste usam a senha \`ruraliza123\`: \`produtor@exemplo.com\`,
@@ -25,7 +25,7 @@ API do **Ruraliza**: conecta produtores rurais a trabalhadores para serviços na
 const TAG_DESCRIPTIONS: Record<(typeof TAGS)[keyof typeof TAGS], string> = {
   [TAGS.system]: 'Estado do servidor.',
   [TAGS.auth]: 'Login e "esqueci a senha". A troca de senha com a conta aberta fica em Produtores e Trabalhadores.',
-  [TAGS.categories]: 'Categorias fixas de serviço.',
+  [TAGS.categories]: 'Tipos de serviço fixos, em lista plana ou por grupo.',
   [TAGS.farmers]: 'Cadastro e perfil do produtor.',
   [TAGS.farms]: 'Fazendas do produtor (onde os serviços acontecem).',
   [TAGS.farmerServices]: 'Ciclo do serviço do lado do produtor: publicar, editar, cancelar, escolher o trabalhador e pagar.',

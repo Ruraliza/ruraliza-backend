@@ -58,13 +58,13 @@ Em volta desse caminho ficam a formação (trilhas e certificados), os avisos (c
 ### Vagas (`services`)
 
 - O produtor publica um serviço numa fazenda com nome, categoria, duração em horas, preço e, se quiser, descrição e prazo (`POST /api/farmers/services`).
-- As categorias são uma lista fixa (`GET /api/categories`): Colheita, Plantio, Manutenção, Pulverização, Operação de máquinas, Manejo de gado e Outros.
+- Os tipos de serviço (categorias) são uma lista fixa em dois níveis, grupo > serviço: Lavoura e horta, Cercas e construções, Água, Pasto e terreno, Animais, Máquinas e Outros, cada um com os seus serviços (a lista completa está no [PRODUCT.md](../PRODUCT.md)). `GET /api/categories` devolve a lista plana dos serviços e `GET /api/categories/groups`, os grupos. A vaga guarda o serviço; publicar ou editar com um valor fora da lista dá 400.
 - Um serviço passa por `Pending` (aberto), `In Progress` (com trabalhador aceito), `Completed` (pago) ou `Cancelled`. Só dá para editar ou cancelar enquanto está `Pending`; cancelar recusa as candidaturas pendentes.
 - Prazo (`expires_at`): a vaga aceita candidaturas até o fim desse dia no horário de Brasília. Vencida, some da busca e recusa candidaturas até o produtor renovar a data.
 
 ### Busca de vagas (`services`)
 
-`GET /api/workers/services` lista as vagas abertas e dentro do prazo, com cidade, UF, fotos e reputação da fazenda. Os filtros se combinam: texto livre (sem diferenciar acentos), categoria, duração, dia de publicação e nota mínima da fazenda. A ordenação pode ser por mais recente, preço, duração ou nota.
+`GET /api/workers/services` lista as vagas abertas e dentro do prazo, com cidade, UF, fotos e reputação da fazenda. Os filtros se combinam: texto livre (sem diferenciar acentos), serviço, grupo de serviços, duração, dia de publicação e nota mínima da fazenda. A ordenação pode ser por mais recente, preço, duração ou nota.
 
 ### Vagas para você: recomendações e avisos (`matching`)
 

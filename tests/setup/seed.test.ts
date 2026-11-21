@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
 import type { TrackActor } from '#modules/tracks';
-import { CATEGORIES } from '#modules/services';
+import { isCategory } from '#modules/services';
 import type { SessionUser } from '../../src/contracts';
 import { createContainer } from '../../src/container';
 import { SEED_PASSWORD, seed } from '../../src/seed';
@@ -22,11 +22,13 @@ after(dropTestDatabases);
 const asTutor = (id: number): TrackActor => ({ id, oversees: false });
 
 describe('seed', () => {
-  it('tem um serviço aberto por categoria, todos completos', async () => {
+  it('tem sete serviços abertos, cada um de um tipo da lista, todos completos', async () => {
     const c = await seeded();
     const services = await c.repos.services.find({ status: 'Pending' });
 
-    assert.deepEqual(services.map((s) => s.category).sort(), [...CATEGORIES].sort());
+    assert.equal(services.length, 7);
+    assert.equal(new Set(services.map((s) => s.category)).size, 7);
+    for (const s of services) assert.ok(isCategory(s.category), `serviço ${s.id} com categoria fora da lista: ${s.category}`);
     for (const s of services) {
       assert.equal(s.status, 'Pending');
       assert.ok(s.description !== null && s.description.length > 0, `serviço ${s.id} sem descrição`);
@@ -105,7 +107,7 @@ describe('seed', () => {
 
     const lastThreeDays = await c.useCases.services.searchOpenServices.execute({ from: '2026-03-12' });
     assert.deepEqual(lastThreeDays.map((j) => j.name).sort(), [
-      'Colheita de café', 'Conserto de cerca', 'Pulverização de pasto', 'Vacinação do rebanho'
+      'Apartação do rebanho', 'Colheita de café', 'Conserto de cerca', 'Pulverização de pasto'
     ]);
 
     const recent = await c.useCases.services.searchOpenServices.execute({ sort: 'recent' });

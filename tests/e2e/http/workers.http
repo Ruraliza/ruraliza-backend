@@ -134,6 +134,10 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/workers/services?category=Colheita
 Authorization: Bearer {{token}}
 
+### Buscar vagas abertas de qualquer serviço de um grupo
+GET {{baseUrl}}/workers/services?category_group=Cercas%20e%20constru%C3%A7%C3%B5es
+Authorization: Bearer {{token}}
+
 ### Detalhe de uma vaga
 GET {{baseUrl}}/workers/services/{{serviceId}}
 Authorization: Bearer {{token}}

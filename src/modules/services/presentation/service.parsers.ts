@@ -4,12 +4,16 @@ import { type Result, invalid, ok } from '#shared/domain/result';
 import { type Body, missingMessage } from '#shared/infra/http/body';
 import type { Query } from '#shared/infra/http/types';
 import { isPositiveNumber, missingFields, text, tooLong } from '#shared/utils/validation';
+import { CATEGORY_GROUP_NAMES, isCategory, servicesOfGroup } from '../domain/categories';
 import type { JobFilters, JobSort, ServiceInput, ServiceUpdate } from '../service.contract';
 
 // Formato dos corpos e das queries das rotas de serviço e de vagas (400).
 // Regras que dependem dos dados (fazenda do produtor, status, validade no passado) ficam nos casos de uso.
 
 const MAX_DESCRIPTION = 2000;
+
+const UNKNOWN_CATEGORY = 'Categoria desconhecida. Use uma das de GET /api/categories.';
+const UNKNOWN_GROUP = `Grupo de serviço desconhecido. Use um destes: ${CATEGORY_GROUP_NAMES.join(', ')}.`;
 
 export function parseServiceInput(body: Body): Result<ServiceInput> {
   const missing = missingFields(body, ['farmer_id', 'farm_id', 'name', 'category', 'duration', 'price']);
@@ -19,6 +23,9 @@ export function parseServiceInput(body: Body): Result<ServiceInput> {
   const price = body['price'];
   if (!isPositiveNumber(duration)) return invalid('A duração deve ser um número de horas maior que zero.');
   if (!isPositiveNumber(price)) return invalid('O valor deve ser um número maior que zero.');
+
+  const category = text(body['category']).trim();
+  if (!isCategory(category)) return invalid(UNKNOWN_CATEGORY);
 
   const extras = parseServiceExtras(body);
   if (!extras.ok) return extras;
@@ -31,7 +38,7 @@ export function parseServiceInput(body: Body): Result<ServiceInput> {
     farm_id: Number(body['farm_id']),
     name,
     description: extras.value.description ?? null,
-    category: text(body['category']),
+    category,
     duration,
     price,
     expires_at: extras.value.expires_at ?? null
@@ -51,6 +58,8 @@ export function parseServiceUpdate(body: Body): Result<ServiceUpdate> {
   const offensive = name === undefined ? null : blockedTermProblem('no nome do serviço', text(name));
   if (offensive) return invalid(offensive);
   if (category !== undefined && !text(category).trim()) return invalid('A categoria não pode ficar vazia.');
+  // Só valida quando vem no corpo: uma vaga antiga com categoria fora da lista continua editável no resto.
+  if (category !== undefined && !isCategory(text(category).trim())) return invalid(UNKNOWN_CATEGORY);
   if (duration !== undefined && !isPositiveNumber(duration)) {
     return invalid('A duração deve ser um número de horas maior que zero.');
   }
@@ -59,7 +68,7 @@ export function parseServiceUpdate(body: Body): Result<ServiceUpdate> {
   const update: ServiceUpdate = {};
   if (farm_id !== undefined) update.farm_id = Number(farm_id);
   if (name !== undefined) update.name = text(name).trim();
-  if (category !== undefined) update.category = text(category);
+  if (category !== undefined) update.category = text(category).trim();
   if (duration !== undefined) update.duration = duration;
   if (price !== undefined) update.price = price;
   if (extras.value.description !== undefined) update.description = extras.value.description;
@@ -104,7 +113,15 @@ export function parseJobFilters(query: Query): Result<JobFilters> {
     filters.q = q;
   }
   const category = queryText(query, 'category');
-  if (category !== undefined) filters.category = category;
+  if (category !== undefined) {
+    if (!isCategory(category)) return invalid(UNKNOWN_CATEGORY);
+    filters.category = category;
+  }
+  const group = queryText(query, 'category_group');
+  if (group !== undefined) {
+    if (servicesOfGroup(group) === undefined) return invalid(UNKNOWN_GROUP);
+    filters.category_group = group;
+  }
 
   for (const key of ['min_hours', 'max_hours'] as const) {
     const raw = queryText(query, key);

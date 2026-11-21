@@ -20,6 +20,12 @@ export interface Service {
   insertion_date: string;
 }
 
+// GET /categories/groups: os tipos de serviço por grupo (services.category guarda o serviço, não o grupo)
+export interface CategoryGroup {
+  name: string;
+  services: string[];
+}
+
 // POST /farmers/services
 export interface ServiceInput {
   farmer_id: number;
@@ -61,6 +67,7 @@ export type JobSort = 'recent' | 'price_desc' | 'price_asc' | 'duration_asc' | '
 export interface JobFilters {
   q?: string; // busca no nome, na descrição, na categoria e na cidade (sem acento/maiúscula)
   category?: string;
+  category_group?: string; // qualquer serviço do grupo (GET /categories/groups)
   min_hours?: number;
   max_hours?: number;
   from?: string; // publicado a partir de (AAAA-MM-DD)

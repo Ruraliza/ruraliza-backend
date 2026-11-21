@@ -36,6 +36,6 @@ export async function worker(c: Container, email: string, cpf: string): Promise<
 }
 
 export async function openService(c: Container, farmerId: number, farmId: number): Promise<number> {
-  const s = unwrap(await c.useCases.services.publishService.execute({ farmer_id: farmerId, farm_id: farmId, name: 'Capina', category: 'Manutenção', duration: 4, price: 200 }));
+  const s = unwrap(await c.useCases.services.publishService.execute({ farmer_id: farmerId, farm_id: farmId, name: 'Capina', category: 'Capina', duration: 4, price: 200 }));
   return s.id;
 }

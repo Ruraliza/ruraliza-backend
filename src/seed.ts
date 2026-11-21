@@ -103,7 +103,7 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   const bothAccount = await createAccount(repos.accounts, passwords, { email: both.email, password: SEED_PASSWORD, role: 'farmer', profileId: bothFarmer.id });
   await repos.accounts.update({ ...bothAccount, worker_id: bothWorker.id });
 
-  // Uma vaga por categoria (ver src/constants/categories.ts). Os serviços 1 a 3 são os citados na documentação.
+  // Sete vagas abertas, cada uma de um serviço (ver src/modules/services/domain/categories.ts). Os serviços 1 a 3 são os citados na documentação.
   const demoServices: DemoService[] = [
     {
       farmId: farmSaoJose.id, name: 'Colheita de café', category: 'Colheita', duration: 40, price: 1800,
@@ -116,7 +116,7 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
       publishedDaysAgo: 5, expiresInDays: 3
     },
     {
-      farmId: farmSaoJose.id, name: 'Conserto de cerca', category: 'Manutenção', duration: 8, price: 400,
+      farmId: farmSaoJose.id, name: 'Conserto de cerca', category: 'Conserto de cerca', duration: 8, price: 400,
       description: 'Troca de mourões e arame em cerca de pasto (cerca de 200 m).',
       publishedDaysAgo: 0, expiresInDays: null
     },
@@ -131,8 +131,8 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
       publishedDaysAgo: 8, expiresInDays: null
     },
     {
-      farmId: farmBoaVista.id, name: 'Vacinação do rebanho', category: 'Manejo de gado', duration: 6, price: 300,
-      description: 'Apoio na vacinação contra aftosa de 120 cabeças no curral. Começa às 6h.',
+      farmId: farmBoaVista.id, name: 'Apartação do rebanho', category: 'Manejo de gado', duration: 6, price: 300,
+      description: 'Apoio na lida com 120 cabeças no curral: apartar os bezerros e conferir o rebanho. Começa às 6h.',
       publishedDaysAgo: 3, expiresInDays: 7
     },
     {
@@ -169,7 +169,7 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   // Vagas para você: a Maria quer colheita e manejo de gado perto de Três Rios, com avisos (o resumo semanal
   // conta a partir de agora).
   await repos.jobPreferences.create({
-    worker_id: worker.id, categories: ['Colheita', 'Manejo de gado'], near: { latitude: -22.12, longitude: -43.21, radius_km: 50 },
+    worker_id: worker.id, categories: ['Colheita', 'Manejo de gado', 'Ordenha'], near: { latitude: -22.12, longitude: -43.21, radius_km: 50 },
     alerts: true, last_digest_at: now
   });
   // Patrocínios de EXEMPLO (anunciantes fictícios), um para produtores do RJ e um para trabalhadores.
@@ -182,7 +182,7 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   await repos.sponsors.create({
     ...sponsor, sponsor: 'EPI do Campo (exemplo)', title: 'Luva, botina e chapéu com desconto para quem trabalha pelo app',
     text: 'Anúncio de exemplo da demonstração do Ruraliza.', cta_label: 'Conhecer', url: 'https://exemplo.com.br/epi-do-campo',
-    audience: 'worker', states: [], categories: ['Colheita', 'Manejo de gado', 'Pulverização']
+    audience: 'worker', states: [], categories: ['Colheita', 'Manejo de gado', 'Pulverização', 'Trato de animais']
   });
   // Verificação de identidade: o João com o selo; o Pedro na fila da equipe (src/seed-verification.ts).
   await seedVerifications(repos, now, { farmerId: farmer.id, farmerName: farmer.name, pedroEmail: 'pedro@exemplo.com' }, idDocuments);
