@@ -60,7 +60,7 @@ export function givenFarm(t: ServicesTestbed, farmer: Farmer, changes: Partial<F
 export function givenService(t: ServicesTestbed, farm: Farm, changes: Partial<Service> = {}): Promise<Service> {
   return t.services.create({
     farmer_id: farm.farmer_id, farm_id: farm.id, payment_id: null, worker_id: null,
-    name: 'Capina', description: null, category: 'Manutenção', duration: 4, price: 200,
+    name: 'Capina', description: null, category: 'Capina', duration: 4, price: 200,
     expires_at: null, status: 'Pending', insertion_date: NOW, ...changes
   });
 }

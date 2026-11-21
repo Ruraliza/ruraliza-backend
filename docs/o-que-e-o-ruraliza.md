@@ -77,7 +77,7 @@ Por fim, os dois se avaliam. Seu Antônio avalia pontualidade, empenho e qualida
 ### Contratação
 
 - Publicação de vagas em dois passos, com prazo para encerrar.
-- Tipos de serviço: colheita, plantio, manutenção, pulverização, operação de máquinas, manejo de gado e outros.
+- Tipos de serviço em sete grupos: lavoura e horta, cercas e construções, água, pasto e terreno, animais, máquinas e outros. São trabalhos do dia a dia da fazenda que não exigem curso nem certificação.
 - Busca de vagas com filtros, e vagas recomendadas para cada trabalhador.
 - Candidatura, desistência, aceite e recusa automática das demais candidaturas.
 - Pagamento liberado pelo produtor ao final do serviço (simulado).

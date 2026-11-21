@@ -1,6 +1,6 @@
 // API pública do módulo de serviços (vagas): o único arquivo que outros módulos enxergam (#modules/services).
 export type * from './service.contract';
-export { CATEGORIES } from './domain/categories';
+export { CATEGORIES, CATEGORY_GROUPS, isCategory } from './domain/categories';
 export type { FarmReputationReader } from './domain/farm-reputation';
 export { type FarmerVerificationReader, NO_VERIFIED_FARMERS } from './domain/farmer-verification';
 export { type JobEvents, NO_JOB_EVENTS } from './domain/job-events';

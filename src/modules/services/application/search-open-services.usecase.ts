@@ -2,6 +2,7 @@ import type { FarmRepository } from '#modules/farms';
 import { APPLICATION_STATUS, type ApplicationRepository } from '#modules/hiring';
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
+import { servicesOfGroup } from '../domain/categories';
 import type { FarmReputationReader } from '../domain/farm-reputation';
 import type { FarmerVerificationReader } from '../domain/farmer-verification';
 import { searchable } from '#shared/utils/search';
@@ -35,7 +36,7 @@ const SORTERS: Record<NonNullable<JobFilters['sort']>, (a: OpenService, b: OpenS
 // RF02 - Vagas abertas: Pending e dentro da validade, com filtros combinados (E).
 // Com `worker_id`, some a vaga em que esse trabalhador já foi recusado. Cada vaga traz a reputação da fazenda
 // e se o produtor é verificado.
-// TODO(db): no PostgreSQL os filtros viram WHERE (status, category, duration BETWEEN, insertion_date,
+// TODO(db): no PostgreSQL os filtros viram WHERE (status, category, category IN (serviços do grupo), duration BETWEEN, insertion_date,
 // expires_at >= hoje) e a busca de texto vira unaccent + ILIKE ou full-text search em português.
 export class SearchOpenServicesUseCase {
   constructor(private readonly deps: SearchOpenServicesDeps) {}
@@ -58,10 +59,12 @@ export class SearchOpenServicesUseCase {
             .map((a) => a.service_id)
         );
 
+    const groupServices = filters.category_group === undefined ? undefined : servicesOfGroup(filters.category_group) ?? [];
     const terms = searchable(filters.q ?? '').split(/\s+/).filter(Boolean);
     const result = withFarm.filter((job) => {
       if (rejectedServiceIds.has(job.id)) return false;
       if (filters.category && job.category !== filters.category) return false;
+      if (groupServices && !groupServices.includes(job.category)) return false;
       if (filters.min_rating !== undefined && (job.farm.reputation?.average ?? 0) < filters.min_rating) return false;
       if (filters.min_hours !== undefined && job.duration < filters.min_hours) return false;
       if (filters.max_hours !== undefined && job.duration > filters.max_hours) return false;

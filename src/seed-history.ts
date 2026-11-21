@@ -92,20 +92,20 @@ export async function seedHistory(repos: Repositories, now: string, passwords: P
   await reviewWorker(milho.service, milho.paidAt, [5, 5, 5, 'Chegou antes do horário e caprichou na colheita.'], true);
   await reviewFarm(milho.service, milho.paidAt, [5, 4, 5, 'Fazenda organizada, com água e sombra à vontade.'], true);
 
-  const capina = await completed({ farmId: farmBoaVista, workerId: mariaId, name: 'Capina do cafezal', category: 'Manutenção', duration: 16, price: 640, paidDaysAgo: 25 });
+  const capina = await completed({ farmId: farmBoaVista, workerId: mariaId, name: 'Capina do cafezal', category: 'Capina', duration: 16, price: 640, paidDaysAgo: 25 });
   await reviewWorker(capina.service, capina.paidAt, [4, 5, 4, null], true);
   await reviewFarm(capina.service, capina.paidAt, [4, 3, 4, 'Faltou EPI no primeiro dia, mas resolveram rápido.'], true);
 
-  const porteira = await completed({ farmId: farmSaoJose, workerId: pedro.id, name: 'Conserto de porteira', category: 'Manutenção', duration: 6, price: 280, paidDaysAgo: 30 });
+  const porteira = await completed({ farmId: farmSaoJose, workerId: pedro.id, name: 'Conserto de porteira', category: 'Porteiras e colchetes', duration: 6, price: 280, paidDaysAgo: 30 });
   await reviewWorker(porteira.service, porteira.paidAt, [3, 4, 4, 'Atrasou na chegada, mas o serviço ficou bom.'], true);
   await reviewFarm(porteira.service, porteira.paidAt, [4, 5, 4, null], true);
 
   // A Maria já avaliou; a nota dela fica escondida até o produtor avaliar.
-  const ordenha = await completed({ farmId: farmBoaVista, workerId: mariaId, name: 'Ordenha da manhã', category: 'Manejo de gado', duration: 12, price: 480, paidDaysAgo: 3 });
+  const ordenha = await completed({ farmId: farmBoaVista, workerId: mariaId, name: 'Ordenha da manhã', category: 'Ordenha', duration: 12, price: 480, paidDaysAgo: 3 });
   await reviewFarm(ordenha.service, ordenha.paidAt, [5, 5, 5, 'Equipe muito receptiva.'], false);
 
   // Concluído ontem: os dois ainda vão avaliar; a conversa continua aberta.
-  const pasto = await completed({ farmId: farmSaoJose, workerId: mariaId, name: 'Limpeza de pasto', category: 'Manutenção', duration: 8, price: 320, paidDaysAgo: 1 });
+  const pasto = await completed({ farmId: farmSaoJose, workerId: mariaId, name: 'Limpeza de pasto', category: 'Limpeza de pasto', duration: 8, price: 320, paidDaysAgo: 1 });
   const pastoChat = await repos.chats.create({
     service_id: pasto.service.id, farmer_id: farmerId, worker_id: mariaId, farmer_shares_phone: false, worker_shares_phone: false,
     farmer_read_up_to: 0, worker_read_up_to: 0, closes_at: shift(6), insertion_date: shift(-5)
@@ -123,7 +123,7 @@ export async function seedHistory(repos: Repositories, now: string, passwords: P
   // Em andamento com a Maria, com conversa: a última mensagem do produtor ela ainda não leu.
   const curral = await repos.services.create({
     farmer_id: farmerId, farm_id: farmBoaVista, worker_id: mariaId, payment_id: null,
-    name: 'Reforma do curral', description: 'Troca de tábuas e mourões do curral de manejo.', category: 'Manutenção',
+    name: 'Reforma do curral', description: 'Troca de tábuas e mourões do curral de manejo.', category: 'Curral, brete e tronco',
     duration: 24, price: 960, expires_at: null, status: SERVICE_STATUS.IN_PROGRESS, insertion_date: shift(-6)
   });
   await repos.applications.create({ service_id: curral.id, worker_id: mariaId, status: 'Accepted', insertion_date: shift(-5) });

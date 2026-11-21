@@ -134,6 +134,7 @@ export type ContractParity = [
   Expect<Equals<Api.OpenService, FrontService.OpenService>>,
   Expect<Equals<Api.JobFilters, FrontService.JobFilters>>,
   Expect<Equals<Api.JobSort, FrontService.JobSort>>,
+  Expect<Equals<Api.CategoryGroup, FrontService.CategoryGroup>>,
 
   Expect<Equals<Api.ServiceApplication, FrontApplication.ServiceApplication>>,
   Expect<Equals<Api.ApplicationWithWorker, FrontApplication.ApplicationWithWorker>>,

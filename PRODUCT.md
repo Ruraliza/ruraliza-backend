@@ -19,6 +19,14 @@ Cada item existe em código e tem rotas documentadas no README (seção "Rotas")
 
 - **Cadastro e acesso:** conta por pessoa (e-mail e CPF únicos), aceite dos termos (`accept_terms`), login com token Bearer, troca de painel, redefinição de senha (resposta genérica, o código nunca volta na resposta; sem e-mail, só funciona no `npm run dev`, com o código no terminal).
 - **Vagas:** publicar, editar, cancelar, prazo (`expires_at`), busca com filtros e ordenação, recomendações e avisos de vaga nova.
+- **Tipos de serviço:** lista fixa em dois níveis, grupo > serviço (`src/modules/services/domain/categories.ts`). Só entram trabalhos do dia a dia da fazenda que não exigem curso nem certificação obrigatória. A vaga, as preferências, os patrocínios e as trilhas guardam o serviço; o grupo serve para escolher e filtrar.
+  - Lavoura e horta: Colheita, Plantio, Pulverização, Capina, Preparo de canteiro, Ensacamento e seleção de grãos.
+  - Cercas e construções: Conserto de cerca, Construção de cerca, Troca de mourões e esticadores, Porteiras e colchetes, Curral, brete e tronco, Reforma de galpão, paiol e cocho, Pequenas obras de alvenaria, Manutenção.
+  - Água: Encanamento e caixa d'água, Limpeza de represa, açude e cisterna, Instalação e manutenção de irrigação, Conserto de roda d'água e carneiro hidráulico.
+  - Pasto e terreno: Roçada manual, Limpeza de pasto, Aceiro manual, Conservação de estrada interna, Poda manual.
+  - Animais: Manejo de gado, Vaqueiro e peão, Ordenha, Trato de animais, Casqueamento e ferrageamento, Doma e lida com cavalos.
+  - Máquinas: Operação de máquinas.
+  - Outros: Outros.
 - **Candidatura e aceite:** candidatar, desistir, aceitar ou recusar; as demais candidaturas são recusadas pelo aceite.
 - **Conversa:** abre no aceite, WhatsApp só aparece com consentimento dos dois, números e e-mails nas mensagens são ocultados.
 - **Pagamento simulado:** o produtor "libera" o pagamento de um serviço em andamento e o serviço fica concluído. Não há dinheiro real.

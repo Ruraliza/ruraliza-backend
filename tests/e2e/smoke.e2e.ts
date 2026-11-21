@@ -38,6 +38,7 @@ import type {
   NotificationsReadResponse,
   MapsConfig,
   PushConfig,
+  CategoryGroup,
   OpenService,
   PasswordResetRequestResponse,
   PaymentResponse,
@@ -258,7 +259,10 @@ function brDay(offsetDays: number): string {
 
 async function run(): Promise<void> {
   console.log('\nFluxo principal');
-  await step<string[]>('categorias', 'GET', '/categories', undefined, 200, (b) => assert.equal(b.length, 7));
+  const flat = await step<string[]>('categorias', 'GET', '/categories', undefined, 200,
+    (b) => assert.ok(['Colheita', 'Plantio', 'Manutenção', 'Pulverização', 'Operação de máquinas', 'Manejo de gado', 'Outros', 'Ordenha'].every((c) => b.includes(c))));
+  await step<CategoryGroup[]>('categorias por grupo', 'GET', '/categories/groups', undefined, 200,
+    (b) => assert.deepEqual(b.flatMap((g) => g.services), flat));
 
   const { farmer, user: farmerSession, token: ana } = await step<FarmerSignupResponse>('cadastrar produtor', 'POST', '/farmers',
     { name: 'Ana Produtora', email: 'Ana@Exemplo.com', phone: '24999990000', cpf: '52998224725', password: PW, accept_terms: true }, 201,
@@ -392,6 +396,11 @@ async function run(): Promise<void> {
   await step('publicar em nome de outro produtor', 'POST', '/farmers/services',
     { farmer_id: 999, farm_id: farm.id, name: 'X', category: 'Outros', duration: 1, price: 1 }, 403);
   await step('serviço sem campos', 'POST', '/farmers/services', { farmer_id: farmer.id }, 400);
+  await step('categoria fora da lista', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Pesca', category: 'Pescaria', duration: 1, price: 1 }, 400);
+  await step('grupo no lugar do serviço', 'POST', '/farmers/services',
+    { farmer_id: farmer.id, farm_id: farm.id, name: 'Cerca', category: 'Cercas e construções', duration: 1, price: 1 }, 400);
+  await step('categoria fora da lista (edição)', 'PATCH', `/farmers/services/${service.id}`, { category: 'Motosserra' }, 400);
   await step('palavrão no nome do serviço', 'POST', '/farmers/services',
     { farmer_id: farmer.id, farm_id: farm.id, name: 'Colheita da p0rra', category: 'Outros', duration: 1, price: 1 }, 400);
   await step('palavrão na descrição (edição)', 'PATCH', `/farmers/services/${service.id}`, { description: 'Vai tomar no cu' }, 400);
@@ -762,6 +771,7 @@ async function run(): Promise<void> {
     step<ServiceResponse>(`publicar "${name}"`, 'POST', '/farmers/services', { farmer_id: farmer.id, farm_id: farm.id, name, description, category, duration, price }, 201);
   const cafe = (await post('Colheita de Café', 'Café arábica em terreno inclinado', 'Colheita', 30, 1500)).service;
   const ordenha = (await post('Ordenha', 'Ordenha mecânica às 5h', 'Manejo de gado', 6, 300)).service;
+  const leite = (await post('Ordenha da tarde', 'Ordenha manual de 20 vacas', 'Ordenha', 4, 200)).service;
   const trator = (await post('Gradear área', 'Trator próprio da fazenda, precisa de CNH', 'Operação de máquinas', 16, 900)).service;
   const ids = (b: OpenService[]): number[] => b.map((j) => j.id);
   actAs(bruno);
@@ -772,6 +782,12 @@ async function run(): Promise<void> {
   await step<OpenService[]>('todas as palavras precisam aparecer', 'GET', '/workers/services?q=ordenha%20trator', undefined, 200, (b) => assert.deepEqual(b, []));
   await step<OpenService[]>('busca pela cidade', 'GET', '/workers/services?q=tres%20rios&category=Manejo%20de%20gado', undefined, 200,
     (b) => assert.deepEqual(ids(b), [ordenha.id]));
+  await step<OpenService[]>('por grupo: qualquer serviço de Animais', 'GET', '/workers/services?category_group=Animais', undefined, 200,
+    (b) => assert.deepEqual(ids(b).sort(), [ordenha.id, leite.id].sort()));
+  await step<OpenService[]>('grupo combina com categoria e busca', 'GET', '/workers/services?category_group=Animais&category=Ordenha&q=manual', undefined, 200,
+    (b) => assert.deepEqual(ids(b), [leite.id]));
+  await step('grupo desconhecido', 'GET', '/workers/services?category_group=Pescaria', undefined, 400);
+  await step('categoria desconhecida na busca', 'GET', '/workers/services?category=Pescaria', undefined, 400);
   await step<OpenService[]>('carga horária entre 10 e 20 h', 'GET', '/workers/services?min_hours=10&max_hours=20', undefined, 200,
     (b) => assert.ok(b.length > 0 && b.every((j) => j.duration >= 10 && j.duration <= 20)));
   await step<OpenService[]>('publicadas hoje', 'GET', `/workers/services?from=${brDay(0)}&to=${brDay(0)}`, undefined, 200,

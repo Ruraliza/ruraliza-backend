@@ -62,7 +62,7 @@ export function givenWorker(t: HiringTestbed, name = 'Maria'): Promise<Worker> {
 export function givenService(t: HiringTestbed, changes: Partial<Service> = {}): Promise<Service> {
   return t.services.create({
     farmer_id: FARMER_ID, farm_id: 1, payment_id: null, worker_id: null,
-    name: 'Capina', description: null, category: 'Manutenção', duration: 4, price: 200,
+    name: 'Capina', description: null, category: 'Capina', duration: 4, price: 200,
     expires_at: null, status: 'Pending', insertion_date: NOW, ...changes
   });
 }

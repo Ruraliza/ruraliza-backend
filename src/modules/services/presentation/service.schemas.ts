@@ -1,11 +1,11 @@
 import type { FarmSchemaName } from '#modules/farms';
 import { type Properties, type RefTo, type Schema, id, input, isoDate, nullableId, object, refTo } from '#shared/infra/docs/schema-kit';
-import { CATEGORIES } from '../domain/categories';
+import { CATEGORIES, CATEGORY_GROUPS, CATEGORY_GROUP_NAMES } from '../domain/categories';
 import { SERVICE_STATUS } from '../domain/service-status';
 
 // Schemas OpenAPI dos serviços e vagas (contrato em ../service.contract.ts). Registrados em src/docs/schemas.ts.
 export type ServiceSchemaName =
-  | 'ServiceStatus' | 'CategoryList'
+  | 'ServiceStatus' | 'CategoryList' | 'CategoryGroup' | 'CategoryGroupList'
   | 'Service' | 'ServiceWithFarm' | 'FarmerServiceItem' | 'OpenService'
   | 'ServiceInput' | 'ServiceUpdate' | 'ServiceResponse';
 
@@ -44,6 +44,14 @@ export const openServiceRequired: readonly string[] = [...serviceRequired, 'farm
 export const serviceSchemas = {
   ServiceStatus: { type: 'string', enum: Object.values(SERVICE_STATUS), example: 'Pending' },
   CategoryList: { type: 'array', items: { type: 'string', enum: [...CATEGORIES] }, example: [...CATEGORIES] },
+  CategoryGroup: object(
+    {
+      name: { type: 'string', enum: [...CATEGORY_GROUP_NAMES], example: 'Água' },
+      services: { type: 'array', minItems: 1, items: { type: 'string', enum: [...CATEGORIES] }, example: [...(CATEGORY_GROUPS[2]?.services ?? [])] }
+    },
+    ['name', 'services']
+  ),
+  CategoryGroupList: { type: 'array', items: ref('CategoryGroup'), example: CATEGORY_GROUPS.map((g) => ({ name: g.name, services: [...g.services] })) },
 
   Service: object(serviceProps, serviceRequired),
   ServiceWithFarm: object({ ...serviceProps, farm: ref('Farm') }, [...serviceRequired, 'farm']),
@@ -59,7 +67,7 @@ export const serviceSchemas = {
       farm_id: id,
       name: { type: 'string', example: 'Colheita de café' },
       description: { ...description, description: 'Opcional. Vazio vira null.' },
-      category: { type: 'string', example: 'Colheita', description: 'Uma das categorias de GET /api/categories.' },
+      category: { type: 'string', enum: [...CATEGORIES], example: 'Colheita', description: 'Uma das categorias de GET /api/categories (o serviço, não o grupo).' },
       duration: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 16, description: 'Horas.' },
       price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 900, description: 'R$.' },
       expires_at: { ...lastDay, description: 'Opcional: último dia para candidaturas (hoje ou futuro).' }
@@ -72,7 +80,7 @@ export const serviceSchemas = {
       farm_id: id,
       name: { type: 'string' },
       description: { ...description, description: 'null ou vazio remove a descrição.' },
-      category: { type: 'string' },
+      category: { type: 'string', enum: [...CATEGORIES], description: 'Uma das categorias de GET /api/categories.' },
       duration: { type: 'number', exclusiveMinimum: true, minimum: 0 },
       price: { type: 'number', exclusiveMinimum: true, minimum: 0, example: 1200 },
       expires_at: { ...lastDay, description: 'Nova validade (hoje ou futuro); null remove o prazo. Renova uma vaga vencida.' }

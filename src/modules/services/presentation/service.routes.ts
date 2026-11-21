@@ -2,6 +2,7 @@ import type { AccessPolicies } from '#modules/auth';
 import { TAGS, operation, pathParam, queryParam } from '#shared/infra/docs/operations';
 import { type RefTo, refTo } from '#shared/infra/docs/schema-kit';
 import { type RouteDef, route } from '#shared/infra/http/route';
+import { CATEGORIES, CATEGORY_GROUP_NAMES } from '../domain/categories';
 import type { JobController } from './job.controller';
 import type { ServiceController } from './service.controller';
 import type { ServiceSchemaName } from './service.schemas';
@@ -32,7 +33,7 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
         body: 'ServiceInput',
         success: { status: 201, description: 'Serviço publicado.', schema: 'ServiceResponse' },
         errors: {
-          400: 'Campo obrigatório faltando; `duration` ou `price` não é número maior que zero; fazenda de outro produtor.',
+          400: 'Campo obrigatório faltando; `category` fora de GET /api/categories; `duration` ou `price` não é número maior que zero; fazenda de outro produtor.',
           404: 'Produtor não encontrado; fazenda não encontrada ou removida.'
         }
       }), access.farmerInBody()),
@@ -53,7 +54,7 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
         body: 'ServiceUpdate',
         success: { status: 200, description: 'Serviço atualizado.', schema: 'ServiceResponse' },
         errors: {
-          400: 'Tentou alterar `farmer_id`, `worker_id`, `payment_id` ou `status`; nome ou categoria vazios; duração ou valor inválidos; fazenda de outro produtor.',
+          400: 'Tentou alterar `farmer_id`, `worker_id`, `payment_id` ou `status`; nome ou categoria vazios; `category` fora de GET /api/categories; duração ou valor inválidos; fazenda de outro produtor.',
           404: 'Serviço não encontrado; fazenda não encontrada ou removida.',
           409: 'O serviço não está mais `Pending`.'
         }
@@ -90,7 +91,8 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
           'com cidade/UF, fotos e reputação da fazenda (sem o endereço completo). Todos os filtros são opcionais e se combinam.',
         params: [
           queryParam('q', 'Busca no nome, na descrição, na categoria e na cidade. Ignora acentos e maiúsculas; todas as palavras precisam aparecer.', { type: 'string', maxLength: 100 }),
-          queryParam('category', 'Filtra por categoria (ver GET /api/categories).', { type: 'string' }),
+          queryParam('category', 'Filtra por categoria, o serviço específico (ver GET /api/categories).', { type: 'string', enum: [...CATEGORIES] }),
+          queryParam('category_group', 'Filtra por grupo: vagas de qualquer serviço do grupo (ver GET /api/categories/groups).', { type: 'string', enum: [...CATEGORY_GROUP_NAMES] }),
           queryParam('min_hours', 'Carga horária mínima (horas).', { type: 'number', minimum: 0 }),
           queryParam('max_hours', 'Carga horária máxima (horas).', { type: 'number', minimum: 0 }),
           queryParam('from', 'Publicadas a partir deste dia.', date),
@@ -99,7 +101,7 @@ export function serviceRoutes(services: ServiceController, jobs: JobController, 
           queryParam('sort', 'Ordem. Padrão: recent. `rating`: fazendas mais bem avaliadas primeiro (média ponderada pela quantidade de avaliações).', { type: 'string', enum: ['recent', 'price_desc', 'price_asc', 'duration_asc', 'duration_desc', 'rating'] })
         ],
         success: { status: 200, description: 'Vagas abertas.', schema: { listOf: 'OpenService' } },
-        errors: { 400: 'Número ou data em formato inválido; mínimo maior que o máximo; `from` depois de `to`; `min_rating` fora de 1 a 5; `sort` desconhecido.' }
+        errors: { 400: '`category` ou `category_group` desconhecidos; número ou data em formato inválido; mínimo maior que o máximo; `from` depois de `to`; `min_rating` fora de 1 a 5; `sort` desconhecido.' }
       }), access.worker()),
 
       route('get', '/services/:id', jobs.getServiceDetail, serviceOperation({

@@ -44,7 +44,7 @@ export async function givenFarm(t: FarmsTestbed, farmer: Farmer): Promise<Farm> 
 export function givenService(t: FarmsTestbed, farm: Farm, status: ServiceStatus): Promise<Service> {
   return t.services.create({
     farmer_id: farm.farmer_id, farm_id: farm.id, payment_id: null, worker_id: null,
-    name: 'Capina', description: null, category: 'Manutenção', duration: 4, price: 200,
+    name: 'Capina', description: null, category: 'Capina', duration: 4, price: 200,
     expires_at: null, status, insertion_date: NOW
   });
 }
