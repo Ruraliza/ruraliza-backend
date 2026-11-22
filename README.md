@@ -41,9 +41,9 @@ Criados pelo seed (`src/seed.ts`) a cada vez que o servidor sobe em memória, ou
 
 | Conta | Perfis (ID) | Nome | E-mail | Senha | CPF | Dados |
 |---|---|---|---|---|---|---|
-| 1 | Produtor 1 | João Produtor | `produtor@exemplo.com` | `ruraliza123` | `52998224725` | Fazendas 1 (São José, Três Rios/RJ) e 2 (Boa Vista, Paraíba do Sul/RJ); serviços 1 a 7 |
-| 2 | Trabalhador 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; serviços concluídos com nota 4,7, uma avaliação pendente e a conversa do serviço 13; trilha 1 pela metade |
-| 3 | Produtor 2 e trabalhador 2 | Carlos Produtor e Trabalhador | `ambos@exemplo.com` | `ruraliza123` | `39053344705` | Abre no painel de produtor; sem fazendas nem serviços; como trabalhador, candidato à vaga 1 (sem avaliações) |
+| 1 | Produtor 1 | João Produtor | `produtor@exemplo.com` | `ruraliza123` | `52998224725` | Fazendas 1 (São José, Três Rios/RJ), 2 (Boa Vista, Paraíba do Sul/RJ) e 4 (Santa Luzia, Rio Verde/GO); serviços 1 a 7 e 17 (construção de cerca em Goiás, com o Zé Arameiro no catálogo) |
+| 2 | Trabalhador 1 | Maria Trabalhadora | `trabalhador@exemplo.com` | `ruraliza123` | `11144477735` | Perfil completo (apresentação, experiência, certificado e curso), sem foto e sem currículo; serviços concluídos com nota 4,7, uma avaliação pendente e a conversa do serviço 13; candidata ao serviço 14 do Carlos, com uma proposta esperando resposta; trilha 1 pela metade e trilha 2 concluída, com certificado |
+| 3 | Produtor 2 e trabalhador 2 | Carlos Produtor e Trabalhador | `ambos@exemplo.com` | `ruraliza123` | `39053344705` | Abre no painel de produtor. Fazenda 3 (Sítio Boa Esperança, Rio Verde/GO) com os serviços 14 (conserto de cerca: a Maria propôs R$ 150 por dia na conversa e ele ainda não respondeu), 15 (caixa d'água, sem candidatos) e 16 (roçada paga e avaliada pelos dois); como trabalhador, candidato à vaga 1 (sem avaliações) |
 | 4 | Trabalhador 3 | Pedro Diarista | `pedro@exemplo.com` | `ruraliza123` | `71428793860` | Um serviço concluído (nota 3,7) e candidato à vaga 1, com uma proposta esperando o produtor: bom para testar a negociação, o aceite e a avaliação |
 
 Se você trocar a senha de um deles (pelo perfil ou por "Esqueci minha senha", que no `npm run dev` mostra o código no terminal da API), ela volta a ser `ruraliza123` quando o servidor reinicia em memória. Com PostgreSQL, a senha nova fica.

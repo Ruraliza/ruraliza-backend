@@ -22,12 +22,12 @@ after(dropTestDatabases);
 const asTutor = (id: number): TrackActor => ({ id, oversees: false });
 
 describe('seed', () => {
-  it('tem sete serviços abertos, cada um de um tipo da lista, todos completos', async () => {
+  it('tem dez serviços abertos, os sete primeiros um de cada tipo, todos completos', async () => {
     const c = await seeded();
     const services = await c.repos.services.find({ status: 'Pending' });
 
-    assert.equal(services.length, 7);
-    assert.equal(new Set(services.map((s) => s.category)).size, 7);
+    assert.equal(services.length, 10);
+    assert.equal(new Set(services.slice(0, 7).map((s) => s.category)).size, 7);
     for (const s of services) assert.ok(isCategory(s.category), `serviço ${s.id} com categoria fora da lista: ${s.category}`);
     for (const s of services) {
       assert.equal(s.status, 'Pending');
@@ -73,7 +73,7 @@ describe('seed', () => {
   it('as fazendas têm o ponto marcado no mapa', async () => {
     const c = await seeded();
     const farms = await c.repos.farms.find();
-    assert.equal(farms.length, 2);
+    assert.equal(farms.length, 4);
     for (const f of farms) {
       assert.ok(f.latitude !== null && f.latitude >= -90 && f.latitude <= 90, `fazenda ${f.id} sem latitude`);
       assert.ok(f.longitude !== null && f.longitude >= -180 && f.longitude <= 180, `fazenda ${f.id} sem longitude`);
@@ -90,24 +90,25 @@ describe('seed', () => {
     assert.equal(byName.get('Limpeza de galpão'), '2026-03-13'); // já vencida
   });
 
-  it('o trabalhador vê 6 vagas (a vencida some); o produtor vê as 7', async () => {
+  it('o trabalhador vê 9 vagas (a vencida some); o João vê as 8 dele', async () => {
     const c = await seeded();
     const jobs = await c.useCases.services.searchOpenServices.execute();
-    assert.equal(jobs.length, 6);
+    assert.equal(jobs.length, 9);
     assert.ok(!jobs.some((j) => j.name === 'Limpeza de galpão'));
 
     const own = await c.useCases.services.listFarmerServices.execute({ farmerId: 1, status: 'Pending' });
-    assert.equal(own.ok ? own.value.length : -1, 7);
+    assert.equal(own.ok ? own.value.length : -1, 8);
   });
 
   it('as datas de publicação variam, então filtros de data e ordenação funcionam', async () => {
     const c = await seeded();
     const published = new Set((await c.repos.services.find({ status: 'Pending' })).map((s) => s.insertion_date));
-    assert.equal(published.size, 7);
+    assert.equal(published.size, 10);
 
     const lastThreeDays = await c.useCases.services.searchOpenServices.execute({ from: '2026-03-12' });
     assert.deepEqual(lastThreeDays.map((j) => j.name).sort(), [
-      'Apartação do rebanho', 'Colheita de café', 'Conserto de cerca', 'Pulverização de pasto'
+      'Apartação do rebanho', 'Colheita de café', 'Conserto de cerca', 'Conserto de cerca na beira da estrada', 'Construção de cerca do piquete',
+      'Pulverização de pasto', "Troca da boia da caixa d'água"
     ]);
 
     const recent = await c.useCases.services.searchOpenServices.execute({ sort: 'recent' });
@@ -117,12 +118,13 @@ describe('seed', () => {
   it('as fazendas e a Maria já têm nota; o Pedro tem uma nota mediana e o Carlos nenhuma', async () => {
     const c = await seeded();
     const workers = await c.useCases.reviews.getReputation.forWorkers([1, 2, 3]);
-    const farms = await c.useCases.reviews.getReputation.forFarms([1, 2]);
+    const farms = await c.useCases.reviews.getReputation.forFarms([1, 2, 3]);
 
-    assert.deepEqual([workers.get(1)?.count, workers.get(1)?.average], [2, 4.7]);
+    assert.deepEqual([workers.get(1)?.count, workers.get(1)?.average], [3, 4.7]);
     assert.deepEqual([workers.get(3)?.count, workers.get(3)?.average], [1, 3.7]);
     assert.equal(workers.get(2)?.count, 0);
     assert.deepEqual([farms.get(1)?.count, farms.get(2)?.count], [2, 1], 'a avaliação da ordenha continua escondida');
+    assert.equal(farms.get(3)?.count, 1, 'o sítio do Carlos tem a nota da roçada');
   });
 
   it('a vaga 1 tem dois candidatos com reputações diferentes', async () => {
@@ -141,14 +143,16 @@ describe('seed', () => {
     assert.deepEqual(maria.map((p) => p.service_name), ['Limpeza de pasto']);
   });
 
-  it('a Maria tem uma conversa em andamento com uma mensagem não lida', async () => {
+  it('a Maria tem uma conversa em andamento com uma mensagem não lida e negocia a cerca do Carlos', async () => {
     const c = await seeded();
     const chats = await c.useCases.chat.listChats.forWorker({ workerId: 1 });
 
-    assert.deepEqual(chats.map((chat) => [chat.service_name, chat.open, chat.unread]), [['Reforma do curral', true, 1], ['Limpeza de pasto', true, 0]]);
+    assert.deepEqual(chats.map((chat) => [chat.service_name, chat.open, chat.unread]), [
+      ['Conserto de cerca na beira da estrada', true, 0], ['Reforma do curral', true, 1], ['Limpeza de pasto', true, 0]
+    ]);
   });
 
-  it('tem um tutor com duas trilhas publicadas e uma em rascunho; o trabalhador de teste está no meio da de café', async () => {
+  it('tem um tutor com duas trilhas publicadas e uma em rascunho; a Maria está no meio da de café e concluiu a de trator', async () => {
     const c = await seeded();
     const tutor = await c.useCases.systemUsers.systemLogin.execute({ email: 'tutor@exemplo.com', password: SEED_PASSWORD });
     assert.equal(tutor.ok && tutor.value.role, 'tutor');
@@ -159,7 +163,28 @@ describe('seed', () => {
     const forWorker = await c.useCases.tracks.listTracks.execute({ worker_id: 1 });
     assert.deepEqual(forWorker.map((t) => [t.title, t.progress?.percent ?? null]), [
       ['Colheita de café do pé à saca', 50],
-      ['Trator na prática: operação segura', null]
+      ['Trator na prática: operação segura', 100]
     ]);
+  });
+
+  it('a Maria tem o certificado da trilha de trator, validável pelo código', async () => {
+    const c = await seeded();
+    const [certificate] = await c.useCases.tracks.listCertificates.execute({ workerId: 1 });
+    assert.equal(certificate?.track_title, 'Trator na prática: operação segura');
+    assert.equal(certificate.data_hash.length, 64);
+
+    const checked = await c.useCases.tracks.getCertificate.execute({ code: certificate.code });
+    assert.equal(checked.ok && checked.value.worker_name, 'Maria Trabalhadora');
+  });
+
+  it('o Carlos (ambos) tem um sítio em Goiás e uma proposta da Maria esperando resposta', async () => {
+    const c = await seeded();
+    const [sitio] = await c.repos.farms.find({ farmer_id: 2 });
+    assert.deepEqual([sitio?.city, sitio?.state], ['Rio Verde', 'GO']);
+
+    const chats = await c.useCases.chat.listChats.forFarmer({ farmerId: 2 });
+    assert.deepEqual(chats.map((chat) => [chat.service_name, chat.unread]), [['Conserto de cerca na beira da estrada', 1]]);
+    const [proposal] = await c.repos.proposals.find({ worker_id: 1, status: 'Pending' });
+    assert.deepEqual([proposal?.amount, proposal?.unit, proposal?.proposed_by], [150, 'day', 'worker']);
   });
 });

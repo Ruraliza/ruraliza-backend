@@ -5,7 +5,8 @@
 // alguns dias, vence hoje e já vencida). As contas de teste entram com a senha SEED_PASSWORD:
 // uma só de produtor, uma só de trabalhador e uma com os dois perfis; e, na equipe, um administrador
 // e um tutor (com as trilhas de demonstração de src/seed-tracks.ts). Depois das vagas abertas vem o
-// histórico das avaliações e da conversa (src/seed-history.ts) e o catálogo com os convites (src/seed-catalog.ts).
+// histórico das avaliações e da conversa (src/seed-history.ts), o catálogo com os convites (src/seed-catalog.ts) e os
+// exemplos em Goiás (src/seed-showcase.ts).
 import type { Clock } from '#shared/domain/clock';
 import { dayOf } from '#shared/domain/dates';
 import type { ImageStore } from '#shared/domain/images';
@@ -16,6 +17,7 @@ import { createAccount } from '#modules/accounts';
 import { createDefaultHelpArticles } from '#modules/help';
 import { seedCatalog } from './seed-catalog';
 import { seedHistory } from './seed-history';
+import { seedShowcase } from './seed-showcase';
 import { seedTracks } from './seed-tracks';
 import { seedVerifications } from './seed-verification';
 
@@ -96,7 +98,7 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   });
   await createAccount(repos.accounts, passwords, { email: worker.email, password: SEED_PASSWORD, role: 'worker', profileId: worker.id });
 
-  // Conta com os dois perfis (alterna entre os painéis), ainda sem fazendas nem vagas.
+  // Conta com os dois perfis (alterna entre os painéis); o sítio e as vagas dele vêm em src/seed-showcase.ts.
   const both = { email: 'ambos@exemplo.com', name: 'Carlos Produtor e Trabalhador', phone: '24977777777', cpf: '39053344705' };
   const bothFarmer = await repos.farmers.create({ ...both, farms: [], photo_url: null, insertion_date: registeredAt });
   const bothWorker = await repos.workers.create({
@@ -189,4 +191,6 @@ export async function seed(repos: Repositories, clock: Clock, passwords: Passwor
   });
   // Verificação de identidade: o João com o selo; o Pedro na fila da equipe (src/seed-verification.ts).
   await seedVerifications(repos, now, { farmerId: farmer.id, farmerName: farmer.name, pedroEmail: 'pedro@exemplo.com' }, idDocuments);
+  // Exemplos em Goiás: o sítio do Carlos com vagas e conversa, uma fazenda do João, o catálogo de Rio Verde e o certificado da Maria.
+  await seedShowcase(repos, now, { joaoId: farmer.id, carlosFarmerId: bothFarmer.id, mariaId: worker.id });
 }
