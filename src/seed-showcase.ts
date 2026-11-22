@@ -9,7 +9,7 @@
 import { OPENED_MESSAGE } from '#modules/chat';
 import { windowEndsAt } from '#modules/reviews';
 import { type PriceUnit, SERVICE_STATUS, type Service, describeTerms } from '#modules/services';
-import { randomCertificateCodes, sha256CertificateHasher } from '#modules/tracks';
+import { sha256CertificateHasher } from '#modules/tracks';
 import type { Repositories } from './repositories';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -30,7 +30,7 @@ export async function seedShowcase(repos: Repositories, now: string, people: Sho
   for (const p of [
     { name: 'Zé Arameiro', cpf: '45317828791', bio: 'Cerca de arame, mourão e esticador. Atendo a região de Rio Verde.', experience: '15 anos',
       categories: ['Conserto de cerca', 'Construção de cerca', 'Troca de mourões e esticadores'] },
-    { name: 'Lourdes Encanadora', cpf: '86288366757', bio: 'Caixa d\'água, boia, cano e bomba.', experience: '9 anos',
+    { name: 'Lourdes Encanadora', cpf: '54323194897', bio: 'Caixa d\'água, boia, cano e bomba.', experience: '9 anos',
       categories: ['Encanamento e caixa d\'água', 'Manutenção'] },
     { name: 'Tião Roçador', cpf: '27472893506', bio: 'Roçada manual e com trator, aceiro e limpeza de pasto.', experience: '7 anos',
       categories: ['Roçada manual', 'Limpeza de pasto', 'Aceiro manual', 'Operação de máquinas'] }
@@ -141,7 +141,7 @@ export async function seedShowcase(repos: Repositories, now: string, people: Sho
   await open(joaoId, santaLuzia.id, 'Construção de cerca do piquete', 'Construção de cerca',
     'Cerca nova de 300 m para dividir o piquete das novilhas. Material por conta da fazenda.', 24, 14, 'meter', 1.6, 10);
 
-  // Maria concluiu a trilha de trator: certificado emitido há 10 dias.
+  // Maria concluiu a trilha de trator: certificado emitido há 10 dias, com código fixo para o seed sair igual em memória e no banco.
   const [tractor] = (await repos.tracks.find()).filter((t) => t.title.startsWith('Trator'));
   const worker = await repos.workers.findById(mariaId);
   if (tractor && worker) {
@@ -152,7 +152,7 @@ export async function seedShowcase(repos: Repositories, now: string, people: Sho
       started_at: shift(-14), completed_at: completedAt
     });
     const data = {
-      code: randomCertificateCodes.create(), worker_name: worker.name, track_title: tractor.title,
+      code: 'RZ-DEMO-TRAT-01', worker_name: worker.name, track_title: tractor.title,
       workload_minutes: lessons.reduce((sum, l) => sum + l.duration_minutes, 0), completed_at: completedAt
     };
     await repos.certificates.create({ ...data, track_id: tractor.id, worker_id: mariaId, issued_at: completedAt, data_hash: sha256CertificateHasher.hash(data) });
