@@ -62,9 +62,9 @@ describe('PostgreSQL: esquema e seed', () => {
       assert.deepEqual(comparable(actual), comparable(expected), `repositório ${name}`);
       if (expected.length === 0) empty.push(name);
     }
-    // O seed não cria certificados, avisos de vaga nem inscrições de push: essas tabelas são exercitadas
+    // O seed não cria avisos de vaga nem inscrições de push: essas tabelas são exercitadas
     // pelos testes de integração e pelo e2e rodando sobre o banco.
-    assert.deepEqual(empty.sort(), ['certificates', 'jobAlerts', 'pushSubscriptions']);
+    assert.deepEqual(empty.sort(), ['jobAlerts', 'pushSubscriptions']);
   });
 
   it('o seed de demonstração roda uma vez por banco', async () => {
